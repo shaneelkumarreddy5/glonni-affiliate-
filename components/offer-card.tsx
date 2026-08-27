@@ -1,0 +1,2 @@
+import { Star } from 'lucide-react'; import { offers } from '@/lib/mock-data';
+export function OfferCard({offer}:{offer:(typeof offers)[number]}){return <article className="offer"><div className="offer-img"><em>{offer.off}</em><img src={offer.image} alt=""/></div><h3>{offer.name}</h3><div><b>{offer.price}</b> <del>{offer.old}</del></div><strong className="cashback">{offer.cashback}</strong><p><Star size={14} fill="currentColor"/> {offer.rating}</p><a className="deal-link" href={`/go/${offer.id}`}>View deal</a></article>}
