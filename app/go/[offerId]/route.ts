@@ -1,3 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-const mockDestinations: Record<string,string> = { 'demo-phone-15':'https://example.com/mock-phone-offer','demo-airpods':'https://example.com/mock-airpods-offer','demo-watch':'https://example.com/mock-watch-offer','demo-shoes':'https://example.com/mock-shoes-offer','store-amazon':'https://example.com/mock-amazon-store','store-meesho':'https://example.com/mock-meesho-store','store-nykaa':'https://example.com/mock-nykaa-store','store-flipkart':'https://example.com/mock-flipkart-store','store-myntra':'https://example.com/mock-myntra-store' };
-export async function GET(_: NextRequest,{params}:{params:Promise<{offerId:string}>}) { const {offerId}=await params; const destination=mockDestinations[offerId]; if(!destination) return NextResponse.redirect(new URL('/',_.url)); /* Step 1: replace this mock lookup with server-side Supabase offer lookup, then write redirect_events before redirecting. */ return NextResponse.redirect(destination,307); }
+import { createClient } from '@/lib/supabase/server';
+
+export async function GET(request: NextRequest,{params}:{params:Promise<{offerId:string}>}) {
+  const { offerId } = await params; const supabase = await createClient();
+  const { data: offer } = await supabase.from('offers').select('destination_url').eq('id',offerId).eq('status','active').maybeSingle();
+  if (!offer?.destination_url) return NextResponse.redirect(new URL('/deals',request.url));
+  await supabase.rpc('record_offer_redirect',{p_offer_id:offerId,p_referrer:request.headers.get('referer'),p_user_agent:request.headers.get('user-agent')});
+  return NextResponse.redirect(offer.destination_url,307);
+}
