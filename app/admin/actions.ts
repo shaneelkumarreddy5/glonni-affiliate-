@@ -1,0 +1,7 @@
+'use server';
+import { revalidatePath } from 'next/cache'; import { createClient } from '@/lib/supabase/server';
+const slug=(v:string)=>v.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'-');const refresh=()=>{revalidatePath('/admin');revalidatePath('/');revalidatePath('/deals');};
+export async function addCategory(f:FormData){const name=String(f.get('name')??'').trim();if(name){const s=await createClient();await s.from('categories').insert({name,slug:slug(name),display_order:99,is_active:true});refresh();}}
+export async function addStore(f:FormData){const name=String(f.get('name')??''),url=String(f.get('url')??'');if(name&&url){const s=await createClient();await s.from('merchants').insert({name,slug:slug(name),storefront_url:url,homepage_position:99,is_active:true});refresh();}}
+export async function addProduct(f:FormData){const title=String(f.get('title')??'');if(title){const s=await createClient();await s.from('products').insert({title,slug:slug(title),brand:String(f.get('brand')??''),category_id:String(f.get('category')??'')||null,is_active:true});refresh();}}
+export async function removeItem(f:FormData){const table=String(f.get('table')),id=String(f.get('id'));if(['categories','merchants','products','offers'].includes(table)&&id){const s=await createClient();await s.from(table).delete().eq('id',id);refresh();}}
