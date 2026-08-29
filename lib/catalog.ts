@@ -1,14 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
-
-export type CatalogOffer = { id:string; current_price:number | null; list_price:number | null; cashback_amount:number | null; products:{title:string;slug:string;image_url:string | null;brand:string | null} | null; merchants:{name:string;slug:string} | null };
-export async function getCatalogOffers() {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [] as CatalogOffer[];
-  const supabase = await createClient();
-  const { data } = await supabase.from('offers').select('id,current_price,list_price,cashback_amount,products(title,slug,image_url,brand),merchants(name,slug)').eq('status','active').order('created_at',{ascending:false});
-  return (data ?? []) as unknown as CatalogOffer[];
-}
-export async function getCatalogOffer(slug:string) { return (await getCatalogOffers()).find((offer) => offer.products?.slug === slug) ?? null; }
-export async function getStores() {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [] as {id:string;name:string;slug:string;logo_url:string|null}[];
-  const supabase = await createClient(); const { data } = await supabase.from('merchants').select('id,name,slug,logo_url').eq('is_active',true).order('homepage_position'); return data ?? [];
-}
+export type CatalogOffer={id:string;current_price:number|null;list_price:number|null;cashback_amount:number|null;products:{id:string;title:string;slug:string;image_url:string|null;brand:string|null;categories:{name:string;slug:string}|null}|null;merchants:{name:string;slug:string;storefront_url:string|null}|null};
+export type CatalogFilters={query?:string;store?:string;category?:string};
+const selection='id,current_price,list_price,cashback_amount,products!inner(id,title,slug,image_url,brand,categories(name,slug)),merchants!inner(name,slug,storefront_url)';
+export async function getCatalogOffers(filters:CatalogFilters={}){if(!process.env.NEXT_PUBLIC_SUPABASE_URL)return [] as CatalogOffer[];const supabase=await createClient();let query=supabase.from('offers').select(selection).eq('status','active').order('current_price',{ascending:true});if(filters.store)query=query.eq('merchants.slug',filters.store);if(filters.category)query=query.eq('products.categories.slug',filters.category);const {data}=await query;const rows=(data??[]) as unknown as CatalogOffer[];const needle=filters.query?.trim().toLowerCase();return needle?rows.filter(x=>`${x.products?.title??''} ${x.products?.brand??''}`.toLowerCase().includes(needle)):rows;}
+export async function getProductOffers(slug:string){return (await getCatalogOffers()).filter((offer)=>offer.products?.slug===slug);}
+export async function getStores(){if(!process.env.NEXT_PUBLIC_SUPABASE_URL)return [] as {id:string;name:string;slug:string;logo_url:string|null;storefront_url:string|null}[];const supabase=await createClient();const {data}=await supabase.from('merchants').select('id,name,slug,logo_url,storefront_url').eq('is_active',true).order('homepage_position');return data??[];}
+export async function getCategories(){if(!process.env.NEXT_PUBLIC_SUPABASE_URL)return [] as {id:string;name:string;slug:string}[];const supabase=await createClient();const {data}=await supabase.from('categories').select('id,name,slug').eq('is_active',true).order('display_order');return data??[];}
