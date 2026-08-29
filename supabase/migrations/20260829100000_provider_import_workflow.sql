@@ -1,0 +1,8 @@
+create type public.import_status as enum ('draft','validated','approval_required','approved','published','rejected');
+create table public.import_batches (id uuid primary key default gen_random_uuid(), provider_id uuid references public.affiliate_providers(id) on delete set null, source_type text not null check (source_type in ('manual_links','csv_feed','api','deep_link_api')), status public.import_status not null default 'draft', source_label text not null, total_rows integer not null default 0, valid_rows integer not null default 0, invalid_rows integer not null default 0, submitted_by uuid references auth.users(id) on delete set null, approved_by uuid references auth.users(id) on delete set null, notes text, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+create index import_batches_provider_id_idx on public.import_batches(provider_id);
+create index import_batches_status_idx on public.import_batches(status);
+alter table public.import_batches enable row level security;
+create policy "admins manage import batches" on public.import_batches for all to authenticated using ((select role from public.profiles where id=(select auth.uid())) in ('admin','owner','editor')) with check ((select role from public.profiles where id=(select auth.uid())) in ('admin','owner','editor'));
+create policy "admins write audit events" on public.audit_events for insert to authenticated with check ((select role from public.profiles where id=(select auth.uid())) in ('admin','owner','editor'));
+insert into public.audit_events(event_type,entity_type,source,metadata) values ('step_3_initialized','provider_framework','migration','{"live_providers_enabled":false,"default_mode":"manual"}');
