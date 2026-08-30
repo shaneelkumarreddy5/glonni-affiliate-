@@ -1,0 +1,4 @@
+import { CatalogOffer } from '@/lib/catalog';
+import { hasCashback,rewardLabel } from '@/lib/rewards';
+
+export function OfferGrid({offers}:{offers:CatalogOffer[]}){return <div className="offer-grid">{offers.map(o=>{const discount=o.current_price&&o.list_price?Math.round((1-o.current_price/o.list_price)*100):null;return <a href={`/product/${o.products?.slug}`} className="offer" key={o.id}><div className="offer-img">{discount&&<em>{discount}% OFF</em>}<img src={o.products?.image_url||''} alt={o.products?.title??''}/></div><h3>{o.products?.title}</h3><p>{o.merchants?.name} · {o.products?.categories?.name}</p><b>₹{o.current_price?.toLocaleString('en-IN')}</b>{o.list_price&&<del>₹{o.list_price.toLocaleString('en-IN')}</del>}<strong className={hasCashback(o)?'cashback':''}>{rewardLabel(o)}</strong></a>})}</div>}
