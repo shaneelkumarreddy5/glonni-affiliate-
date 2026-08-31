@@ -8,6 +8,13 @@ export function RecoverySessionHandler({ audience }: { audience: 'customer' | 'a
   const router = useRouter();
   const [error, setError] = useState('');
   const redirecting = useRef(false);
+  const hasRecoveryPayload = useRef<boolean | null>(null);
+  if (hasRecoveryPayload.current === null && typeof window !== 'undefined') {
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    hasRecoveryPayload.current = fragment.get('type') === 'recovery'
+      && Boolean(fragment.get('access_token'))
+      && Boolean(fragment.get('refresh_token'));
+  }
   const supabase = useMemo(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -17,6 +24,11 @@ export function RecoverySessionHandler({ audience }: { audience: 'customer' | 'a
   useEffect(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
+
+    if (!hasRecoveryPayload.current) {
+      setError('This recovery link is invalid, already used, or expired. Request a new link and open only the newest email.');
+      return;
+    }
 
     async function continueRecovery() {
       if (!active || redirecting.current) return false;
