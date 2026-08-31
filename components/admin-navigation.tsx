@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 
 const sections = [
+  ['AI COMPANY', [['✦','AI Agents','/admin/ai-agents']]],
   ['MAIN', [['⌂','Dashboard','/admin/dashboard'],['♙','Users','/admin/users'],['◫','Wallet & Payouts','/admin/wallet'],['♧','Offers & Rewards','/admin/offers']]],
   ['SHOP & EARN', [['▣','Stores & Brands','/admin'],['▦','Categories','/admin/categories'],['◇','Products','/admin/products'],['♜','Deals & Banners','/admin/campaigns'],['◈','Orders & Earnings','/admin/orders'],['⚑','Reported Orders','/admin/reported-orders']]],
   ['PROVIDERS', [['◌','Affiliate Providers','/admin/providers'],['↔','API Integrations','/admin/integrations'],['⌁','Postback Logs','/admin/postbacks']]],
