@@ -1,0 +1,2 @@
+import { adminSignOut } from '@/app/admin/auth-actions';
+export default function Page(){return <main className="admin-auth-page"><section className="admin-auth-card"><p className="eyebrow">SECURE SESSION</p><h1>Sign out of Admin</h1><p>Your current device session will be ended. Your next login will require your password and authenticator code.</p><form action={adminSignOut} className="auth-form"><button>Sign out now</button></form><a className="auth-back" href="/admin/dashboard">← Keep me signed in</a></section></main>}
