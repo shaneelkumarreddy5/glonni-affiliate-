@@ -1,3 +1,3 @@
 'use client';
 import { useEffect } from 'react';
-export function AdminNavigation(){useEffect(()=>{document.querySelectorAll<HTMLAnchorElement>('.admin-v2 .admin-side a[href="#"]').forEach((link)=>{const label=link.textContent?.trim();if(label==='Users')link.href='/admin/users';if(label==='Dashboard')link.href='/admin/dashboard';});},[]);return null;}
+export function AdminNavigation(){useEffect(()=>{document.querySelectorAll<HTMLAnchorElement>('.admin-v2 .admin-side a[href="#"]').forEach((link)=>{const label=link.textContent?.trim();if(label==='Users')link.href='/admin/users';if(label==='Dashboard')link.href='/admin/dashboard';if(label==='Wallet & Payouts')link.href='/admin/wallet';});},[]);return null;}
