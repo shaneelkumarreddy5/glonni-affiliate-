@@ -3,6 +3,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createRecoveryRequestClient } from '@/lib/supabase/recovery';
 
 const msg = (value: string) => encodeURIComponent(value);
 const safeNext = (value: FormDataEntryValue | null) => {
@@ -50,9 +51,11 @@ export async function completeAdminOnboarding(formData: FormData) {
 
 export async function adminRequestPasswordReset(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
-  const supabase = await createClient();
-  await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await getOrigin()}/auth/callback?next=/admin/reset-password` });
-  redirect(`/admin/forgot-password?success=${msg('If an admin account exists, a secure reset link has been sent.')}`);
+  const supabase = createRecoveryRequestClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await getOrigin()}/auth/recovery?audience=admin` });
+  if (error?.status === 429) redirect(`/admin/forgot-password?error=${msg('Too many recovery emails were requested. Supabase has temporarily limited delivery; please wait before trying again.')}`);
+  if (error) redirect(`/admin/forgot-password?error=${msg('We could not send a recovery email. Please try again later.')}`);
+  redirect(`/admin/forgot-password?success=${msg('If an admin account exists, a five-minute recovery link has been sent. Open only the newest email.')}`);
 }
 
 export async function adminUpdatePassword(formData: FormData) {

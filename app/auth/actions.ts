@@ -3,6 +3,7 @@
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createRecoveryRequestClient } from '@/lib/supabase/recovery';
 
 const safeNext = (value: FormDataEntryValue | null, fallback = '/account') => {
   const path = typeof value === 'string' ? value : fallback;
@@ -47,9 +48,11 @@ export async function signUp(formData: FormData) {
 
 export async function requestPasswordReset(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
-  const supabase = await createClient();
-  await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await origin()}/auth/callback?next=/reset-password` });
-  redirect(`/forgot-password?success=${message('If an account exists for this email, a secure reset link has been sent.')}`);
+  const supabase = createRecoveryRequestClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await origin()}/auth/recovery?audience=customer` });
+  if (error?.status === 429) redirect(`/forgot-password?error=${message('Too many recovery emails were requested. Supabase has temporarily limited delivery; please wait before trying again.')}`);
+  if (error) redirect(`/forgot-password?error=${message('We could not send a recovery email. Please try again later.')}`);
+  redirect(`/forgot-password?success=${message('If an account exists, a five-minute recovery link has been sent. Open only the newest email.')}`);
 }
 
 export async function updatePassword(formData: FormData) {
