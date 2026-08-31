@@ -1,0 +1,2 @@
+import { AdminPlaceholder } from '@/components/admin-placeholder';
+export default function SettingsPage(){return <AdminPlaceholder title="Settings" eyebrow="PLATFORM SETTINGS" description="Prepare business, roles, security, legal and wallet rules for launch." rows={[["Business profile","Glonni Affiliate / India","Confirm legal entity"],["Admin roles","Owner, admin, editor, reviewer","Secure authentication"],["Affiliate policy","Provider-neutral merchant rules","Legal review"],["Wallet safeguards","Provider-backed cashback only","Payout compliance"]]}/>}

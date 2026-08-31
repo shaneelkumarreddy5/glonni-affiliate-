@@ -1,3 +1,19 @@
 'use client';
 import { useEffect } from 'react';
-export function AdminNavigation(){useEffect(()=>{document.querySelectorAll<HTMLAnchorElement>('.admin-v2 .admin-side a[href="#"]').forEach((link)=>{const label=link.textContent?.trim();if(label==='Users')link.href='/admin/users';if(label==='Dashboard')link.href='/admin/dashboard';if(label==='Wallet & Payouts')link.href='/admin/wallet';if(label==='Offers & Rewards')link.href='/admin/offers';if(label==='Categories')link.href='/admin/categories';if(label==='Products')link.href='/admin/products';if(label==='Deals & Banners')link.href='/admin/campaigns';if(label==='Orders & Earnings')link.href='/admin/orders';if(label==='Reported Orders')link.href='/admin/reported-orders';if(label==='Affiliate Providers')link.href='/admin/providers';if(label==='API Integrations')link.href='/admin/integrations';if(label==='Postback Logs')link.href='/admin/postbacks';});document.querySelectorAll<HTMLAnchorElement>('.admin-v2 .store-table tbody a[href^="/store/"]').forEach((link)=>{const href=link.getAttribute('href');if(href)link.href=href.replace('/store/','/admin/stores/');});},[]);return null;}
+
+const sections = [
+  ['MAIN', [['⌂','Dashboard','/admin/dashboard'],['♙','Users','/admin/users'],['◫','Wallet & Payouts','/admin/wallet'],['♧','Offers & Rewards','/admin/offers']]],
+  ['SHOP & EARN', [['▣','Stores & Brands','/admin'],['▦','Categories','/admin/categories'],['◇','Products','/admin/products'],['♜','Deals & Banners','/admin/campaigns'],['◈','Orders & Earnings','/admin/orders'],['⚑','Reported Orders','/admin/reported-orders']]],
+  ['PROVIDERS', [['◌','Affiliate Providers','/admin/providers'],['↔','API Integrations','/admin/integrations'],['⌁','Postback Logs','/admin/postbacks']]],
+  ['MANAGEMENT', [['▤','Analytics & Controls','/admin/analytics'],['▧','CMS','/admin/cms'],['♢','Notifications','/admin/notifications'],['⚙','Settings','/admin/settings']]],
+] as const;
+
+export function AdminNavigation() {
+  useEffect(() => {
+    const path = window.location.pathname;
+    const active = (href: string) => href === '/admin' ? path === href : path === href || path.startsWith(`${href}/`);
+    const markup = `<a class="admin-brand" href="/"><b>Glonn<i>i</i></b><span>Admin Panel</span></a>${sections.map(([title, links]) => `<section><p>${title}</p>${links.map(([symbol, label, href]) => `<a class="${active(href) ? 'selected' : ''}" href="${href}"><i class="nav-symbol">${symbol}</i>${label}</a>`).join('')}</section>`).join('')}`;
+    document.querySelectorAll<HTMLElement>('.admin-v2 .admin-side').forEach((element) => { element.innerHTML = markup; });
+  }, []);
+  return null;
+}

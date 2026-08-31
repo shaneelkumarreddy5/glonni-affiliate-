@@ -1,0 +1,2 @@
+import { AdminPlaceholder } from '@/components/admin-placeholder';
+export default function CmsPage(){return <AdminPlaceholder title="CMS" eyebrow="CONTENT MANAGEMENT" description="Manage homepage modules, collections, content pages and customer disclosures." rows={[["Homepage modules","Hero, categories, stores and top deals","Desktop and mobile review"],["Collections","Curated landing content","Catalogue mapping"],["Legal content","Affiliate disclosure and policy pages","Legal review"],["Store content","Merchant descriptions and placement","Provider-neutral copy"]]}/>}
