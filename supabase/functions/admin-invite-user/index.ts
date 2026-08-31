@@ -2,7 +2,7 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 
 type InviteBody = {
-  mode?: "bootstrap_owner" | "employee";
+  mode?: "bootstrap_owner" | "employee" | "complete_onboarding";
   email?: string;
   displayName?: string;
   role?: "editor" | "admin" | "owner";
@@ -38,13 +38,36 @@ export default {
       const { data: ownerProfiles } = await ctx.supabaseAdmin.from("profiles").select("id").eq("role", "owner").limit(1);
       if (ownerProfiles?.length) return response({ error: "The Owner account is already provisioned." }, 409);
       const { data: users } = await ctx.supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      if (users.users.some((user) => user.email?.toLowerCase() === email)) return response({ error: "The Owner invitation already exists." }, 409);
-      const { error } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-        data: { display_name: "Glonni Owner" },
-        redirectTo: `${siteUrl}/auth/callback?next=/admin/onboarding`,
+      let invitedUser = users.users.find((candidate) => candidate.email?.toLowerCase() === email);
+      let invitationSent = false;
+      if (!invitedUser) {
+        const { data, error } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+          data: { display_name: "Glonni Owner" },
+          redirectTo: `${siteUrl}/auth/callback?next=/admin/onboarding`,
+        });
+        if (error || !data.user) return response({ error: error?.message ?? "Owner invitation failed." }, 400);
+        invitedUser = data.user;
+        invitationSent = true;
+      }
+      await ctx.supabaseAdmin.auth.admin.updateUserById(invitedUser.id, {
+        app_metadata: { ...invitedUser.app_metadata, admin_role: "owner", employee: true },
+        user_metadata: { ...invitedUser.user_metadata, display_name: "Glonni Owner" },
       });
-      if (error) return response({ error: error.message }, 400);
-      return response({ ok: true, message: "Owner invitation sent." });
+      await ctx.supabaseAdmin.from("profiles").upsert({ id: invitedUser.id, display_name: "Glonni Owner", role: "owner", updated_at: new Date().toISOString() });
+      const { data: ownerDepartment } = await ctx.supabaseAdmin.from("departments").select("id").eq("code", "OWNER").single();
+      await ctx.supabaseAdmin.from("employees").upsert({
+        profile_id: invitedUser.id,
+        employee_code: `GL-${invitedUser.id.replaceAll("-", "").slice(0, 8).toUpperCase()}`,
+        work_email: email,
+        job_title: "Founder & Owner",
+        department_id: ownerDepartment?.id ?? null,
+        employment_type: "full_time",
+        status: "invited",
+        approval_limit: 0,
+        requires_mfa: true,
+        updated_at: new Date().toISOString(),
+      });
+      return response({ ok: true, message: invitationSent ? "Owner invitation sent." : "Existing Owner invitation repaired." });
     }
 
     const authorization = req.headers.get("authorization") ?? "";
@@ -55,9 +78,19 @@ export default {
 
     const { data: profile } = await ctx.supabaseAdmin.from("profiles").select("role").eq("id", user.id).single();
     const { data: employee } = await ctx.supabaseAdmin.from("employees").select("status").eq("profile_id", user.id).single();
-    if (!profile || !["owner", "admin"].includes(profile.role) || !employee || !["active", "invited"].includes(employee.status)) {
-      return response({ error: "You do not have permission to invite employees." }, 403);
+    if (!profile || !["owner", "admin", "editor"].includes(profile.role) || !employee || !["active", "invited"].includes(employee.status)) return response({ error: "This admin account is not active." }, 403);
+
+    if (body.mode === "complete_onboarding") {
+      await ctx.supabaseAdmin.from("employees").update({ status: "active", updated_at: new Date().toISOString() }).eq("profile_id", user.id);
+      await ctx.supabaseAdmin.from("admin_invitations").update({ status: "accepted", accepted_at: new Date().toISOString() }).eq("email", user.email).in("status", ["pending", "sent"]);
+      await ctx.supabaseAdmin.from("audit_events").insert({
+        actor_id: user.id, event_type: "admin_onboarding_completed", entity_type: "employee", entity_id: user.id,
+        source: "admin", metadata: { aal: "aal2" },
+      });
+      return response({ ok: true, message: "Admin onboarding completed." });
     }
+
+    if (!["owner", "admin"].includes(profile.role)) return response({ error: "You do not have permission to invite employees." }, 403);
 
     if (!email || !body.displayName || !body.jobTitle || !body.role) return response({ error: "Complete all required employee fields." }, 400);
     if (body.role === "owner" && profile.role !== "owner") return response({ error: "Only the Owner can grant Owner access." }, 403);
@@ -78,14 +111,36 @@ export default {
     }).select("id").single();
     if (insertError) return response({ error: insertError.message }, 400);
 
-    const { error: inviteError } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    const { data: inviteData, error: inviteError } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
       data: { display_name: body.displayName },
       redirectTo: `${siteUrl}/auth/callback?next=/admin/onboarding`,
     });
-    if (inviteError) {
+    if (inviteError || !inviteData.user) {
       await ctx.supabaseAdmin.from("admin_invitations").update({ status: "failed" }).eq("id", invitation.id);
       return response({ error: inviteError.message }, 400);
     }
+    const invitedUser = inviteData.user;
+    await ctx.supabaseAdmin.auth.admin.updateUserById(invitedUser.id, {
+      app_metadata: { ...invitedUser.app_metadata, admin_role: body.role, employee: true },
+      user_metadata: { ...invitedUser.user_metadata, display_name: body.displayName },
+    });
+    await ctx.supabaseAdmin.from("profiles").upsert({ id: invitedUser.id, display_name: body.displayName, role: body.role, updated_at: new Date().toISOString() });
+    await ctx.supabaseAdmin.from("employees").upsert({
+      profile_id: invitedUser.id,
+      employee_code: `GL-${invitedUser.id.replaceAll("-", "").slice(0, 8).toUpperCase()}`,
+      work_email: email,
+      phone: body.phone || null,
+      job_title: body.jobTitle,
+      department_id: body.departmentId || null,
+      manager_id: body.managerId || null,
+      employment_type: body.employmentType ?? "full_time",
+      status: "invited",
+      joining_date: body.joiningDate || null,
+      approval_limit: Number(body.approvalLimit ?? 0),
+      requires_mfa: true,
+      created_by: user.id,
+      updated_at: new Date().toISOString(),
+    });
     await ctx.supabaseAdmin.from("admin_invitations").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", invitation.id);
     await ctx.supabaseAdmin.from("audit_events").insert({
       actor_id: user.id, event_type: "employee_invited", entity_type: "admin_invitation", entity_id: invitation.id,
