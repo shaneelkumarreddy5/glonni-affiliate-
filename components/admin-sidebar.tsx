@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 
 const sections = [
-  { title: 'AI COMPANY', links: [{ label: 'AI Agents', href: '/admin/ai-agents', icon: Bot }] },
+  { title: 'AI COMPANY', links: [{ label: 'AI Agents', href: '/admin/ai-agents', icon: Bot }, { label: 'Approval Inbox', href: '/admin/approvals', icon: ClipboardCheck }] },
   { title: 'MAIN', links: [
     { label: 'Dashboard', href: '/admin/dashboard', icon: ChartNoAxesCombined },
     { label: 'Users', href: '/admin/users', icon: Users },
