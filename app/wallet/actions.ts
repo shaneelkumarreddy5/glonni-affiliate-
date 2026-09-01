@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { verifySimpleCaptcha } from '@/lib/security/simple-captcha';
 
 const outstandingStatuses = ['requested', 'on_hold', 'approved'];
 
@@ -10,6 +11,7 @@ export async function requestWithdrawal(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?next=/wallet');
+  if (!verifySimpleCaptcha(String(formData.get('captchaToken') ?? ''), String(formData.get('captchaAnswer') ?? ''))) redirect('/wallet?error=Please+complete+the+quick+security+check+and+try+again.');
 
   const amount = Number(formData.get('amount'));
   const upiId = String(formData.get('upiId') ?? '').trim();

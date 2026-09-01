@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createRecoveryRequestClient } from '@/lib/supabase/recovery';
+import { verifySimpleCaptcha } from '@/lib/security/simple-captcha';
 
 const safeNext = (value: FormDataEntryValue | null, fallback = '/account') => {
   const path = typeof value === 'string' ? value : fallback;
@@ -23,6 +24,7 @@ export async function signIn(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
   const password = String(formData.get('password') ?? '');
   const next = safeNext(formData.get('next'));
+  if (!verifySimpleCaptcha(String(formData.get('captchaToken') ?? ''), String(formData.get('captchaAnswer') ?? ''))) redirect(`/login?mode=signin&next=${encodeURIComponent(next)}&error=${message('Please complete the quick security check and try again.')}`);
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) redirect(`/login?mode=signin&next=${encodeURIComponent(next)}&error=${message('Email or password is incorrect, or the email has not been verified.')}`);
@@ -34,6 +36,7 @@ export async function signUp(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
   const password = String(formData.get('password') ?? '');
   const next = safeNext(formData.get('next'));
+  if (!verifySimpleCaptcha(String(formData.get('captchaToken') ?? ''), String(formData.get('captchaAnswer') ?? ''))) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message('Please complete the quick security check and try again.')}`);
   if (displayName.length < 2 || password.length < 8) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message('Enter your name and use a password with at least 8 characters.')}`);
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
@@ -48,6 +51,7 @@ export async function signUp(formData: FormData) {
 
 export async function requestPasswordReset(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
+  if (!verifySimpleCaptcha(String(formData.get('captchaToken') ?? ''), String(formData.get('captchaAnswer') ?? ''))) redirect(`/forgot-password?error=${message('Please complete the quick security check and try again.')}`);
   const supabase = createRecoveryRequestClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await origin()}/auth/recovery?audience=customer` });
   if (error?.status === 429) redirect(`/forgot-password?error=${message('Too many recovery emails were requested. Supabase has temporarily limited delivery; please wait before trying again.')}`);
