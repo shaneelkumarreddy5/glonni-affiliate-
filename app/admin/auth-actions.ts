@@ -1,21 +1,13 @@
 'use server';
 
-import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { createRecoveryRequestClient } from '@/lib/supabase/recovery';
 
 const msg = (value: string) => encodeURIComponent(value);
 const safeNext = (value: FormDataEntryValue | null) => {
   const path = String(value ?? '/admin/dashboard');
   return path.startsWith('/admin') && !path.startsWith('//') ? path : '/admin/dashboard';
 };
-async function getOrigin() {
-  const h = await headers();
-  const host = h.get('x-forwarded-host') ?? h.get('host');
-  const protocol = h.get('x-forwarded-proto') ?? (host?.includes('localhost') ? 'http' : 'https');
-  return host ? `${protocol}://${host}` : 'https://glonni-affiliate.vercel.app';
-}
 
 export async function adminSignIn(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
@@ -47,15 +39,6 @@ export async function completeAdminOnboarding(formData: FormData) {
   const { error } = await supabase.auth.updateUser({ password });
   if (error) redirect(`/admin/onboarding?error=${msg('The invitation is invalid or expired. Request a new invitation.')}`);
   redirect('/admin/mfa/enroll?next=/admin/dashboard');
-}
-
-export async function adminRequestPasswordReset(formData: FormData) {
-  const email = String(formData.get('email') ?? '').trim().toLowerCase();
-  const supabase = createRecoveryRequestClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await getOrigin()}/auth/recovery?audience=admin` });
-  if (error?.status === 429) redirect(`/admin/forgot-password?error=${msg('Too many recovery emails were requested. Supabase has temporarily limited delivery; please wait before trying again.')}`);
-  if (error) redirect(`/admin/forgot-password?error=${msg('We could not send a recovery email. Please try again later.')}`);
-  redirect(`/admin/forgot-password?success=${msg('If an admin account exists, a five-minute recovery link has been sent. Open only the newest email.')}`);
 }
 
 export async function adminUpdatePassword(formData: FormData) {

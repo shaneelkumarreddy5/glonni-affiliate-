@@ -2,8 +2,10 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 
 type InviteBody = {
-  mode?: "bootstrap_owner" | "employee" | "complete_onboarding";
+  mode?: "bootstrap_owner" | "employee" | "complete_onboarding" | "owner_setup";
   email?: string;
+  token?: string;
+  password?: string;
   displayName?: string;
   role?: "editor" | "admin" | "owner";
   departmentId?: string | null;
@@ -26,12 +28,66 @@ const decodeJwt = (token: string) => {
   }
 };
 
+const sha256 = async (value: string) => {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+};
+
 export default {
   fetch: withSupabase({ auth: ["publishable"] }, async (req, ctx) => {
     if (req.method !== "POST") return response({ error: "Method not allowed" }, 405);
     const body = (await req.json()) as InviteBody;
     const email = body.email?.trim().toLowerCase();
     const siteUrl = "https://glonni-affiliate.vercel.app";
+
+    if (body.mode === "owner_setup") {
+      const token = body.token?.trim() ?? "";
+      const password = body.password ?? "";
+      const strongPassword = password.length >= 12
+        && /[a-z]/.test(password)
+        && /[A-Z]/.test(password)
+        && /[0-9]/.test(password)
+        && /[^A-Za-z0-9]/.test(password);
+      if (token.length < 40 || !strongPassword) {
+        return response({ error: "Use a valid setup link and a password with 12+ characters, uppercase, lowercase, number and symbol." }, 400);
+      }
+
+      const tokenHash = await sha256(token);
+      const { data: setupToken } = await ctx.supabaseAdmin
+        .from("admin_setup_tokens")
+        .select("id, profile_id, purpose")
+        .eq("token_hash", tokenHash)
+        .is("used_at", null)
+        .gt("expires_at", new Date().toISOString())
+        .maybeSingle();
+      if (!setupToken) return response({ error: "This setup link is invalid, expired or already used." }, 403);
+
+      const [{ data: setupProfile }, { data: setupEmployee }] = await Promise.all([
+        ctx.supabaseAdmin.from("profiles").select("role").eq("id", setupToken.profile_id).single(),
+        ctx.supabaseAdmin.from("employees").select("status").eq("profile_id", setupToken.profile_id).single(),
+      ]);
+      if (setupProfile?.role !== "owner" || !setupEmployee || !["invited", "active"].includes(setupEmployee.status)) {
+        return response({ error: "This setup link is not authorized for the Owner account." }, 403);
+      }
+
+      const { error: passwordError } = await ctx.supabaseAdmin.auth.admin.updateUserById(setupToken.profile_id, {
+        password,
+        email_confirm: true,
+      });
+      if (passwordError) return response({ error: "The Owner password could not be saved." }, 400);
+
+      await ctx.supabaseAdmin.from("admin_setup_tokens").update({ used_at: new Date().toISOString() }).eq("id", setupToken.id).is("used_at", null);
+      await ctx.supabaseAdmin.from("audit_events").insert({
+        actor_id: setupToken.profile_id,
+        event_type: setupToken.purpose === "initial_password" ? "owner_password_initialized" : "owner_password_reset",
+        entity_type: "employee",
+        entity_id: setupToken.profile_id,
+        source: "admin",
+        metadata: { method: "one_time_setup_token" },
+      });
+      return response({ ok: true, message: "Owner password saved. Sign in to complete 2FA." });
+    }
 
     if (body.mode === "bootstrap_owner") {
       if (email !== "admin@glonni.com") return response({ error: "Owner bootstrap email is fixed." }, 403);
