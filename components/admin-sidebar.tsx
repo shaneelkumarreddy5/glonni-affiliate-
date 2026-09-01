@@ -73,8 +73,13 @@ export function AdminSidebar() {
   };
 
   return <aside ref={sidebarRef} className="admin-side" aria-label="Admin navigation">
-    <button className="sidebar-toggle" type="button" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggle}><ChevronLeft/></button>
-    <a className="admin-brand" href="/admin/dashboard"><b>Glonn<i>i</i></b><span>Admin Panel</span></a>
-    <nav>{sections.map((section) => <section key={section.title}><p>{section.title}</p>{section.links.map((link) => { const Icon = link.icon; return <a key={link.href} className={active(link.href) ? 'selected' : ''} href={link.href}><Icon className="nav-symbol" size={17}/><span className="nav-label">{link.label}</span></a>; })}</section>)}</nav>
+    <div className="sidebar-brand-row">
+      <a className="admin-brand" href="/admin/dashboard" aria-label="Glonni admin dashboard">
+        <span className="brand-mark">G</span>
+        <span className="brand-copy"><b>Glonn<i>i</i></b><small>ADMIN CONSOLE</small></span>
+      </a>
+      <button className="sidebar-toggle" type="button" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggle}><ChevronLeft/></button>
+    </div>
+    <nav>{sections.map((section) => <section key={section.title}><p>{section.title}</p>{section.links.map((link) => { const Icon = link.icon; const isActive = active(link.href); return <a key={link.href} className={isActive ? 'selected' : ''} href={link.href} title={link.label} aria-current={isActive ? 'page' : undefined}><span className="nav-icon"><Icon className="nav-symbol" size={17}/></span><span className="nav-label">{link.label}</span></a>; })}</section>)}</nav>
   </aside>;
 }
