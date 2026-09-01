@@ -2,12 +2,15 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 
 type InviteBody = {
-  mode?: "bootstrap_owner" | "employee" | "complete_onboarding" | "owner_setup";
+  mode?: "bootstrap_owner" | "employee" | "complete_onboarding" | "owner_setup" | "employee_security" | "update_employee" | "revoke_sessions" | "reset_mfa" | "revoke_invitation";
   email?: string;
   token?: string;
   password?: string;
+  employeeId?: string;
+  invitationId?: string;
   displayName?: string;
   role?: "editor" | "admin" | "owner";
+  status?: "invited" | "active" | "suspended" | "departed";
   departmentId?: string | null;
   jobTitle?: string;
   phone?: string;
@@ -119,6 +122,7 @@ export default {
         department_id: ownerDepartment?.id ?? null,
         employment_type: "full_time",
         status: "invited",
+        assigned_role: "owner",
         approval_limit: 0,
         requires_mfa: true,
         updated_at: new Date().toISOString(),
@@ -137,7 +141,7 @@ export default {
     if (!profile || !["owner", "admin", "editor"].includes(profile.role) || !employee || !["active", "invited"].includes(employee.status)) return response({ error: "This admin account is not active." }, 403);
 
     if (body.mode === "complete_onboarding") {
-      await ctx.supabaseAdmin.from("employees").update({ status: "active", updated_at: new Date().toISOString() }).eq("profile_id", user.id);
+      await ctx.supabaseAdmin.from("employees").update({ status: "active", mfa_enrolled_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("profile_id", user.id);
       await ctx.supabaseAdmin.from("admin_invitations").update({ status: "accepted", accepted_at: new Date().toISOString() }).eq("email", user.email).in("status", ["pending", "sent"]);
       await ctx.supabaseAdmin.from("audit_events").insert({
         actor_id: user.id, event_type: "admin_onboarding_completed", entity_type: "employee", entity_id: user.id,
@@ -147,6 +151,109 @@ export default {
     }
 
     if (!["owner", "admin"].includes(profile.role)) return response({ error: "You do not have permission to invite employees." }, 403);
+
+    const targetId = body.employeeId?.trim();
+    if (["employee_security", "update_employee", "revoke_sessions", "reset_mfa"].includes(body.mode ?? "")) {
+      if (!targetId) return response({ error: "Select a valid employee." }, 400);
+      const [{ data: targetProfile }, { data: targetEmployee }, targetAuth] = await Promise.all([
+        ctx.supabaseAdmin.from("profiles").select("id, display_name, role").eq("id", targetId).single(),
+        ctx.supabaseAdmin.from("employees").select("*").eq("profile_id", targetId).single(),
+        ctx.supabaseAdmin.auth.admin.getUserById(targetId),
+      ]);
+      if (!targetProfile || !targetEmployee || !targetAuth.data.user) return response({ error: "Employee record not found." }, 404);
+      const assignedRole = targetEmployee.assigned_role ?? targetProfile.role;
+      if (assignedRole === "owner" && profile.role !== "owner") return response({ error: "Only the Owner can manage an Owner account." }, 403);
+
+      if (body.mode === "employee_security") {
+        const factors = await ctx.supabaseAdmin.auth.admin.mfa.listFactors({ userId: targetId });
+        const verified = factors.data?.factors?.filter((factor) => factor.status === "verified") ?? [];
+        return response({
+          ok: true,
+          security: {
+            emailConfirmed: Boolean(targetAuth.data.user.email_confirmed_at),
+            lastSignInAt: targetAuth.data.user.last_sign_in_at ?? null,
+            mfaVerified: verified.length > 0,
+            mfaFactorCount: verified.length,
+          },
+        });
+      }
+
+      if (body.mode === "update_employee") {
+        const nextRole = body.role ?? assignedRole;
+        const nextStatus = body.status ?? targetEmployee.status;
+        if (!["owner", "admin", "editor"].includes(nextRole)) return response({ error: "Choose a valid admin role." }, 400);
+        if (!["invited", "active", "suspended", "departed"].includes(nextStatus)) return response({ error: "Choose a valid employment status." }, 400);
+        if (nextRole === "owner" && profile.role !== "owner") return response({ error: "Only the Owner can grant Owner access." }, 403);
+        if (targetId === user.id && (nextStatus === "suspended" || nextStatus === "departed")) return response({ error: "You cannot revoke your own active Owner access." }, 400);
+
+        const accessEnabled = nextStatus === "active" || nextStatus === "invited";
+        const effectiveRole = accessEnabled ? nextRole : "customer";
+        const now = new Date().toISOString();
+        const employeeChanges = {
+          phone: body.phone || null,
+          job_title: body.jobTitle || targetEmployee.job_title,
+          department_id: body.departmentId || null,
+          manager_id: body.managerId || null,
+          employment_type: body.employmentType ?? targetEmployee.employment_type,
+          status: nextStatus,
+          joining_date: body.joiningDate || null,
+          termination_date: nextStatus === "departed" ? new Date().toISOString().slice(0, 10) : null,
+          approval_limit: Math.max(0, Number(body.approvalLimit ?? targetEmployee.approval_limit ?? 0)),
+          assigned_role: nextRole,
+          last_access_changed_at: now,
+          last_access_changed_by: user.id,
+          updated_at: now,
+        };
+        const [profileUpdate, employeeUpdate, authUpdate] = await Promise.all([
+          ctx.supabaseAdmin.from("profiles").update({ display_name: body.displayName || targetProfile.display_name, role: effectiveRole, updated_at: now }).eq("id", targetId),
+          ctx.supabaseAdmin.from("employees").update(employeeChanges).eq("profile_id", targetId),
+          ctx.supabaseAdmin.auth.admin.updateUserById(targetId, {
+            app_metadata: { ...targetAuth.data.user.app_metadata, admin_role: accessEnabled ? nextRole : "disabled", employee: accessEnabled },
+            user_metadata: { ...targetAuth.data.user.user_metadata, display_name: body.displayName || targetProfile.display_name },
+          }),
+        ]);
+        const updateError = profileUpdate.error || employeeUpdate.error || authUpdate.error;
+        if (updateError) return response({ error: updateError.message }, 400);
+        if (!accessEnabled) await ctx.supabaseAdmin.rpc("admin_revoke_user_sessions", { target_user_id: targetId });
+        await ctx.supabaseAdmin.from("audit_events").insert({
+          actor_id: user.id, event_type: "employee_access_updated", entity_type: "employee", entity_id: targetId,
+          source: "admin", metadata: { role: nextRole, status: nextStatus, approval_limit: employeeChanges.approval_limit },
+        });
+        return response({ ok: true, message: "Employee record and access rules updated." });
+      }
+
+      if (body.mode === "revoke_sessions") {
+        if (targetId === user.id) return response({ error: "Use Sign Out to end your own session." }, 400);
+        const { data: removed, error: revokeError } = await ctx.supabaseAdmin.rpc("admin_revoke_user_sessions", { target_user_id: targetId });
+        if (revokeError) return response({ error: revokeError.message }, 400);
+        await ctx.supabaseAdmin.from("audit_events").insert({ actor_id: user.id, event_type: "employee_sessions_revoked", entity_type: "employee", entity_id: targetId, source: "admin", metadata: { sessions_removed: removed ?? 0 } });
+        return response({ ok: true, message: "All employee sessions were revoked." });
+      }
+
+      if (body.mode === "reset_mfa") {
+        if (targetId === user.id) return response({ error: "Another Owner must reset your 2FA to prevent lockout." }, 400);
+        const factors = await ctx.supabaseAdmin.auth.admin.mfa.listFactors({ userId: targetId });
+        for (const factor of factors.data?.factors ?? []) {
+          const deleted = await ctx.supabaseAdmin.auth.admin.mfa.deleteFactor({ userId: targetId, id: factor.id });
+          if (deleted.error) return response({ error: deleted.error.message }, 400);
+        }
+        await Promise.all([
+          ctx.supabaseAdmin.from("employees").update({ mfa_enrolled_at: null, updated_at: new Date().toISOString() }).eq("profile_id", targetId),
+          ctx.supabaseAdmin.rpc("admin_revoke_user_sessions", { target_user_id: targetId }),
+        ]);
+        await ctx.supabaseAdmin.from("audit_events").insert({ actor_id: user.id, event_type: "employee_mfa_reset", entity_type: "employee", entity_id: targetId, source: "admin", metadata: {} });
+        return response({ ok: true, message: "2FA was reset. The employee must enroll again at the next login." });
+      }
+    }
+
+    if (body.mode === "revoke_invitation") {
+      if (!body.invitationId) return response({ error: "Select a valid invitation." }, 400);
+      const { data: invitation } = await ctx.supabaseAdmin.from("admin_invitations").select("id, email, status").eq("id", body.invitationId).single();
+      if (!invitation || !["pending", "sent", "failed"].includes(invitation.status)) return response({ error: "This invitation can no longer be revoked." }, 400);
+      await ctx.supabaseAdmin.from("admin_invitations").update({ status: "revoked" }).eq("id", invitation.id);
+      await ctx.supabaseAdmin.from("audit_events").insert({ actor_id: user.id, event_type: "employee_invitation_revoked", entity_type: "admin_invitation", entity_id: invitation.id, source: "admin", metadata: { email: invitation.email } });
+      return response({ ok: true, message: "Invitation revoked." });
+    }
 
     if (!email || !body.displayName || !body.jobTitle || !body.role) return response({ error: "Complete all required employee fields." }, 400);
     if (body.role === "owner" && profile.role !== "owner") return response({ error: "Only the Owner can grant Owner access." }, 403);
@@ -193,6 +300,7 @@ export default {
       status: "invited",
       joining_date: body.joiningDate || null,
       approval_limit: Number(body.approvalLimit ?? 0),
+      assigned_role: body.role,
       requires_mfa: true,
       created_by: user.id,
       updated_at: new Date().toISOString(),
