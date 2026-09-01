@@ -35,7 +35,10 @@ export default {
       body: JSON.stringify({ model: Deno.env.get("OPENAI_MODEL") || "gpt-5-mini", instructions: system, input: `${input}\n\nOperational context:\n${context}`, max_output_tokens: 700 }),
     });
     const result = await openai.json();
-    if (!openai.ok) return reply({ error: "OpenAI could not complete the request.", request_id: openai.headers.get("x-request-id") }, 502);
+    if (!openai.ok) {
+      const detail = typeof result?.error?.message === "string" ? result.error.message : "OpenAI could not complete the request.";
+      return reply({ error: `OpenAI request failed (${openai.status}): ${detail}`, request_id: openai.headers.get("x-request-id") }, 502);
+    }
     const answer = result.output_text || result.output?.flatMap((item: { content?: { type: string; text?: string }[] }) => item.content ?? []).filter((part: { type: string }) => part.type === "output_text").map((part: { text?: string }) => part.text ?? "").join("\n") || "No response was returned.";
     await ctx.supabaseAdmin.from("audit_events").insert({ actor_id: auth.user.id, event_type: body.mode === "daily_brief" ? "ai_daily_brief_requested" : "ai_owner_chat_requested", entity_type: "ai_company", source: "admin", metadata: { model: Deno.env.get("OPENAI_MODEL") || "gpt-5-mini" } });
     return reply({ answer });
