@@ -1,4 +1,3 @@
-import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 
 type Body = { message?: string; mode?: "chat" | "daily_brief" };
@@ -15,6 +14,12 @@ export default {
     const body = await req.json() as Body;
     const authorization = req.headers.get("authorization") ?? "";
     const token = authorization.replace(/^Bearer\s+/i, "");
+    const requestId = crypto.randomUUID();
+    const sessionId = req.headers.get("x-glonni-session-id");
+    const deviceId = req.headers.get("x-glonni-device-id");
+    const logActivity = async (actorId: string, eventType: string, status: number, metadata: Record<string, unknown> = {}, errorDetails?: string) => {
+      await ctx.supabaseAdmin.from("activity_events").insert({ actor_id: actorId, request_id: requestId, session_id: sessionId, device_id: deviceId, surface: "ai", event_type: eventType, endpoint: "supabase/functions/ai-owner-chat", http_method: req.method, request_status: status, response_time_ms: 0, user_agent: req.headers.get("user-agent"), error_details: errorDetails, metadata });
+    };
     const { data: auth } = await ctx.supabaseAdmin.auth.getUser(token);
     if (!auth.user) return reply({ error: "A signed-in admin session is required." }, 401);
     const [{ data: profile }, { data: employee }] = await Promise.all([
@@ -34,6 +39,7 @@ export default {
     if (body.mode !== "daily_brief" && /\b(how many|number of|total)\b.*\b(users?|customers?|profiles?)\b/i.test(body.message ?? "")) {
       const answer = `Glonni currently has ${userCount ?? 0} registered user profiles.`;
       await ctx.supabaseAdmin.from("audit_events").insert({ actor_id: auth.user.id, event_type: "ai_owner_chat_data_answered", entity_type: "ai_company", source: "admin", metadata: { metric: "registered_user_count" } });
+      await logActivity(auth.user.id, "ai_owner_chat_data_answered", 200, { metric: "registered_user_count" });
       return reply({ answer });
     }
     const context = JSON.stringify({ pending_work: work?.filter(item => item.status === "pending_approval") ?? [], owner_instructions: instructions ?? [] });
@@ -54,9 +60,10 @@ export default {
       if (openai.ok) { selectedModel = model; break; }
       failures.push(`${model}: ${openai.status}`);
     }
-    if (!selectedModel || !openai?.ok) return reply({ error: `This OpenAI project cannot use its approved models (${failures.join(", ")}).`, request_id: openai?.headers.get("x-request-id") }, 502);
+    if (!selectedModel || !openai?.ok) { await logActivity(auth.user.id, "ai_owner_chat_failed", 502, { attempted_models: candidates }, failures.join(", ")); return reply({ error: `This OpenAI project cannot use its approved models (${failures.join(", ")}).`, request_id: openai?.headers.get("x-request-id") }, 502); }
     const answer = extractText(result) || "The AI returned an empty response. Please try again.";
     await ctx.supabaseAdmin.from("audit_events").insert({ actor_id: auth.user.id, event_type: body.mode === "daily_brief" ? "ai_daily_brief_requested" : "ai_owner_chat_requested", entity_type: "ai_company", source: "admin", metadata: { model: selectedModel } });
+    await logActivity(auth.user.id, body.mode === "daily_brief" ? "ai_daily_brief_requested" : "ai_owner_chat_requested", 200, { model: selectedModel, mode: body.mode ?? "chat" });
     return reply({ answer });
   }),
 };

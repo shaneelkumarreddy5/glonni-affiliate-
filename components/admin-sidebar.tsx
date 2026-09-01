@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   BarChart3, Bell, Bot, Boxes, Building2, Cable, ChartNoAxesCombined,
   ChevronLeft, ClipboardCheck, FolderKanban, Gift, KeyRound, LayoutTemplate,
-  LogOut, Megaphone, Package, PlugZap, ReceiptText, Settings, Share2, ShieldCheck, Store,
+  LogOut, Megaphone, Package, PlugZap, ReceiptText, Settings, Share2, ShieldCheck, Store, FileClock,
   Tags, UserPlus, Users, UsersRound, WalletCards,
 } from 'lucide-react';
 
@@ -46,6 +46,7 @@ const sections = [
   ] },
   { title: 'MANAGEMENT', links: [
     { label: 'Analytics & Reporting', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'Activity & Audit Log', href: '/admin/activity', icon: FileClock },
     { label: 'CMS', href: '/admin/cms', icon: LayoutTemplate },
     { label: 'Notifications', href: '/admin/notifications', icon: Bell },
     { label: 'Settings', href: '/admin/settings', icon: Settings },
