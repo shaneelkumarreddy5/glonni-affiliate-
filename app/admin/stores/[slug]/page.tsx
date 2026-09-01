@@ -1,3 +1,4 @@
+import { AdminSidebar } from "@/components/admin-sidebar";
 import { createClient } from '@/lib/supabase/server';
 import { BadgeIndianRupee, Bell, CheckCircle2, Clock3, Globe2, Package, Store, Tags } from 'lucide-react';
 
@@ -15,7 +16,7 @@ export default async function StoreDetail({ params }: StoreDetailProps) {
     .maybeSingle();
 
   if (!store) {
-    return <main className="admin-v2"><section className="admin-main"><main className="admin-content"><h1>Store not found</h1><a href="/admin">Back to Stores &amp; Brands</a></main></section></main>;
+    return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content"><h1>Store not found</h1><a href="/admin">Back to Stores &amp; Brands</a></main></section></main>;
   }
 
   const { data: offerData } = await supabase
@@ -27,12 +28,7 @@ export default async function StoreDetail({ params }: StoreDetailProps) {
 
   return (
     <main className="admin-v2">
-      <aside className="admin-side">
-        <a className="admin-brand" href="/"><b>Glonn<i>i</i></b><span>Admin Panel</span></a>
-        <section><p>SHOP &amp; EARN</p><a className="selected" href="/admin"><Store size={16} />Stores &amp; Brands</a><a href="#"><Package size={16} />Products</a><a href="#"><Tags size={16} />Deals &amp; Banners</a></section>
-        <section><p>PROVIDERS</p><a href="#"><Globe2 size={16} />Affiliate Providers</a></section>
-      </aside>
-      <section className="admin-main">
+      <AdminSidebar/><section className="admin-main">
         <header className="admin-top"><Store size={21} /><b>Store details</b><span className="dashboard-date">Preview management workspace</span><Bell size={19} /><span className="avatar">SR</span></header>
         <main className="admin-content">
           <a className="admin-link" href="/admin">← Back to Stores &amp; Brands</a>

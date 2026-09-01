@@ -1,3 +1,4 @@
+import { AdminSidebar } from "@/components/admin-sidebar";
 import { createClient } from '@/lib/supabase/server';
 import { Bell, Boxes, Menu, Package, Search, Store, Tag } from 'lucide-react';
 
@@ -16,7 +17,7 @@ export default async function Admin() {
   const active = rows.filter((store) => store.is_active).length;
 
   return <main className="admin-v2">
-    <aside className="admin-side" />
+    <AdminSidebar/>
     <section className="admin-main">
       <header className="admin-top">
         <Menu size={21} /><b>Shop &amp; Earn</b>
