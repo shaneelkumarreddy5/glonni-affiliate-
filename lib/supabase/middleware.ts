@@ -26,7 +26,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
   const path = request.nextUrl.pathname;
-  const publicAdminPath = path === '/admin/login' || path === '/admin/onboarding' || path.startsWith('/admin/mfa/') || path === '/admin/forgot-password' || path === '/admin/owner-setup' || path === '/admin/reset-password';
+  const publicAdminPath = path === '/admin/login' || path === '/admin/onboarding' || path.startsWith('/admin/mfa/') || path === '/admin/forgot-password' || path === '/admin/owner-setup' || path === '/admin/accept-invitation' || path === '/admin/reset-password';
   const adminSessionPath = path === '/admin/onboarding' || path.startsWith('/admin/mfa/') || path === '/admin/reset-password';
   if (adminSessionPath && !user) {
     const url = request.nextUrl.clone();

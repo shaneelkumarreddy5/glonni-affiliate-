@@ -2,7 +2,7 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 
 type InviteBody = {
-  mode?: "bootstrap_owner" | "employee" | "complete_onboarding" | "owner_setup" | "employee_security" | "update_employee" | "revoke_sessions" | "reset_mfa" | "revoke_invitation";
+  mode?: "bootstrap_owner" | "employee" | "complete_onboarding" | "owner_setup" | "employee_setup" | "employee_security" | "update_employee" | "revoke_sessions" | "reset_mfa" | "revoke_invitation";
   email?: string;
   token?: string;
   password?: string;
@@ -37,6 +37,8 @@ const sha256 = async (value: string) => {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 };
 
+const randomToken = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+
 export default {
   fetch: withSupabase({ auth: ["publishable"] }, async (req, ctx) => {
     if (req.method !== "POST") return response({ error: "Method not allowed" }, 405);
@@ -44,7 +46,7 @@ export default {
     const email = body.email?.trim().toLowerCase();
     const siteUrl = "https://glonni-affiliate.vercel.app";
 
-    if (body.mode === "owner_setup") {
+    if (body.mode === "owner_setup" || body.mode === "employee_setup") {
       const token = body.token?.trim() ?? "";
       const password = body.password ?? "";
       const strongPassword = password.length >= 12
@@ -59,7 +61,7 @@ export default {
       const tokenHash = await sha256(token);
       const { data: setupToken } = await ctx.supabaseAdmin
         .from("admin_setup_tokens")
-        .select("id, profile_id, purpose")
+        .select("id, profile_id, purpose, invitation_id")
         .eq("token_hash", tokenHash)
         .is("used_at", null)
         .gt("expires_at", new Date().toISOString())
@@ -70,8 +72,15 @@ export default {
         ctx.supabaseAdmin.from("profiles").select("role").eq("id", setupToken.profile_id).single(),
         ctx.supabaseAdmin.from("employees").select("status").eq("profile_id", setupToken.profile_id).single(),
       ]);
-      if (setupProfile?.role !== "owner" || !setupEmployee || !["invited", "active"].includes(setupEmployee.status)) {
+      const ownerSetup = body.mode === "owner_setup";
+      if (!setupEmployee || !["invited", "active"].includes(setupEmployee.status)) {
+        return response({ error: "This setup link is not authorized for an active admin account." }, 403);
+      }
+      if (ownerSetup && (setupProfile?.role !== "owner" || !["initial_password", "password_reset"].includes(setupToken.purpose))) {
         return response({ error: "This setup link is not authorized for the Owner account." }, 403);
+      }
+      if (!ownerSetup && setupToken.purpose !== "employee_invitation") {
+        return response({ error: "This employee invitation is invalid." }, 403);
       }
 
       const { error: passwordError } = await ctx.supabaseAdmin.auth.admin.updateUserById(setupToken.profile_id, {
@@ -83,13 +92,13 @@ export default {
       await ctx.supabaseAdmin.from("admin_setup_tokens").update({ used_at: new Date().toISOString() }).eq("id", setupToken.id).is("used_at", null);
       await ctx.supabaseAdmin.from("audit_events").insert({
         actor_id: setupToken.profile_id,
-        event_type: setupToken.purpose === "initial_password" ? "owner_password_initialized" : "owner_password_reset",
+        event_type: ownerSetup ? (setupToken.purpose === "initial_password" ? "owner_password_initialized" : "owner_password_reset") : "employee_password_initialized",
         entity_type: "employee",
         entity_id: setupToken.profile_id,
         source: "admin",
         metadata: { method: "one_time_setup_token" },
       });
-      return response({ ok: true, message: "Owner password saved. Sign in to complete 2FA." });
+      return response({ ok: true, message: `${ownerSetup ? "Owner" : "Employee"} password saved. Sign in to complete 2FA.` });
     }
 
     if (body.mode === "bootstrap_owner") {
@@ -274,9 +283,12 @@ export default {
     }).select("id").single();
     if (insertError) return response({ error: insertError.message }, 400);
 
-    const { data: inviteData, error: inviteError } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      data: { display_name: body.displayName },
-      redirectTo: `${siteUrl}/auth/callback?next=/admin/onboarding`,
+    const temporaryPassword = `${randomToken()}Aa!1`;
+    const { data: inviteData, error: inviteError } = await ctx.supabaseAdmin.auth.admin.createUser({
+      email,
+      password: temporaryPassword,
+      email_confirm: true,
+      user_metadata: { display_name: body.displayName },
     });
     if (inviteError || !inviteData.user) {
       await ctx.supabaseAdmin.from("admin_invitations").update({ status: "failed" }).eq("id", invitation.id);
@@ -305,11 +317,25 @@ export default {
       created_by: user.id,
       updated_at: new Date().toISOString(),
     });
+    const setupToken = randomToken();
+    const setupTokenHash = await sha256(setupToken);
+    const { error: setupError } = await ctx.supabaseAdmin.from("admin_setup_tokens").insert({
+      profile_id: invitedUser.id,
+      invitation_id: invitation.id,
+      purpose: "employee_invitation",
+      token_hash: setupTokenHash,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      created_by: user.id,
+    });
+    if (setupError) {
+      await ctx.supabaseAdmin.from("admin_invitations").update({ status: "failed" }).eq("id", invitation.id);
+      return response({ error: "The employee record was created, but its private setup link could not be issued." }, 400);
+    }
     await ctx.supabaseAdmin.from("admin_invitations").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", invitation.id);
     await ctx.supabaseAdmin.from("audit_events").insert({
       actor_id: user.id, event_type: "employee_invited", entity_type: "admin_invitation", entity_id: invitation.id,
       source: "admin", metadata: { email, role: body.role },
     });
-    return response({ ok: true, invitationId: invitation.id });
+    return response({ ok: true, invitationId: invitation.id, setupUrl: `${siteUrl}/admin/accept-invitation#token=${setupToken}` });
   }),
 };

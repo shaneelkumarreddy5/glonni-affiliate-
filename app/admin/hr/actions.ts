@@ -12,22 +12,6 @@ async function requireAal2() {
   return { supabase, user };
 }
 
-export async function inviteEmployee(formData: FormData) {
-  const { supabase } = await requireAal2();
-  const payload = {
-    mode: 'employee', email: String(formData.get('email') ?? ''), displayName: String(formData.get('displayName') ?? ''),
-    role: String(formData.get('role') ?? 'editor'), departmentId: String(formData.get('departmentId') ?? '') || null,
-    jobTitle: String(formData.get('jobTitle') ?? ''), employmentType: String(formData.get('employmentType') ?? 'full_time'),
-    phone: String(formData.get('phone') ?? ''), managerId: String(formData.get('managerId') ?? '') || null,
-    joiningDate: String(formData.get('joiningDate') ?? '') || null,
-    approvalLimit: Number(formData.get('approvalLimit') ?? 0),
-  };
-  const { data, error } = await supabase.functions.invoke('admin-invite-user', { body: payload });
-  if (error || data?.error) redirect(`/admin/team?error=${enc(data?.error ?? error?.message ?? 'Invitation failed.')}`);
-  revalidatePath('/admin/team'); revalidatePath('/admin/invitations');
-  redirect(`/admin/team?success=${enc(`Invitation sent to ${payload.email}.`)}`);
-}
-
 export async function createDepartment(formData: FormData) {
   const { supabase } = await requireAal2();
   const { error } = await supabase.from('departments').insert({ name: String(formData.get('name') ?? '').trim(), code: String(formData.get('code') ?? '').trim().toUpperCase(), description: String(formData.get('description') ?? '').trim() });
