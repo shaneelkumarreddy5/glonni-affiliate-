@@ -1,6 +1,6 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
 
-type Payload = { answer: number; expiresAt: number; nonce: string };
+type Payload = { expiresAt: number; nonce: string };
 const key = () => process.env.GLONNI_CAPTCHA_SECRET;
 const encode = (value: string) => Buffer.from(value).toString('base64url');
 const decode = (value: string) => Buffer.from(value, 'base64url').toString('utf8');
@@ -11,9 +11,10 @@ export function createSimpleCaptcha() {
   if (!secret) return null;
   const first = Math.floor(Math.random() * 8) + 2;
   const second = Math.floor(Math.random() * 8) + 2;
-  const payload: Payload = { answer: first + second, expiresAt: Date.now() + 300_000, nonce: randomUUID() };
+  const answer = first + second;
+  const payload: Payload = { expiresAt: Date.now() + 300_000, nonce: randomUUID() };
   const encoded = encode(JSON.stringify(payload));
-  return { question: `What is ${first} + ${second}?`, token: `${encoded}.${sign(encoded, secret)}` };
+  return { question: `What is ${first} + ${second}?`, token: `${encoded}.${sign(`${encoded}.${answer}`, secret)}` };
 }
 
 export function verifySimpleCaptcha(token: string, answer: string) {
@@ -21,7 +22,7 @@ export function verifySimpleCaptcha(token: string, answer: string) {
   if (!secret || !token || !/^[0-9]{1,3}$/.test(answer)) return false;
   const [encoded, supplied] = token.split('.');
   if (!encoded || !supplied) return false;
-  const expected = sign(encoded, secret);
+  const expected = sign(`${encoded}.${answer}`, secret);
   if (expected.length !== supplied.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(supplied))) return false;
-  try { const payload = JSON.parse(decode(encoded)) as Payload; return Number.isInteger(payload.answer) && payload.expiresAt > Date.now() && Number(answer) === payload.answer; } catch { return false; }
+  try { const payload = JSON.parse(decode(encoded)) as Payload; return payload.expiresAt > Date.now() && typeof payload.nonce === 'string'; } catch { return false; }
 }
