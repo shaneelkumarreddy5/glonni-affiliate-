@@ -2,7 +2,7 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { withSupabase } from "@supabase/server";
 
 type InviteBody = {
-  mode?: "bootstrap_owner" | "employee" | "complete_onboarding" | "owner_setup" | "employee_setup" | "employee_security" | "update_employee" | "revoke_sessions" | "reset_mfa" | "revoke_invitation";
+  mode?: "employee" | "complete_onboarding" | "owner_setup" | "employee_setup" | "employee_security" | "update_employee" | "revoke_sessions" | "reset_mfa" | "revoke_invitation";
   email?: string;
   token?: string;
   password?: string;
@@ -99,44 +99,6 @@ export default {
         metadata: { method: "one_time_setup_token" },
       });
       return response({ ok: true, message: `${ownerSetup ? "Owner" : "Employee"} password saved. Sign in to complete 2FA.` });
-    }
-
-    if (body.mode === "bootstrap_owner") {
-      if (email !== "admin@glonni.com") return response({ error: "Owner bootstrap email is fixed." }, 403);
-      const { data: ownerProfiles } = await ctx.supabaseAdmin.from("profiles").select("id").eq("role", "owner").limit(1);
-      if (ownerProfiles?.length) return response({ error: "The Owner account is already provisioned." }, 409);
-      const { data: users } = await ctx.supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-      let invitedUser = users.users.find((candidate) => candidate.email?.toLowerCase() === email);
-      let invitationSent = false;
-      if (!invitedUser) {
-        const { data, error } = await ctx.supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-          data: { display_name: "Glonni Owner" },
-          redirectTo: `${siteUrl}/auth/callback?next=/admin/onboarding`,
-        });
-        if (error || !data.user) return response({ error: error?.message ?? "Owner invitation failed." }, 400);
-        invitedUser = data.user;
-        invitationSent = true;
-      }
-      await ctx.supabaseAdmin.auth.admin.updateUserById(invitedUser.id, {
-        app_metadata: { ...invitedUser.app_metadata, admin_role: "owner", employee: true },
-        user_metadata: { ...invitedUser.user_metadata, display_name: "Glonni Owner" },
-      });
-      await ctx.supabaseAdmin.from("profiles").upsert({ id: invitedUser.id, display_name: "Glonni Owner", role: "owner", updated_at: new Date().toISOString() });
-      const { data: ownerDepartment } = await ctx.supabaseAdmin.from("departments").select("id").eq("code", "OWNER").single();
-      await ctx.supabaseAdmin.from("employees").upsert({
-        profile_id: invitedUser.id,
-        employee_code: `GL-${invitedUser.id.replaceAll("-", "").slice(0, 8).toUpperCase()}`,
-        work_email: email,
-        job_title: "Founder & Owner",
-        department_id: ownerDepartment?.id ?? null,
-        employment_type: "full_time",
-        status: "invited",
-        assigned_role: "owner",
-        approval_limit: 0,
-        requires_mfa: true,
-        updated_at: new Date().toISOString(),
-      });
-      return response({ ok: true, message: invitationSent ? "Owner invitation sent." : "Existing Owner invitation repaired." });
     }
 
     const authorization = req.headers.get("authorization") ?? "";
