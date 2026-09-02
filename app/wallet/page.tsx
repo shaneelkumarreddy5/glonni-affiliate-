@@ -29,6 +29,6 @@ export default async function WalletPage({ searchParams }: Props) {
       <h2>Cashback claims</h2>{(claims ?? []).length === 0 ? <p>You have no cashback claims yet. <Link href="/cashback-claim">Report missing cashback</Link> only where an eligible offer showed Glonni Cashback.</p> : <ul>{(claims ?? []).map((claim) => <li key={claim.id}><b>{money(Number(claim.claimed_amount ?? 0))}</b> · Order {claim.order_reference} · <strong>{claim.status.replace('_', ' ')}</strong></li>)}</ul>}
       <h2>Withdrawal history</h2>{(withdrawals ?? []).length === 0 ? <p>No withdrawal requests yet.</p> : <ul>{(withdrawals ?? []).map((withdrawal) => <li key={withdrawal.id}><b>{money(Number(withdrawal.amount))}</b> · {withdrawal.status.replace('_', ' ')} · UPI ending in {withdrawal.upi_id.slice(-4)}</li>)}</ul>}
       <h2>Wallet activity</h2>{(entries ?? []).length === 0 ? <p>No confirmed wallet credits yet.</p> : <ul>{(entries ?? []).map((entry) => <li key={entry.id}><b>{money(Number(entry.amount))}</b> · {entry.note || entry.entry_type.replaceAll('_', ' ')}</li>)}</ul>}
-      <p><Link href="/account">← Back to My Space</Link> · <Link href="/cashback-guide">Cashback guide</Link></p>
+      <p><Link href="/account">← Back to Profile</Link> · <Link href="/cashback-guide">Cashback guide</Link></p>
     </section></main></>;
 }
