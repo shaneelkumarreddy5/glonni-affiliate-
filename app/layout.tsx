@@ -4,6 +4,7 @@ import { AdminMockMode } from '@/components/admin-mock-mode';
 import { ActivityTracker } from '@/components/activity-tracker';
 import './globals.css';
 import './admin-sidebar.css';
+import './admin-theme.css';
 import './ai-command.css';
 import './auth.css';
 export const metadata: Metadata = { title: 'Glonni | Discover better deals', description: 'Provider-neutral product discovery and deals.' };
