@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
-  BarChart3, Bell, Bot, Boxes, Building2, Cable, ChartNoAxesCombined,
+  BarChart3, Bell, Bot, Boxes, Building2, Cable, ChartNoAxesCombined, Headphones,
   ChevronLeft, ClipboardCheck, FolderKanban, Gift, KeyRound, LayoutTemplate,
   LogOut, Megaphone, Package, PlugZap, ReceiptText, Settings, Share2, ShieldCheck, Store, FileClock,
   Tags, UserPlus, Users, UsersRound, WalletCards,
@@ -45,6 +45,7 @@ const sections = [
     { label: 'Social Analytics', href: '/admin/social-analytics', icon: BarChart3 },
   ] },
   { title: 'MANAGEMENT', links: [
+    { label: 'Support Centre', href: '/admin/support', icon: Headphones },
     { label: 'Analytics & Reporting', href: '/admin/analytics', icon: BarChart3 },
     { label: 'Activity & Audit Log', href: '/admin/activity', icon: FileClock },
     { label: 'CMS', href: '/admin/cms', icon: LayoutTemplate },
