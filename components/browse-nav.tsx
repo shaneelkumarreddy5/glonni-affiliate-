@@ -8,7 +8,11 @@ type Crumb = { label: string; href?: string };
 
 export function BrowseNav({ items, fallback = '/' }: { items: Crumb[]; fallback?: string }) {
   const router = useRouter();
-  const goBack = () => window.history.length > 1 ? router.back() : router.push(fallback);
+  const goBack = () => {
+    const referrer = document.referrer ? new URL(document.referrer) : null;
+    const isExactParent = referrer?.origin === window.location.origin && `${referrer.pathname}${referrer.search}` === fallback;
+    if (isExactParent) router.back(); else router.push(fallback);
+  };
 
   return <div className="browse-nav" aria-label="Page navigation">
     <button type="button" onClick={goBack}><ArrowLeft size={15}/>Back</button>
