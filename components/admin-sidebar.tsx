@@ -48,7 +48,7 @@ const sections = [
     { label: 'Support Centre', href: '/admin/support', icon: Headphones },
     { label: 'Analytics & Reporting', href: '/admin/analytics', icon: BarChart3 },
     { label: 'Activity & Audit Log', href: '/admin/activity', icon: FileClock },
-    { label: 'CMS', href: '/admin/cms', icon: LayoutTemplate },
+    { label: 'Website Builder', href: '/admin/cms', icon: LayoutTemplate },
     { label: 'Notifications', href: '/admin/notifications', icon: Bell },
     { label: 'Settings', href: '/admin/settings', icon: Settings },
     { label: 'Sign Out', href: '/admin/logout', icon: LogOut },
