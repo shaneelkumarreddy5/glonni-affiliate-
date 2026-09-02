@@ -48,6 +48,47 @@ export async function createBuilderPage(formData: FormData) {
   revalidatePath('/admin/cms');
 }
 
+export async function updateBuilderPage(formData: FormData) {
+  const { supabase, user } = await contentAdmin();
+  const id = cleanText(formData.get('id'), 80);
+  const title = cleanText(formData.get('title'), 120);
+  const slug = toSlug(cleanText(formData.get('slug'), 120) || title);
+  if (!id || title.length < 2 || !slug) throw new Error('Enter a page title and URL handle.');
+  const { data, error } = await supabase.from('site_pages').update({ title, slug, description: cleanText(formData.get('description'), 280) || null, device_visibility: cleanText(formData.get('device'), 20) || 'all', updated_at: new Date().toISOString() }).eq('id', id).select('slug').single();
+  if (error || !data) throw new Error(error?.message || 'Could not update the page.');
+  await snapshotPage(id, 'Edited page settings', user.id);
+  await supabase.from('audit_events').insert({ actor_id: user.id, event_type: 'site_page_updated', entity_type: 'site_page', entity_id: id, source: 'admin', metadata: { slug: data.slug } });
+  revalidatePath('/admin/cms');
+  revalidatePath(`/pages/${data.slug}`);
+}
+
+export async function duplicateBuilderPage(formData: FormData) {
+  const { supabase, user } = await contentAdmin();
+  const id = cleanText(formData.get('id'), 80);
+  const { data: original, error: originalError } = await supabase.from('site_pages').select('title,slug,description,device_visibility').eq('id', id).single();
+  if (originalError || !original) throw new Error('Page not found.');
+  const { data: copy, error } = await supabase.from('site_pages').insert({ title: `${original.title} copy`, slug: `${original.slug}-${Date.now().toString().slice(-6)}`, description: original.description, device_visibility: original.device_visibility, created_by: user.id }).select('id,slug').single();
+  if (error || !copy) throw new Error(error?.message || 'Could not duplicate the page.');
+  const { data: originalBlocks } = await supabase.from('site_page_blocks').select('block_type,title,body,cta_label,cta_href,image_url,config,display_order,device_visibility,is_active').eq('page_id', id).order('display_order');
+  if (originalBlocks?.length) await supabase.from('site_page_blocks').insert(originalBlocks.map((block) => ({ ...block, page_id: copy.id })));
+  await snapshotPage(copy.id, `Duplicated from ${original.slug}`, user.id);
+  await supabase.from('audit_events').insert({ actor_id: user.id, event_type: 'site_page_duplicated', entity_type: 'site_page', entity_id: copy.id, source: 'admin', metadata: { source_page_id: id, slug: copy.slug } });
+  revalidatePath('/admin/cms');
+}
+
+export async function deleteBuilderPage(formData: FormData) {
+  const { supabase, user, role } = await contentAdmin();
+  const id = cleanText(formData.get('id'), 80);
+  if (!['owner', 'admin'].includes(role)) throw new Error('Only an owner or admin can delete a page.');
+  const { data: page } = await supabase.from('site_pages').select('slug,status').eq('id', id).single();
+  if (!page) throw new Error('Page not found.');
+  const { error } = await supabase.from('site_pages').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+  await supabase.from('audit_events').insert({ actor_id: user.id, event_type: 'site_page_deleted', entity_type: 'site_page', entity_id: id, source: 'admin', metadata: { slug: page.slug, status: page.status } });
+  revalidatePath('/admin/cms');
+  revalidatePath(`/pages/${page.slug}`);
+}
+
 export async function addBuilderBlock(formData: FormData) {
   const { supabase, user } = await contentAdmin();
   const pageId = cleanText(formData.get('pageId'), 80);
