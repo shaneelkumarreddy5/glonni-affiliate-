@@ -16,5 +16,5 @@ export async function createSupportTicket(formData: FormData) {
   await supabase.from('support_messages').insert({ ticket_id: ticket.id, author_id: user.id, author_type: 'customer', body: message });
   await supabase.from('activity_events').insert({ actor_id: user.id, surface: 'customer', event_type: 'support_ticket_opened', endpoint: '/support', http_method: 'POST', request_status: 201, entity_type: 'support_ticket', entity_id: ticket.id });
   revalidatePath('/support'); revalidatePath('/account'); revalidatePath('/admin/support');
-  redirect('/support?success=Your+support+request+is+open.+Our+team+will+reply+here+and+via+support%40glonni.com.');
+  redirect('/support?success=Your+support+request+is+open.+Our+team+will+reply+in+your+Support+Centre.');
 }
