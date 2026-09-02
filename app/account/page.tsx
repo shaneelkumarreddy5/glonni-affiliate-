@@ -5,6 +5,7 @@ import { Header } from '@/components/header';
 import { signOut } from '@/app/auth/actions';
 import { createClient } from '@/lib/supabase/server';
 import { updatePreferences, updateProfile } from './actions';
+import './account.css';
 
 type Props = { searchParams: Promise<{ error?: string; success?: string }> };
 type Preference = { favourite_categories: string[]; favourite_stores: string[]; price_drop_alerts: boolean; deal_expiry_alerts: boolean; marketing_updates: boolean } | null;
@@ -35,7 +36,8 @@ export default async function AccountPage({ searchParams }: Props) {
   const pending = (rawClaims ?? []).filter((claim: { status: string }) => ['submitted', 'needs_info'].includes(claim.status)).length;
 
   return <><Header/><main className="account-pro">
-    <section className="account-hero"><div className="account-avatar">{profile?.avatar_url ? <img src={profile.avatar_url} alt=""/> : initials}</div><div><p>MY SPACE</p><h1>{name}</h1><span><MapPin size={15}/>{location}</span></div><div className="account-hero-actions"><Link href="/wallet"><WalletCards size={16}/>Wallet</Link><form action={signOut}><button type="submit">Sign out</button></form></div></section>
+    <h1 className="account-page-title">My Space</h1>
+    <section className="account-hero"><div className="account-avatar">{profile?.avatar_url ? <img src={profile.avatar_url} alt=""/> : initials}</div><div className="account-identity"><h2>{name}</h2><span><MapPin size={15}/>{location}</span><p className="account-verified"><ShieldCheck size={14}/>Verified member</p></div><div className="account-hero-actions"><Link href="/wallet"><WalletCards size={16}/>Wallet</Link><form action={signOut}><button type="submit">Sign out</button></form></div></section>
     {params.error && <p className="auth-notice error">{params.error}</p>}{params.success && <p className="auth-notice success">{params.success}</p>}
     <section className="account-metrics"><Metric icon={<Heart/>} label="Saved deals" value={String(saved.length)} detail="Your shortlist"/><Metric icon={<BellRing/>} label="Claims in review" value={String(pending)} detail="Awaiting eligibility"/><article><WalletCards/><div><small>Available cashback</small><b>{money(available)}</b><span>Confirmed only</span></div><Link href="/wallet" aria-label="Open wallet"><ChevronRight size={18}/></Link></article></section>
     <section className="account-pro-grid">
