@@ -7,6 +7,7 @@ import { SimpleCaptcha } from '@/components/simple-captcha';
 import { ReferralShare } from './referral-share';
 import './wallet.css';
 import './referral.css';
+import './preview.css';
 
 type Props = { searchParams: Promise<{ error?: string; success?: string; tab?: string; q?: string }> };
 type Claim = { id: string; order_reference: string; claimed_amount: number | null; purchase_amount: number | null; status: string; created_at: string; offers: { merchants: { name: string } | null } | null };
@@ -17,6 +18,26 @@ type Referral = { id: string; status: string; reward_amount: number | null; crea
 const money = (value: number) => `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const outstanding = ['requested', 'on_hold', 'approved'];
 const tabValues = ['transactions', 'withdrawals', 'referrals'] as const;
+const previewClaims: Claim[] = [
+  { id: 'preview-claim-1', order_reference: 'MYN-824195', claimed_amount: 185, purchase_amount: 2199, status: 'confirmed', created_at: '2026-08-29T10:30:00.000Z', offers: { merchants: { name: 'Myntra' } } },
+  { id: 'preview-claim-2', order_reference: 'FK-989421', claimed_amount: 320.5, purchase_amount: 5499, status: 'submitted', created_at: '2026-08-27T13:15:00.000Z', offers: { merchants: { name: 'Flipkart' } } },
+  { id: 'preview-claim-3', order_reference: 'NYK-440816', claimed_amount: 150, purchase_amount: 1899, status: 'confirmed', created_at: '2026-08-21T08:20:00.000Z', offers: { merchants: { name: 'Nykaa' } } },
+];
+const previewEntries: Entry[] = [
+  { id: 'preview-entry-1', amount: 185, entry_type: 'cashback_confirmed', note: 'Myntra cashback', created_at: '2026-08-29T10:30:00.000Z' },
+  { id: 'preview-entry-2', amount: 615, entry_type: 'cashback_confirmed', note: 'Eligible cashback', created_at: '2026-08-21T08:20:00.000Z' },
+  { id: 'preview-entry-3', amount: -250, entry_type: 'cashback_withdrawal', note: 'Payout processed', created_at: '2026-08-15T09:00:00.000Z' },
+];
+const previewWithdrawals: Withdrawal[] = [
+  { id: 'preview-withdrawal-1', amount: 250, status: 'paid', upi_id: 'ananya@upi', created_at: '2026-08-15T09:00:00.000Z', reviewer_note: 'Paid to your UPI account' },
+  { id: 'preview-withdrawal-2', amount: 200, status: 'approved', upi_id: 'ananya@upi', created_at: '2026-09-01T11:00:00.000Z', reviewer_note: 'Queued for the next payout run' },
+  { id: 'preview-withdrawal-3', amount: 150, status: 'rejected', upi_id: 'ananya@upi', created_at: '2026-08-11T09:30:00.000Z', reviewer_note: 'Payout method needs verification' },
+];
+const previewReferrals: Referral[] = [
+  { id: 'preview-referral-1', status: 'reward_confirmed', reward_amount: 75, created_at: '2026-08-26T10:00:00.000Z', qualified_at: '2026-08-30T10:00:00.000Z' },
+  { id: 'preview-referral-2', status: 'qualified', reward_amount: null, created_at: '2026-08-30T12:00:00.000Z', qualified_at: '2026-09-02T10:00:00.000Z' },
+  { id: 'preview-referral-3', status: 'joined', reward_amount: null, created_at: '2026-09-02T15:00:00.000Z', qualified_at: null },
+];
 
 export default async function WalletPage({ searchParams }: Props) {
   const params = await searchParams;
@@ -31,11 +52,12 @@ export default async function WalletPage({ searchParams }: Props) {
     supabase.from('customer_referral_codes').select('code').maybeSingle(),
     supabase.from('customer_referrals').select('id,status,reward_amount,created_at,qualified_at').eq('referrer_profile_id', user.id).order('created_at', { ascending: false }).limit(100),
   ]);
-  const claims = (rawClaims ?? []) as unknown as Claim[];
-  const entries = (rawEntries ?? []) as Entry[];
-  const withdrawals = (rawWithdrawals ?? []) as Withdrawal[];
+  const showPreview = !rawClaims?.length && !rawEntries?.length && !rawWithdrawals?.length && !rawReferrals?.length;
+  const claims = (showPreview ? previewClaims : rawClaims ?? []) as unknown as Claim[];
+  const entries = (showPreview ? previewEntries : rawEntries ?? []) as Entry[];
+  const withdrawals = (showPreview ? previewWithdrawals : rawWithdrawals ?? []) as Withdrawal[];
   const referralCode = (rawReferralCode as ReferralCode | null)?.code || null;
-  const referrals = (rawReferrals ?? []) as Referral[];
+  const referrals = (showPreview ? previewReferrals : rawReferrals ?? []) as Referral[];
   const ledger = entries.reduce((total, entry) => total + Number(entry.amount), 0);
   const reserved = withdrawals.filter((item) => outstanding.includes(item.status)).reduce((total, item) => total + Number(item.amount), 0);
   const available = Math.max(0, ledger - reserved);
@@ -54,6 +76,7 @@ export default async function WalletPage({ searchParams }: Props) {
       <article><Landmark/><div><small>Lifetime earnings</small><b>{money(lifetime)}</b><span>Confirmed cashback credits</span></div></article>
     </section>
     <p className="wallet-rule"><ShieldCheck/>Only cashback confirmed by the merchant and cleared for payout is withdrawable.</p>
+    {showPreview && <p className="wallet-preview-note"><b>Preview data</b> This account has no live wallet activity yet, so the records below show how confirmed cashback, payouts and referrals will appear.</p>}
     <section className="wallet-history">
       <header className="history-top"><div className="history-tabs"><Link href="/wallet?tab=transactions" className={tab === 'transactions' ? 'active' : ''}>Transaction history</Link><Link href="/wallet?tab=withdrawals" className={tab === 'withdrawals' ? 'active' : ''}>Withdrawal history</Link><Link href="/wallet?tab=referrals" className={tab === 'referrals' ? 'active' : ''}>Referral history</Link></div>{tab === 'transactions' && <form className="wallet-search" action="/wallet"><input type="hidden" name="tab" value="transactions"/><Search size={16}/><input name="q" defaultValue={params.q || ''} placeholder="Search order or store"/><button>Search</button></form>}</header>
       {tab === 'transactions' && <Transactions claims={filteredClaims}/>} {tab === 'withdrawals' && <Withdrawals withdrawals={withdrawals}/>} {tab === 'referrals' && <Referrals code={referralCode} referrals={referrals}/>}
