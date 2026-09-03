@@ -1,11 +1,14 @@
 import Link from 'next/link';
-import { BadgeCheck, BellRing, ChevronRight, CircleAlert, CircleHelp, CreditCard, Headphones, Heart, Landmark, MailCheck, MapPin, Phone, ReceiptText, ShieldCheck, SlidersHorizontal, UserCheck, UserRound, WalletCards } from 'lucide-react';
+import { BadgeCheck, BellRing, ChevronRight, CircleAlert, CircleHelp, CreditCard, Gift, Headphones, Heart, Landmark, MailCheck, MapPin, Phone, ReceiptText, ShieldCheck, SlidersHorizontal, UserCheck, UserRound, WalletCards } from 'lucide-react';
 import { Header } from '@/components/header';
 import { signOut } from '@/app/auth/actions';
 import { createClient } from '@/lib/supabase/server';
 import { updatePreferences, updateProfile } from './actions';
+import { ReferralShare } from '@/app/wallet/referral-share';
 import './account.css';
 import './profile-details.css';
+import './referral.css';
+import '../wallet/referral.css';
 
 type Props = { searchParams: Promise<{ error?: string; success?: string; section?: string }> };
 type Preference = { favourite_categories: string[]; favourite_stores: string[]; price_drop_alerts: boolean; deal_expiry_alerts: boolean; marketing_updates: boolean } | null;
@@ -15,6 +18,7 @@ const stores = ['Amazon', 'Flipkart', 'Myntra', 'Nykaa', 'AJIO', 'Meesho', 'Crom
 const sections = [
   ['profile', 'Profile', 'Personal details and account identity', UserRound],
   ['wallet', 'Wallet & Payouts', 'Cashback, withdrawal and reward history', WalletCards],
+  ['referral', 'Referral', 'Invite friends and share your personal link', Gift],
   ['shopping', 'My Shopping', 'Saved deals, alerts and activity', Heart],
   ['preferences', 'Preferences', 'Deals, stores and notifications', SlidersHorizontal],
   ['help', 'Help & Legal', 'Support, FAQs and account documents', CircleHelp],
@@ -27,12 +31,13 @@ export default async function AccountPage({ searchParams }: Props) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const [{ data: rawProfile }, { data: rawPreferences }, { data: rawSaved }, { data: rawClaims }, { data: rawEntries }] = await Promise.all([
+  const [{ data: rawProfile }, { data: rawPreferences }, { data: rawSaved }, { data: rawClaims }, { data: rawEntries }, { data: rawReferralCode }] = await Promise.all([
     supabase.from('profiles').select('display_name,avatar_url,city,state').eq('id', user.id).single(),
     supabase.from('customer_preferences').select('*').eq('profile_id', user.id).maybeSingle(),
     supabase.from('saved_offers').select('offer_id,alert_type,offers(id,current_price,products(title,slug,image_url),merchants(name))').order('created_at', { ascending: false }).limit(8),
     supabase.from('cashback_claims').select('status,claimed_amount'),
     supabase.from('wallet_entries').select('amount'),
+    supabase.from('customer_referral_codes').select('code').maybeSingle(),
   ]);
   const profile = rawProfile as { display_name: string | null; avatar_url: string | null; city: string | null; state: string | null } | null;
   const profileMeta = user.user_metadata as Record<string, unknown>;
@@ -43,6 +48,7 @@ export default async function AccountPage({ searchParams }: Props) {
   const location = [profile?.city, profile?.state].filter(Boolean).join(', ') || 'Add your location';
   const available = Math.max(0, (rawEntries ?? []).reduce((total: number, entry: { amount: number }) => total + Number(entry.amount), 0));
   const pending = (rawClaims ?? []).filter((claim: { status: string }) => ['submitted', 'needs_info'].includes(claim.status)).reduce((total: number, claim: { claimed_amount: number | null }) => total + Number(claim.claimed_amount ?? 0), 0);
+  const referralCode = (rawReferralCode as { code: string } | null)?.code || null;
 
   return <><Header/><main className="account-hub">
     <div className="account-breadcrumb"><Link href="/">Home</Link><ChevronRight size={14}/><b>Profile</b></div>
@@ -50,7 +56,7 @@ export default async function AccountPage({ searchParams }: Props) {
     {params.error && <p className="auth-notice error">{params.error}</p>}{params.success && <p className="auth-notice success">{params.success}</p>}
     <div className="account-hub-layout">
       <aside className="account-menu"><p>MY ACCOUNT</p>{sections.map(([key, label, description, Icon]) => <Link href={`/account?section=${key}`} className={active === key ? 'selected' : ''} key={key}><Icon size={19}/><span><b>{label}</b><small>{description}</small></span><ChevronRight size={16}/></Link>)}</aside>
-      <section className="account-workspace">{active === 'profile' && <ProfileSection name={name} profile={profile} email={user.email || ''} emailVerified={Boolean(user.email_confirmed_at)} phone={user.phone || ''} meta={profileMeta}/>} {active === 'wallet' && <WalletSection available={available} pending={pending}/>} {active === 'shopping' && <ShoppingSection saved={saved}/>} {active === 'preferences' && <PreferencesSection preferences={preferences}/>} {active === 'help' && <HelpSection/>}</section>
+      <section className="account-workspace">{active === 'profile' && <ProfileSection name={name} profile={profile} email={user.email || ''} emailVerified={Boolean(user.email_confirmed_at)} phone={user.phone || ''} meta={profileMeta}/>} {active === 'wallet' && <WalletSection available={available} pending={pending}/>} {active === 'referral' && <ReferralSection code={referralCode}/>} {active === 'shopping' && <ShoppingSection saved={saved}/>} {active === 'preferences' && <PreferencesSection preferences={preferences}/>} {active === 'help' && <HelpSection/>}</section>
     </div>
   </main></>;
 }
@@ -74,6 +80,7 @@ function ProfileSection({ name, profile, email, emailVerified, phone, meta }: { 
     </form><section className="security-note"><ShieldCheck/><div><b>Account security</b><span>Your sign-in session stays on this device until you sign out. Password and account-security changes will be added here.</span></div></section><form action={signOut}><button className="quiet-action" type="submit">Sign out</button></form></>;
 }
 function WalletSection({ available, pending }: { available: number; pending: number }) { return <><WorkspaceTitle eyebrow="WALLET & PAYOUTS" title="Your cashback and payouts" body="Confirmed cashback, payout requests and rewards history now live together in one place."/><div className="wallet-balance"><div><small>Available to withdraw</small><b>{money(available)}</b><span>Confirmed and eligible</span></div><Link href="/wallet">Open Wallet &amp; Payouts <ChevronRight size={16}/></Link></div><div className="workspace-cards"><Link href="/wallet?tab=transactions"><ReceiptText/><span><b>Transaction history</b><small>View cashback credits, reversals and claim status.</small></span><ChevronRight size={16}/></Link><Link href="/wallet?tab=withdrawals"><Landmark/><span><b>Withdrawal history</b><small>View requests and payout status.</small></span><ChevronRight size={16}/></Link><Link href="/cashback-claim"><BellRing/><span><b>Missing cashback claims</b><small>{money(pending)} currently in review.</small></span><ChevronRight size={16}/></Link></div></>; }
+function ReferralSection({ code }: { code: string | null }) { return <><WorkspaceTitle eyebrow="REFERRAL" title="Invite friends to Glonni" body="Share your personal link. Referral eligibility and any reward are reviewed under the applicable programme rules."/>{code ? <section className="account-referral-card"><div className="account-referral-icon"><Gift/></div><div className="account-referral-content"><p>YOUR PERSONAL REFERRAL CODE</p><h3>{code}</h3><span>Your friend must create a new Glonni account through your link for the referral to be recorded.</span><div className="account-referral-actions"><ReferralShare code={code}/><Link href="/wallet?tab=referrals">View referral history <ChevronRight size={15}/></Link></div></div></section> : <section className="account-referral-pending"><Gift/><div><h3>Preparing your referral link</h3><p>Your personal code will appear here shortly. Please refresh this page once your profile is ready.</p></div></section>}<section className="referral-guidance"><article><b>1. Share</b><span>Copy your private Glonni link and send it to friends.</span></article><article><b>2. They join</b><span>The link records your referral only when a new account is created.</span></article><article><b>3. We review</b><span>Any reward follows approved programme rules; it is never auto-credited.</span></article></section></>; }
 function ShoppingSection({ saved }: { saved: Saved[] }) { return <><WorkspaceTitle eyebrow="MY SHOPPING" title="Your deals and activity" body="Keep track of saved items, price alerts, and the stores you explore."/><div className="workspace-cards shopping-cards"><Link href="/deals"><Heart/><span><b>Saved deals</b><small>{saved.length} deal{saved.length === 1 ? '' : 's'} saved for later.</small></span><ChevronRight size={16}/></Link><Link href="/deals"><BellRing/><span><b>Price alerts</b><small>Manage price-drop and deal-expiry reminders.</small></span><ChevronRight size={16}/></Link><Link href="/stores"><ReceiptText/><span><b>Shopping activity</b><small>Review stores and products you explored.</small></span><ChevronRight size={16}/></Link></div>{saved.length > 0 && <div className="saved-list">{saved.map((item) => <Link href={item.offers?.products?.slug ? `/product/${item.offers.products.slug}?from=${encodeURIComponent('/account?section=shopping')}` : '/deals'} key={item.offer_id}><img src={item.offers?.products?.image_url || ''} alt=""/><span><small>{item.offers?.merchants?.name || 'Store'}</small><b>{item.offers?.products?.title || 'Saved offer'}</b></span><ChevronRight size={16}/></Link>)}</div>}</>; }
 function PreferencesSection({ preferences }: { preferences: Preference }) { return <><WorkspaceTitle eyebrow="PREFERENCES" title="Make Glonni work for you" body="Choose what you want to follow and which updates you receive."/><form action={updatePreferences} className="preferences-form profile-preferences"><PreferenceGroup name="categories" label="Favourite categories" values={categories} selected={preferences?.favourite_categories ?? []}/><PreferenceGroup name="stores" label="Favourite stores" values={stores} selected={preferences?.favourite_stores ?? []}/><fieldset className="preference-toggles"><Toggle name="priceDropAlerts" title="Price-drop alerts" detail="Used when live price monitoring is enabled." checked={preferences?.price_drop_alerts ?? true}/><Toggle name="dealExpiryAlerts" title="Deal-expiry alerts" detail="Keep deal-ending reminders enabled." checked={preferences?.deal_expiry_alerts ?? true}/><Toggle name="marketingUpdates" title="Glonni updates" detail="Optional product news and offers." checked={preferences?.marketing_updates ?? false}/></fieldset><button type="submit">Save preferences</button></form></>; }
 function HelpSection() { return <><WorkspaceTitle eyebrow="HELP & LEGAL" title="Support and account information" body="Start with Glonni’s assistant, then escalate to a person whenever your issue requires it."/><div className="workspace-cards"><Link href="/support"><Headphones/><span><b>Help & Support</b><small>Ask the assistant or open a support request.</small></span><ChevronRight size={16}/></Link><Link href="/help"><CircleHelp/><span><b>Frequently asked questions</b><small>Find answers about deals and cashback.</small></span><ChevronRight size={16}/></Link><Link href="/privacy"><ShieldCheck/><span><b>Privacy, terms & disclosure</b><small>Read how Glonni handles your account and affiliate links.</small></span><ChevronRight size={16}/></Link></div></>; }
