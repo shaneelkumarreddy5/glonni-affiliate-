@@ -10,7 +10,7 @@ export async function Header() {
   const location = profile?.city || 'Hyderabad';
 
   return <><header className="top">
-    <a className="logo" href="/"><span>Glonn</span><i>i</i><small>✦</small></a>
+    <a className="logo" href="/" aria-label="Glonni home">Glonni</a>
     <form className="search" action="/deals"><a className="search-category-link" href="/deals">All Categories⌄</a><input name="q" placeholder="Search for products, brands and more..."/><button type="submit" aria-label="Search"><Search size={20}/></button></form>
     <div className="top-actions">
       <span className="header-location"><MapPin/><small>Location</small><b>{location}⌄</b></span>

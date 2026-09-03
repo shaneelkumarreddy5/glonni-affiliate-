@@ -77,7 +77,7 @@ export function AdminSidebar() {
     <div className="sidebar-brand-row">
       <a className="admin-brand" href="/admin/dashboard" aria-label="Glonni admin dashboard">
         <span className="brand-mark">G</span>
-        <span className="brand-copy"><b>Glonn<i>i</i></b><small>ADMIN CONSOLE</small></span>
+        <span className="brand-copy"><b>Glonni</b><small>ADMIN CONSOLE</small></span>
       </a>
       <button className="sidebar-toggle" type="button" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggle}><ChevronLeft/></button>
     </div>
