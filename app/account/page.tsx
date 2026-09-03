@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { BadgeCheck, BellRing, ChevronRight, CircleAlert, CircleHelp, CreditCard, Gift, Headphones, Heart, Landmark, MailCheck, MapPin, Phone, ReceiptText, ShieldCheck, SlidersHorizontal, UserCheck, UserRound, WalletCards } from 'lucide-react';
 import { Header } from '@/components/header';
 import { signOut } from '@/app/auth/actions';
@@ -27,6 +28,7 @@ const money = (value: number) => `₹${value.toLocaleString('en-IN', { minimumFr
 
 export default async function AccountPage({ searchParams }: Props) {
   const params = await searchParams;
+  if (params.section === 'wallet') redirect('/wallet');
   const active = sections.some(([key]) => key === params.section) ? params.section! : 'profile';
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -55,7 +57,7 @@ export default async function AccountPage({ searchParams }: Props) {
     <section className="profile-identity"><div className="profile-avatar-large">{profile?.avatar_url ? <img src={profile.avatar_url} alt=""/> : initials}</div><div><p>GLONNI PROFILE</p><h1>{name}</h1><span><MapPin size={15}/>{location}</span></div><Link href="/account?section=profile" className="profile-edit">Edit profile</Link></section>
     {params.error && <p className="auth-notice error">{params.error}</p>}{params.success && <p className="auth-notice success">{params.success}</p>}
     <div className="account-hub-layout">
-      <aside className="account-menu"><p>MY ACCOUNT</p>{sections.map(([key, label, description, Icon]) => <Link href={`/account?section=${key}`} className={active === key ? 'selected' : ''} key={key}><Icon size={19}/><span><b>{label}</b><small>{description}</small></span><ChevronRight size={16}/></Link>)}</aside>
+      <aside className="account-menu"><p>MY ACCOUNT</p>{sections.map(([key, label, description, Icon]) => <Link href={key === 'wallet' ? '/wallet' : `/account?section=${key}`} className={active === key ? 'selected' : ''} key={key}><Icon size={19}/><span><b>{label}</b><small>{description}</small></span><ChevronRight size={16}/></Link>)}</aside>
       <section className="account-workspace">{active === 'profile' && <ProfileSection name={name} profile={profile} email={user.email || ''} emailVerified={Boolean(user.email_confirmed_at)} phone={user.phone || ''} meta={profileMeta}/>} {active === 'wallet' && <WalletSection available={available} pending={pending}/>} {active === 'referral' && <ReferralSection code={referralCode}/>} {active === 'shopping' && <ShoppingSection saved={saved}/>} {active === 'preferences' && <PreferencesSection preferences={preferences}/>} {active === 'help' && <HelpSection/>}</section>
     </div>
   </main></>;
