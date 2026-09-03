@@ -45,7 +45,7 @@ export default async function WalletPage({ searchParams }: Props) {
   const filteredClaims = claims.filter((item) => !query || `${item.order_reference} ${item.offers?.merchants?.name ?? ''} ${item.status}`.toLowerCase().includes(query));
 
   return <><Header/><main className="wallet-page">
-    <nav className="wallet-crumb"><Link href="/">Home</Link><span>›</span><Link href="/account?section=wallet">Profile</Link><span>›</span><b>Wallet &amp; Payouts</b></nav>
+    <nav className="wallet-crumb"><Link href="/">Home</Link><span>›</span><Link href="/account?section=profile">Profile</Link><span>›</span><b>Wallet &amp; Payouts</b></nav>
     <header className="wallet-heading"><p>GLONNI REWARDS</p><h1>Wallet &amp; Payouts</h1><span>See cashback progress, request a payout when eligible, and keep every reward record in one place.</span></header>
     {params.error && <p className="auth-notice error">{params.error}</p>}{params.success && <p className="auth-notice success">{params.success}</p>}
     <section className="wallet-summary">
