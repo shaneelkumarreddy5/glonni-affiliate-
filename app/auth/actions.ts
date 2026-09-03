@@ -35,14 +35,16 @@ export async function signUp(formData: FormData) {
   const displayName = String(formData.get('displayName') ?? '').trim();
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
   const password = String(formData.get('password') ?? '');
+  const referralCode = String(formData.get('referralCode') ?? '').trim().toUpperCase();
   const next = safeNext(formData.get('next'));
   if (!verifySimpleCaptcha(String(formData.get('captchaToken') ?? ''), String(formData.get('captchaAnswer') ?? ''))) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message('Please complete the quick security check and try again.')}`);
   if (displayName.length < 2 || password.length < 8) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message('Enter your name and use a password with at least 8 characters.')}`);
+  if (referralCode && !/^GLONNI-[A-Z0-9]{8}$/.test(referralCode)) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message('That referral link is invalid. Please use the full Glonni referral link.')}`);
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { display_name: displayName }, emailRedirectTo: `${await origin()}/auth/callback?next=${encodeURIComponent(next)}` },
+    options: { data: { display_name: displayName, ...(referralCode ? { referral_code: referralCode } : {}) }, emailRedirectTo: `${await origin()}/auth/callback?next=${encodeURIComponent(next)}` },
   });
   if (error) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message(error.message)}`);
   if (data.session) redirect(next);
