@@ -1,0 +1,2 @@
+.actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.share{display:flex;align-items:center;gap:6px;border:1px solid #bcd0f6;border-radius:7px;padding:10px 12px;background:#fff;color:#0e4dc9;font:700 11px 'DM Sans';cursor:pointer}
