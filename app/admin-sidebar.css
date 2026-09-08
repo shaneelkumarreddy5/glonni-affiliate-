@@ -5,7 +5,7 @@
 .admin-side .brand-mark{color:#fff;background:linear-gradient(135deg,#2a6ae8,#174bb0)}
 .admin-side .nav-group{margin:14px 0 5px;padding:7px 10px;border-radius:7px;background:transparent!important;color:#8297b9!important;font-size:10px;letter-spacing:.1em;font-weight:750}
 .admin-side .nav-group:hover,.admin-side section.open .nav-group{background:rgba(104,137,190,.09)!important;color:#d9e6fb!important}
-.admin-side .nav-group>span{gap:9px}.admin-side .nav-group>span>svg{color:#91a8cb}
+.admin-side .nav-group>span{gap:9px}.admin-side .nav-group b{display:block!important;height:auto!important;padding:0!important;border-radius:0!important;background:transparent!important;color:inherit!important}.admin-side .nav-group>span>svg{color:#91a8cb}
 .admin-side .nav-group>svg{color:#91a8cb}
 .admin-side section a.selected{background:linear-gradient(90deg,#1850bf,#1845a5)!important;color:#fff!important;box-shadow:inset 3px 0 #76a5ff,0 6px 16px rgba(0,42,123,.22)!important}
 .admin-side section a:hover{background:rgba(83,126,193,.15)!important;color:#fff!important}
