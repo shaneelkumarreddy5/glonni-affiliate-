@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
-  BarChart3, Bell, Bot, Boxes, Building2, Cable, ChartNoAxesCombined, Headphones,
+  BarChart3, Bell, Bot, Boxes, Building2, Cable, ChartNoAxesCombined, Clock3, Headphones,
   ChevronDown, ChevronLeft, ClipboardCheck, FolderKanban, Gift, KeyRound, LayoutTemplate,
-  LogOut, Megaphone, Package, PlugZap, ReceiptText, Settings, Share2, ShieldCheck, Store, FileClock,
+  LogOut, Megaphone, Package, PlugZap, ReceiptText, Search, Settings, Share2, ShieldCheck, Store, FileClock,
   Tags, UserPlus, Users, UsersRound, WalletCards,
 } from 'lucide-react';
 
@@ -73,7 +73,7 @@ export function AdminSidebar() {
 
   const sectionOpen = (title: string, links: readonly { href: string }[]) => !collapsed && (expanded === title || (expanded === null && links.some((link) => active(link.href))));
 
-  return <aside ref={sidebarRef} className="admin-side" aria-label="Admin navigation">
+  return <><aside ref={sidebarRef} className="admin-side" aria-label="Admin navigation">
     <div className="sidebar-brand-row">
       <a className="admin-brand" href="/admin/dashboard" aria-label="Glonni admin dashboard">
         <span className="brand-mark">G</span>
@@ -82,5 +82,12 @@ export function AdminSidebar() {
       <button className="sidebar-toggle" type="button" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggle}><ChevronLeft/></button>
     </div>
     <nav>{sections.map((section) => { const SectionIcon = section.icon; const isOpen = sectionOpen(section.title, section.links); return <section key={section.title} className={isOpen ? 'open' : ''}><button className="nav-group" type="button" title={section.title} onClick={() => setExpanded(isOpen ? null : section.title)}><span><SectionIcon size={16}/><b>{section.title}</b></span><ChevronDown size={15}/></button><div className="nav-links">{section.links.map((link) => { const Icon = link.icon; const isActive = active(link.href); return <a key={link.href} className={isActive ? 'selected' : ''} href={link.href} title={link.label} aria-current={isActive ? 'page' : undefined}><span className="nav-icon"><Icon className="nav-symbol" size={17}/></span><span className="nav-label">{link.label}</span></a>; })}</div></section>; })}</nav>
-  </aside>;
+  </aside><header className="admin-global-topbar" aria-label="Admin workspace controls">
+    <form action="/admin/analytics" role="search"><Search size={18}/><input name="q" placeholder="Search offers, partners, or activity…" aria-label="Search admin workspace"/></form>
+    <button className="topbar-period" type="button" aria-label="Dashboard reporting period"><Clock3 size={17}/>This month</button>
+    <span className="topbar-mode">MOCK MODE · TEST DATA</span>
+    <button className="topbar-bell" type="button" aria-label="Notifications"><Bell size={23}/><i/></button>
+    <span className="topbar-avatar">SR</span>
+    <span className="topbar-owner"><b>Shaneel</b><small>Owner</small></span>
+  </header></>;
 }
