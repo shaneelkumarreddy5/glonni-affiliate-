@@ -44,7 +44,7 @@ export default function AdminUsers() {
       <section><h3><WalletCards/>Wallet summary</h3><p className="profile-value"><span>Available balance</span><b>₹1,090</b></p><p className="profile-value"><span>Total earnings</span><b>₹12,430</b></p><p className="profile-value"><span>Total withdrawals</span><b>₹11,340</b></p></section>
       <section><h3><Clock3/>Latest activity</h3><p className="profile-note">Viewed offer: Electronics<small>2 hours ago</small></p></section>
       <section><h3><Headphones/>Support cases</h3><p className="profile-note">2 open cases<small>Last message 1 day ago</small></p></section>
-      <a className="open-profile" href="/admin/activity"><ExternalLink/>Open full profile</a>
+      <a className="open-profile" href="/admin/users/USR0015823"><ExternalLink/>Open full profile</a>
     </aside>
   </section></main>;
 }
