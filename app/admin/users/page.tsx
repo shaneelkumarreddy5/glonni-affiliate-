@@ -1,5 +1,5 @@
 import { AdminSidebar } from '@/components/admin-sidebar';
-import { Bell, CircleDollarSign, Search, ShieldCheck, TicketCheck, Users } from 'lucide-react';
+import { Activity, Bell, CalendarDays, CircleDollarSign, Clock3, Copy, ExternalLink, Headphones, Mail, MapPin, Phone, Search, ShieldCheck, TicketCheck, Users, WalletCards, X } from 'lucide-react';
 
 const people = [
   ['Ananya Sharma', 'Hyderabad, Telangana', 'Active', '₹620', '2 alerts', 'ananya.demo@glonni.test'],
@@ -34,8 +34,17 @@ export default function AdminUsers() {
       <section className="users-below" aria-label="User insights">
         <article><header><div><h2>Customer health</h2><p>Verification and payout readiness</p></div><a href="/admin/users">View details →</a></header><div className="health-row"><span><i className="dot active"/><small>Verified users</small><b>215,000</b></span><span><i className="dot active"/><small>KYC-ready users</small><b>152,000</b></span><span><i className="dot active"/><small>Payout-ready users</small><b>148,500</b></span><span><i className="dot pending"/><small>Support needed</small><b>12</b></span></div></article>
         <article><header><div><h2>Recent registrations</h2><p>Newest customer accounts</p></div><a href="/admin/activity">View all registrations →</a></header><div className="registration-row">{registrations.map(([name, time]) => <span key={name}><i>{name[0]}</i><b>{name}</b><small>{time}</small></span>)}</div></article>
-        <article id="user-profile"><header><div><h2>Selected user preview</h2><p>Open the complete customer record</p></div><a href="#user-profile">Open full profile →</a></header><div className="selected-user"><span><b>Ananya Sharma</b><small>Hyderabad · verified shopper</small></span><span><b>₹620</b><small>Wallet balance</small></span><span><b>Low</b><small>Risk level</small></span><span><b>1</b><small>Open support case</small></span></div></article>
       </section>
     </main>
+    <a className="user-drawer-backdrop" href="#" aria-label="Close user profile"/>
+    <aside id="user-profile" className="user-profile-drawer" aria-label="Customer profile">
+      <header><span className="profile-avatar">A</span><a href="#" aria-label="Close user profile"><X/></a><h2>Ananya Sharma <em>Active</em></h2><p>USR0015823 <button aria-label="Copy user ID"><Copy/></button></p><span><Mail/> ananya.demo@glonni.test</span><span><Phone/> +91 98765 43210</span><div><b><Mail/>Email verified</b><b><Phone/>Mobile verified</b></div></header>
+      <section className="profile-facts"><p><MapPin/><span><small>Location</small>Hyderabad, Telangana</span></p><p><CalendarDays/><span><small>Joined</small>12 Jan 2024</span></p><p><Clock3/><span><small>Last active</small>2 hours ago</span></p></section>
+      <section className="profile-status"><p><ShieldCheck/><span>KYC status</span><b>Verified</b></p><p><WalletCards/><span>Wallet status</span><b>Ready</b></p><p><Activity/><span>Risk level</span><b>Low</b></p></section>
+      <section><h3><WalletCards/>Wallet summary</h3><p className="profile-value"><span>Available balance</span><b>₹1,090</b></p><p className="profile-value"><span>Total earnings</span><b>₹12,430</b></p><p className="profile-value"><span>Total withdrawals</span><b>₹11,340</b></p></section>
+      <section><h3><Clock3/>Latest activity</h3><p className="profile-note">Viewed offer: Electronics<small>2 hours ago</small></p></section>
+      <section><h3><Headphones/>Support cases</h3><p className="profile-note">2 open cases<small>Last message 1 day ago</small></p></section>
+      <a className="open-profile" href="/admin/activity"><ExternalLink/>Open full profile</a>
+    </aside>
   </section></main>;
 }
