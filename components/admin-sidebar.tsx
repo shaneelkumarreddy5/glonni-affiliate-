@@ -83,7 +83,7 @@ export function AdminSidebar() {
     </div>
     <nav>{sections.map((section) => { const SectionIcon = section.icon; const isOpen = sectionOpen(section.title, section.links); return <section key={section.title} className={isOpen ? 'open' : ''}><button className="nav-group" type="button" title={section.title} onClick={() => setExpanded(isOpen ? null : section.title)}><span><SectionIcon size={16}/><b>{section.title}</b></span><ChevronDown size={15}/></button><div className="nav-links">{section.links.map((link) => { const Icon = link.icon; const isActive = active(link.href); return <a key={link.href} className={isActive ? 'selected' : ''} href={link.href} title={link.label} aria-current={isActive ? 'page' : undefined}><span className="nav-icon"><Icon className="nav-symbol" size={17}/></span><span className="nav-label">{link.label}</span></a>; })}</div></section>; })}</nav>
   </aside><header className="admin-global-topbar" aria-label="Admin workspace controls">
-    <form action="/admin/analytics" role="search"><Search size={18}/><input name="q" placeholder="Search offers, partners, or activity…" aria-label="Search admin workspace"/></form>
+    <form action="/admin/search" role="search"><Search size={18}/><input name="q" placeholder="Search users, offers, partners, or activity…" aria-label="Search admin workspace"/></form>
     <button className="topbar-period" type="button" aria-label="Dashboard reporting period"><Clock3 size={17}/>This month</button>
     <span className="topbar-mode">MOCK MODE · TEST DATA</span>
     <button className="topbar-bell" type="button" aria-label="Notifications"><Bell size={23}/><i/></button>

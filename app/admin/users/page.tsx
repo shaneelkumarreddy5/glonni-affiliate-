@@ -32,8 +32,8 @@ export default function AdminUsers() {
         <footer>Showing 5 realistic preview shoppers <span>Personal data is mock only</span></footer>
       </article>
       <section className="users-below" aria-label="User insights">
-        <article><header><div><h2>Customer health</h2><p>Verification and payout readiness</p></div><a href="/admin/users">View details →</a></header><div className="health-row"><span><i className="dot active"/><small>Verified users</small><b>215,000</b></span><span><i className="dot active"/><small>KYC-ready users</small><b>152,000</b></span><span><i className="dot active"/><small>Payout-ready users</small><b>148,500</b></span><span><i className="dot pending"/><small>Support needed</small><b>12</b></span></div></article>
-        <article><header><div><h2>Recent registrations</h2><p>Newest customer accounts</p></div><a href="/admin/activity">View all registrations →</a></header><div className="registration-row">{registrations.map(([name, time]) => <span key={name}><i>{name[0]}</i><b>{name}</b><small>{time}</small></span>)}</div></article>
+        <article id="customer-health"><header><div><h2>Customer health</h2><p>Verification and payout readiness</p></div><a href="#customer-health">Current overview</a></header><div className="health-row"><span><i className="dot active"/><small>Verified users</small><b>215,000</b></span><span><i className="dot active"/><small>KYC-ready users</small><b>152,000</b></span><span><i className="dot active"/><small>Payout-ready users</small><b>148,500</b></span><span><i className="dot pending"/><small>Support needed</small><b>12</b></span></div></article>
+        <article id="recent-registrations"><header><div><h2>Recent registrations</h2><p>Newest customer accounts</p></div><a href="#recent-registrations">View all registrations</a></header><div className="registration-row">{registrations.map(([name, time]) => <span key={name}><i>{name[0]}</i><b>{name}</b><small>{time}</small></span>)}</div></article>
       </section>
     </main>
     <a className="user-drawer-backdrop" href="#" aria-label="Close user profile"/>
