@@ -9,5 +9,6 @@ import './admin-stores.css';
 import './admin-categories.css';
 import './ai-command.css';
 import './auth.css';
+import './product-page.css';
 export const metadata: Metadata = { title: 'Glonni | Discover better deals', description: 'Provider-neutral product discovery and deals.' };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) { return <html lang="en"><body><ActivityTracker/><AdminMockMode>{children}</AdminMockMode><SiteFooter/></body></html>; }
