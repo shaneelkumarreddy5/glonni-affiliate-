@@ -6,6 +6,7 @@ import './globals.css';
 import './admin-sidebar.css';
 import './admin-theme.css';
 import './admin-stores.css';
+import './admin-categories.css';
 import './ai-command.css';
 import './auth.css';
 export const metadata: Metadata = { title: 'Glonni | Discover better deals', description: 'Provider-neutral product discovery and deals.' };
