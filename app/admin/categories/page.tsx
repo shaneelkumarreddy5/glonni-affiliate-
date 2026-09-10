@@ -12,7 +12,7 @@ type CategoryRow=Omit<TreeCategory,'products'|'children_count'>;
 export default async function CategoriesPage({searchParams}:{searchParams:Promise<Params>}){
   const query=await searchParams,s=await createClient();
   const [{data:categoryData},{data:products}]=await Promise.all([
-    s.from('categories').select('id,name,slug,parent_id,level,description,image_url,icon_name,seo_title,seo_description,show_on_homepage,display_order,is_active,archived_at').order('display_order'),
+    s.from('categories').select('id,name,slug,parent_id,level,description,short_description,navigation_label,category_type,image_url,banner_url,mobile_banner_url,icon_name,seo_title,seo_description,seo_keywords,canonical_url,show_on_homepage,show_in_navigation,is_searchable,sort_mode,product_assignment,filter_configuration,display_order,is_active,archived_at').order('display_order'),
     s.from('products').select('category_id'),
   ]);
   const rows=(categoryData??[]) as CategoryRow[],productRows=products??[];
