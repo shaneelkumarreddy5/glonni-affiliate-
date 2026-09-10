@@ -19,6 +19,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const offers=await getCatalogOffers({categoryIds:[...descendantIds]});
   const children=categories.filter(item=>item.parent_id===category.id).sort((a,b)=>a.display_order-b.display_order);
   const parent=category.parent_id?categories.find(item=>item.id===category.parent_id):null;
+  const ancestors:typeof categories=[];let current=parent;while(current){ancestors.unshift(current);current=current.parent_id?categories.find(item=>item.id===current?.parent_id):undefined;}
 
   const seen = new Set<string>();
   const products = offers.filter((offer) => {
@@ -32,7 +33,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const cashbackCount = offers.filter(hasCashback).length;
 
   return <><Header/><main className="vertical-page">
-    <BrowseNav items={[{ label: 'Categories', href: '/' }, ...(parent?[{label:parent.name,href:`/category/${parent.slug}`}]:[]), { label: category.name }]} fallback={parent?`/category/${parent.slug}`:"/"}/>
+    <BrowseNav items={[{ label: 'Categories', href: '/' }, ...ancestors.map(item=>({label:item.name,href:`/category/${item.slug}`})), { label: category.name }]} fallback={parent?`/category/${parent.slug}`:"/"}/>
     <section className="vertical-hero">
       <div><p className="eyebrow">SHOP BY CATEGORY</p><h1>{category.name}</h1><p>Explore the brands and products currently available in this category. Compare merchant offers and see cashback only where that individual offer is eligible.</p></div>
       <aside><span><b>{products.length}</b><small>products</small></span><span><b>{verticalStores.length}</b><small>brands</small></span><span><b>{cashbackCount}</b><small>eligible offers</small></span></aside>
