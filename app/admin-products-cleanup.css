@@ -1,0 +1,38 @@
+/* Keep product-local navigation independent from the public website nav styles. */
+.products-admin-page .product-list-controls nav {
+  width: auto;
+  height: auto;
+  padding: 0;
+  border: 0;
+  align-items: center;
+  gap: 15px;
+  overflow: visible;
+}
+
+.products-admin-page .product-list-controls nav b {
+  display: inline;
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.products-admin-page .product-list-controls nav a {
+  background: transparent;
+  border-radius: 0;
+}
+
+.products-admin-page .product-list-controls nav a.current {
+  background: transparent;
+  color: #175bd0;
+}
+
+@media (max-width: 1000px) {
+  .products-admin-page .product-list-controls nav {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
