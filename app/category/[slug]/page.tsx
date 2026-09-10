@@ -11,9 +11,14 @@ export const dynamic = 'force-dynamic';
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const slug = (await params).slug;
-  const [categories, offers, stores] = await Promise.all([getCategories(), getCatalogOffers({ category: slug }), getStores()]);
+  const [categories, stores] = await Promise.all([getCategories(), getStores()]);
   const category = categories.find((item) => item.slug === slug);
   if (!category) notFound();
+  const descendantIds=new Set<string>([category.id]);
+  let changed=true;while(changed){changed=false;for(const item of categories)if(item.parent_id&&descendantIds.has(item.parent_id)&&!descendantIds.has(item.id)){descendantIds.add(item.id);changed=true;}}
+  const offers=await getCatalogOffers({categoryIds:[...descendantIds]});
+  const children=categories.filter(item=>item.parent_id===category.id).sort((a,b)=>a.display_order-b.display_order);
+  const parent=category.parent_id?categories.find(item=>item.id===category.parent_id):null;
 
   const seen = new Set<string>();
   const products = offers.filter((offer) => {
@@ -27,11 +32,12 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const cashbackCount = offers.filter(hasCashback).length;
 
   return <><Header/><main className="vertical-page">
-    <BrowseNav items={[{ label: 'Categories', href: '/' }, { label: category.name }]} fallback="/"/>
+    <BrowseNav items={[{ label: 'Categories', href: '/' }, ...(parent?[{label:parent.name,href:`/category/${parent.slug}`}]:[]), { label: category.name }]} fallback={parent?`/category/${parent.slug}`:"/"}/>
     <section className="vertical-hero">
       <div><p className="eyebrow">SHOP BY CATEGORY</p><h1>{category.name}</h1><p>Explore the brands and products currently available in this category. Compare merchant offers and see cashback only where that individual offer is eligible.</p></div>
       <aside><span><b>{products.length}</b><small>products</small></span><span><b>{verticalStores.length}</b><small>brands</small></span><span><b>{cashbackCount}</b><small>eligible offers</small></span></aside>
     </section>
+    {children.length>0&&<section className="vertical-section"><div className="section-title"><div><p className="eyebrow">EXPLORE {category.name.toUpperCase()}</p><h2>Shop by subcategory</h2></div></div><div className="category-grid">{children.map(child=><Link href={`/category/${child.slug}`} key={child.id}><span className="category-icon">{child.image_url?<img src={child.image_url} alt=""/>:'›'}</span><b>{child.name}</b></Link>)}</div></section>}
     <section className="vertical-section">
       <div className="section-title"><div><p className="eyebrow">BRANDS IN {category.name.toUpperCase()}</p><h2>Shop this category by store</h2></div></div>
       {verticalStores.length ? <div className="vertical-store-grid">{verticalStores.map((store) => <Link href={`/store/${store.slug}?from=${encodeURIComponent(`/category/${category.slug}`)}`} key={store.id}><span>{store.name.slice(0, 1)}</span><div><b>{store.name}</b><small>{offers.filter((offer) => offer.merchants?.slug === store.slug).length} offers in {category.name}</small></div><Store size={17}/></Link>)}</div> : <div className="empty-state"><h2>Brands are being added</h2><p>Once a merchant has approved offers in {category.name}, it will appear here.</p></div>}
