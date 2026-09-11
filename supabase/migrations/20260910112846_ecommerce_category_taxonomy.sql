@@ -25,3 +25,4 @@ create index if not exists categories_searchable_idx
 
 comment on column public.categories.category_type is 'Merchandising role; hierarchy depth remains independent and unlimited.';
 comment on column public.categories.filter_configuration is 'Category-specific storefront filter/facet configuration.';
+;

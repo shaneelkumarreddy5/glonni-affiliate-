@@ -62,4 +62,4 @@ end;
 $$;
 
 revoke all on function public.delete_category_branch(uuid, uuid) from public, anon;
-grant execute on function public.delete_category_branch(uuid, uuid) to authenticated;
+grant execute on function public.delete_category_branch(uuid, uuid) to authenticated;;

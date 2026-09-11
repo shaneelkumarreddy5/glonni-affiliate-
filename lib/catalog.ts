@@ -1,8 +1,119 @@
-import { createClient } from '@/lib/supabase/server';
-export type CatalogOffer={id:string;current_price:number|null;list_price:number|null;cashback_amount:number|null;reward_type:string|null;cashback_percent:number|null;cashback_cap:number|null;coupon_code:string|null;reward_terms:string|null;cashback_tracking_supported:boolean;reward_funding_source:string|null;products:{id:string;title:string;slug:string;image_url:string|null;brand:string|null;description:string|null;categories:{id:string;name:string;slug:string}|null}|null;merchants:{name:string;slug:string;storefront_url:string|null}|null};
-export type CatalogFilters={query?:string;store?:string;category?:string;categoryIds?:string[]};
-const selection='id,current_price,list_price,cashback_amount,reward_type,cashback_percent,cashback_cap,coupon_code,reward_terms,cashback_tracking_supported,reward_funding_source,products!inner(id,title,slug,image_url,brand,description,categories(id,name,slug)),merchants!inner(name,slug,storefront_url)';
-export async function getCatalogOffers(filters:CatalogFilters={}){if(!process.env.NEXT_PUBLIC_SUPABASE_URL)return [] as CatalogOffer[];const supabase=await createClient();let query=supabase.from('offers').select(selection).eq('status','active').order('current_price',{ascending:true});if(filters.store)query=query.eq('merchants.slug',filters.store);if(filters.category)query=query.eq('products.categories.slug',filters.category);if(filters.categoryIds?.length)query=query.in('products.category_id',filters.categoryIds);const {data}=await query;const rows=(data??[]) as unknown as CatalogOffer[];const needle=filters.query?.trim().toLowerCase();return needle?rows.filter(x=>`${x.products?.title??''} ${x.products?.brand??''}`.toLowerCase().includes(needle)):rows;}
-export async function getProductOffers(slug:string){return (await getCatalogOffers()).filter((offer)=>offer.products?.slug===slug);}
-export async function getStores(){if(!process.env.NEXT_PUBLIC_SUPABASE_URL)return [] as {id:string;name:string;slug:string;logo_url:string|null;storefront_url:string|null}[];const supabase=await createClient();const {data}=await supabase.from('merchants').select('id,name,slug,logo_url,storefront_url').eq('is_active',true).order('homepage_position');return data??[];}
-export async function getCategories(){if(!process.env.NEXT_PUBLIC_SUPABASE_URL)return [] as {id:string;name:string;slug:string;parent_id:string|null;level:number;short_description:string|null;description:string|null;image_url:string|null;banner_url:string|null;mobile_banner_url:string|null;display_order:number;show_in_navigation:boolean}[];const supabase=await createClient();const {data}=await supabase.from('categories').select('id,name,slug,parent_id,level,short_description,description,image_url,banner_url,mobile_banner_url,display_order,show_in_navigation').eq('is_active',true).is('archived_at',null).order('display_order');return data??[];}
+import { createClient } from "@/lib/supabase/server";
+export type CatalogOffer = {
+  id: string;
+  current_price: number | null;
+  list_price: number | null;
+  cashback_amount: number | null;
+  reward_type: string | null;
+  cashback_percent: number | null;
+  cashback_cap: number | null;
+  coupon_code: string | null;
+  reward_terms: string | null;
+  cashback_tracking_supported: boolean;
+  reward_funding_source: string | null;
+  bank_offer: string | null;
+  customer_rating: number | null;
+  rating_count: number | null;
+  stock_status: string | null;
+  cashback_confirmation_days: number | null;
+  variant_label: string | null;
+  products: {
+    id: string;
+    title: string;
+    slug: string;
+    image_url: string | null;
+    brand: string | null;
+    description: string | null;
+    gallery_images: string[] | null;
+    variants: { label: string; values: string[] }[] | null;
+    specifications: { label: string; value: string }[] | null;
+    product_information: Record<string, string> | null;
+    categories: { id: string; name: string; slug: string } | null;
+  } | null;
+  merchants: {
+    name: string;
+    slug: string;
+    storefront_url: string | null;
+  } | null;
+};
+export type CatalogFilters = {
+  query?: string;
+  store?: string;
+  category?: string;
+  categoryIds?: string[];
+};
+const selection =
+  "id,current_price,list_price,cashback_amount,reward_type,cashback_percent,cashback_cap,coupon_code,reward_terms,cashback_tracking_supported,reward_funding_source,bank_offer,customer_rating,rating_count,stock_status,cashback_confirmation_days,variant_label,products!inner(id,title,slug,image_url,brand,description,gallery_images,variants,specifications,product_information,categories(id,name,slug)),merchants!inner(name,slug,storefront_url)";
+export async function getCatalogOffers(filters: CatalogFilters = {}) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [] as CatalogOffer[];
+  const supabase = await createClient();
+  let query = supabase
+    .from("offers")
+    .select(selection)
+    .eq("status", "active")
+    .order("current_price", { ascending: true });
+  if (filters.store) query = query.eq("merchants.slug", filters.store);
+  if (filters.category)
+    query = query.eq("products.categories.slug", filters.category);
+  if (filters.categoryIds?.length)
+    query = query.in("products.category_id", filters.categoryIds);
+  const { data } = await query;
+  const rows = (data ?? []) as unknown as CatalogOffer[];
+  const needle = filters.query?.trim().toLowerCase();
+  return needle
+    ? rows.filter((x) =>
+        `${x.products?.title ?? ""} ${x.products?.brand ?? ""}`
+          .toLowerCase()
+          .includes(needle),
+      )
+    : rows;
+}
+export async function getProductOffers(slug: string) {
+  return (await getCatalogOffers()).filter(
+    (offer) => offer.products?.slug === slug,
+  );
+}
+export async function getStores() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL)
+    return [] as {
+      id: string;
+      name: string;
+      slug: string;
+      logo_url: string | null;
+      storefront_url: string | null;
+    }[];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("merchants")
+    .select("id,name,slug,logo_url,storefront_url")
+    .eq("is_active", true)
+    .order("homepage_position");
+  return data ?? [];
+}
+export async function getCategories() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL)
+    return [] as {
+      id: string;
+      name: string;
+      slug: string;
+      parent_id: string | null;
+      level: number;
+      short_description: string | null;
+      description: string | null;
+      image_url: string | null;
+      banner_url: string | null;
+      mobile_banner_url: string | null;
+      display_order: number;
+      show_in_navigation: boolean;
+    }[];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("categories")
+    .select(
+      "id,name,slug,parent_id,level,short_description,description,image_url,banner_url,mobile_banner_url,display_order,show_in_navigation",
+    )
+    .eq("is_active", true)
+    .is("archived_at", null)
+    .order("display_order");
+  return data ?? [];
+}

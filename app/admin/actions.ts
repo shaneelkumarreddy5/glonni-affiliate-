@@ -1,27 +1,859 @@
-'use server';
-import { revalidatePath } from 'next/cache'; import { redirect } from 'next/navigation'; import { createClient } from '@/lib/supabase/server';
-const slug=(v:string)=>v.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');const refresh=()=>{revalidatePath('/admin');revalidatePath('/');revalidatePath('/deals');};
-const audit=async(s:Awaited<ReturnType<typeof createClient>>,event_type:string,entity_type:string,entity_id:string|null,metadata:Record<string,unknown>)=>{await s.from('audit_events').insert({event_type,entity_type,entity_id,source:'admin_preview',metadata});};
-async function requireAdminMutation(){const s=await createClient();const [{data:{user}},{data:assurance}]=await Promise.all([s.auth.getUser(),s.auth.mfa.getAuthenticatorAssuranceLevel()]);if(!user)redirect('/admin/login');const[{data:profile},{data:employee}]=await Promise.all([s.from('profiles').select('role').eq('id',user.id).single(),s.from('employees').select('status').eq('profile_id',user.id).single()]);if(!profile||!['owner','admin'].includes(profile.role)||!employee||employee.status!=='active'||assurance?.currentLevel!=='aal2')throw new Error('A verified owner or administrator 2FA session is required.');return{s,user};}
-async function storeOperator(approval=false){const{s,user}=await requireAdminMutation();const{data:profile}=await s.from('profiles').select('role').eq('id',user.id).single();const allowed=approval?['owner','admin']:['owner','admin','editor'];if(!profile||!allowed.includes(profile.role))throw new Error('You do not have permission to change stores.');return{s,user};}
-const storeRefresh=(slug?:string)=>{refresh();revalidatePath('/admin/dashboard');if(slug)revalidatePath(`/admin/stores/${slug}`);};
-async function categoryMediaUrl(s:Awaited<ReturnType<typeof createClient>>,userId:string,f:FormData,handle:string,fileField='imageFile',urlField='imageUrl'){const file=f.get(fileField);if(!(file instanceof File)||file.size===0)return String(f.get(urlField)??'').trim()||null;if(file.size>4_194_304)throw new Error('Category media must be smaller than 4 MB.');const extensions:Record<string,string>={'image/jpeg':'jpg','image/png':'png','image/webp':'webp','image/svg+xml':'svg'};const extension=extensions[file.type];if(!extension)throw new Error('Upload a PNG, JPG, WebP or SVG image.');let body:Blob=file;if(file.type==='image/svg+xml'){const svg=await file.text();if(!/^\s*<svg[\s>]/i.test(svg)||/<script\b|\bon\w+\s*=|javascript:|<foreignObject\b|\b(?:href|xlink:href)\s*=\s*["']https?:/i.test(svg))throw new Error('This SVG contains unsafe or unsupported content.');body=new Blob([svg],{type:file.type});}const path=`categories/${userId}/${Date.now()}-${fileField}-${handle}.${extension}`;const{error}=await s.storage.from('category-media').upload(path,body,{contentType:file.type,upsert:false});if(error)throw new Error(`Media upload failed: ${error.message}`);return s.storage.from('category-media').getPublicUrl(path).data.publicUrl;}
-export type CategoryActionState={ok?:boolean;message?:string;categoryId?:string};
-export async function saveCategoryInline(_previous:CategoryActionState,f:FormData):Promise<CategoryActionState>{try{const{s,user}=await requireAdminMutation();const id=String(f.get('id')??''),name=String(f.get('name')??'').trim(),parentId=String(f.get('parentId')??'')||null;if(!name)return{message:'Enter a category name.'};const nameQuery=s.from('categories').select('id').ilike('name',name).limit(1);if(id)nameQuery.neq('id',id);const{data:nameMatches,error:nameError}=await nameQuery;if(nameError)return{message:nameError.message};if(nameMatches?.length)return{message:`A category named “${name}” already exists. Use a distinct category name.`};let handle=slug(name),originalParent:string|null=null;if(!id){const{data:similar}=await s.from('categories').select('slug').like('slug',`${handle}%`);const used=new Set((similar??[]).map(row=>row.slug));if(used.has(handle)){let suffix=2;while(used.has(`${handle}-${suffix}`))suffix++;handle=`${handle}-${suffix}`;}}else{const{data:current}=await s.from('categories').select('slug,parent_id').eq('id',id).single();if(!current)return{message:'This category could not be found.'};handle=current.slug;originalParent=current.parent_id;}
- const imageUrl=await categoryMediaUrl(s,user.id,f,handle),bannerUrl=await categoryMediaUrl(s,user.id,f,handle,'bannerFile','bannerUrl'),mobileBannerUrl=await categoryMediaUrl(s,user.id,f,handle,'mobileBannerFile','mobileBannerUrl');const keywords=String(f.get('seoKeywords')??'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,20);let filters:Record<string,unknown>={};try{const raw=String(f.get('filterConfiguration')??'').trim();filters=raw?JSON.parse(raw):{};}catch{return{message:'Advanced filter settings are invalid. Please correct or clear them.'};}const{data:parent}=parentId?await s.from('categories').select('level').eq('id',parentId).single():{data:null};const level=parent?(Number(parent.level)||1)+1:1;let displayOrder:number|undefined;if(!id||originalParent!==parentId){const{data:lastSibling}=parentId?await s.from('categories').select('display_order').eq('parent_id',parentId).order('display_order',{ascending:false}).limit(1):await s.from('categories').select('display_order').is('parent_id',null).order('display_order',{ascending:false}).limit(1);displayOrder=(Number(lastSibling?.[0]?.display_order)||0)+10;}const values={name,slug:handle,parent_id:parentId,navigation_label:String(f.get('navigationLabel')??'').trim()||null,short_description:String(f.get('shortDescription')??'').trim()||null,description:String(f.get('description')??'').trim()||null,category_type:level===1?'department':'subcategory',image_url:imageUrl,banner_url:bannerUrl,mobile_banner_url:mobileBannerUrl,icon_name:String(f.get('iconName')??'').trim()||null,seo_title:String(f.get('seoTitle')??'').trim()||null,seo_description:String(f.get('seoDescription')??'').trim()||null,seo_keywords:keywords,canonical_url:String(f.get('canonicalUrl')??'').trim()||null,show_on_homepage:level===1,show_in_navigation:true,is_searchable:true,sort_mode:String(f.get('sortMode')??'featured'),product_assignment:String(f.get('productAssignment')??'manual'),filter_configuration:filters,...(displayOrder?{display_order:displayOrder}:{}),is_active:f.get('status')==='active',archived_at:f.get('status')==='archived'?new Date().toISOString():null,updated_at:new Date().toISOString()};if(id){const{error}=await s.from('categories').update(values).eq('id',id);if(error)return{message:error.message};await audit(s,'category_updated','category',id,{name,parent_id:parentId,actor_id:user.id});revalidatePath('/admin/categories');revalidatePath('/');return{ok:true,message:'Category updated successfully.',categoryId:id};}const{data,error}=await s.from('categories').insert(values).select('id').single();if(error)return{message:error.message};await audit(s,'category_created','category',data.id,{name,parent_id:parentId,actor_id:user.id});revalidatePath('/admin/categories');revalidatePath('/');return{ok:true,message:'Category created successfully.',categoryId:data.id};}catch(error){return{message:error instanceof Error?error.message:'Unable to save this category. Please try again.'};}}
-export async function createStore(f:FormData){const {s,user}=await storeOperator();const name=String(f.get('name')??'').trim(),url=String(f.get('url')??'').trim();if(!name||!/^https?:\/\//.test(url))throw new Error('Enter a store name and a valid https URL.');const handle=slug(name);const {data,error}=await s.from('merchants').insert({name,slug:handle,storefront_url:url,homepage_position:Number(f.get('homepagePosition'))||99,is_active:false,approval_status:'draft'}).select('id,slug').single();if(error)throw new Error(error.message);await audit(s,'created','merchant',data.id,{name,status:'draft',actor_id:user.id});storeRefresh(data.slug);redirect(`/admin/stores/${data.slug}?success=Store%20created%20as%20draft`);}
-export async function updateStore(f:FormData){const {s,user}=await storeOperator();const id=String(f.get('id')??''),slugValue=String(f.get('slug')??''),name=String(f.get('name')??'').trim(),url=String(f.get('url')??'').trim();if(!id||!name||!/^https?:\/\//.test(url))throw new Error('Store name and a valid https URL are required.');const {error}=await s.from('merchants').update({name,storefront_url:url,homepage_position:Number(f.get('homepagePosition'))||99,review_notes:String(f.get('reviewNotes')??'').trim()||null,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw new Error(error.message);await audit(s,'updated','merchant',id,{name,actor_id:user.id});storeRefresh(slugValue);redirect(`/admin/stores/${slugValue}?success=Store%20details%20saved`);}
-export async function changeStoreStatus(f:FormData){const action=String(f.get('action')??'');const {s,user}=await storeOperator(['approve','reject'].includes(action));const id=String(f.get('id')??''),slugValue=String(f.get('slug')??'');const values=action==='approve'?{approval_status:'approved',is_active:true,reviewed_at:new Date().toISOString(),reviewed_by:user.id}:action==='pause'?{approval_status:'paused',is_active:false}:action==='resume'?{approval_status:'approved',is_active:true}:action==='submit'?{approval_status:'pending',is_active:false}:action==='reject'?{approval_status:'rejected',is_active:false,reviewed_at:new Date().toISOString(),reviewed_by:user.id}:null;if(!id||!values)throw new Error('Invalid store workflow action.');const {error}=await s.from('merchants').update({...values,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw new Error(error.message);await audit(s,`store_${action}`,'merchant',id,{actor_id:user.id});storeRefresh(slugValue);redirect(`/admin/stores/${slugValue}?success=Store%20status%20updated`);}
-export async function addCategory(f:FormData){const{s,user}=await requireAdminMutation();const name=String(f.get('name')??'').trim(),handle=slug(String(f.get('slug')??name)),parentId=String(f.get('parentId')??'')||null;if(!name||!handle)throw new Error('Category name and URL slug are required.');const[nameMatch,slugMatch]=await Promise.all([s.from('categories').select('id').ilike('name',name).limit(1),s.from('categories').select('id').eq('slug',handle).limit(1)]);if(nameMatch.data?.length||slugMatch.data?.length)throw new Error('A category with this name or URL slug already exists.');const imageUrl=await categoryMediaUrl(s,user.id,f,handle);const {data,error}=await s.from('categories').insert({name,slug:handle,parent_id:parentId,description:String(f.get('description')??'').trim()||null,image_url:imageUrl,icon_name:String(f.get('iconName')??'').trim()||null,seo_title:String(f.get('seoTitle')??'').trim()||null,seo_description:String(f.get('seoDescription')??'').trim()||null,show_on_homepage:f.get('showOnHomepage')==='on',display_order:Number(f.get('displayOrder'))||99,is_active:f.get('status')!=='draft'}).select('id').single();if(error)throw new Error(error.message);await audit(s,'category_created','category',data.id,{name,parent_id:parentId,actor_id:user.id});revalidatePath('/admin/categories');revalidatePath('/');redirect('/admin/categories?tab=hierarchy&success=Category%20created');}
-export async function updateCategory(f:FormData){const{s,user}=await requireAdminMutation();const id=String(f.get('id')??''),name=String(f.get('name')??'').trim(),handle=slug(String(f.get('slug')??name)),parentId=String(f.get('parentId')??'')||null;if(!id||!name||!handle)throw new Error('Category, name and URL slug are required.');const[nameMatch,slugMatch]=await Promise.all([s.from('categories').select('id').ilike('name',name).neq('id',id).limit(1),s.from('categories').select('id').eq('slug',handle).neq('id',id).limit(1)]);if(nameMatch.data?.length||slugMatch.data?.length)throw new Error('Another category already uses this name or URL slug.');const imageUrl=await categoryMediaUrl(s,user.id,f,handle);const {error}=await s.from('categories').update({name,slug:handle,parent_id:parentId,description:String(f.get('description')??'').trim()||null,image_url:imageUrl,icon_name:String(f.get('iconName')??'').trim()||null,seo_title:String(f.get('seoTitle')??'').trim()||null,seo_description:String(f.get('seoDescription')??'').trim()||null,show_on_homepage:f.get('showOnHomepage')==='on',display_order:Number(f.get('displayOrder'))||99,is_active:f.get('status')==='active',archived_at:f.get('status')==='archived'?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('id',id);if(error)throw new Error(error.message);await audit(s,'category_updated','category',id,{name,parent_id:parentId,actor_id:user.id});revalidatePath('/admin/categories');revalidatePath('/');redirect(`/admin/categories?tab=add&manage=${id}&success=Category%20updated`);}
-export async function categoryBulkAction(f:FormData){const{s,user}=await requireAdminMutation();const ids=f.getAll('ids').map(String).filter(Boolean),action=String(f.get('action')??'');if(!ids.length||!['activate','pause','archive'].includes(action))throw new Error('Select categories and a valid bulk action.');const values=action==='activate'?{is_active:true,archived_at:null}:action==='pause'?{is_active:false}:{is_active:false,archived_at:new Date().toISOString()};const{error}=await s.from('categories').update({...values,updated_at:new Date().toISOString()}).in('id',ids);if(error)throw new Error(error.message);await audit(s,`categories_${action}`,'category',null,{category_ids:ids,actor_id:user.id});revalidatePath('/admin/categories');revalidatePath('/');}
-export async function saveCategoryOrder(parentId:string|null,orderedIds:string[]){const{s,user}=await requireAdminMutation();const ids=[...new Set(orderedIds)].slice(0,500);if(!ids.length)throw new Error('There are no categories to reorder.');const{data,error}=await s.from('categories').select('id,parent_id').in('id',ids);if(error)throw new Error(error.message);if((data??[]).length!==ids.length||(data??[]).some(row=>(row.parent_id??null)!==(parentId??null)))throw new Error('Categories can only be reordered inside their current parent. Use Edit to move a category to another parent.');for(const[id,index]of ids.map((value,index)=>[value,index] as const)){const{error:updateError}=await s.from('categories').update({display_order:(index+1)*10,updated_at:new Date().toISOString()}).eq('id',id);if(updateError)throw new Error(updateError.message);}await audit(s,'categories_reordered','category',parentId,{ordered_ids:ids,actor_id:user.id});revalidatePath('/admin/categories');revalidatePath('/');revalidatePath('/deals');return{ok:true};}
-export async function deleteCategoryBranch(_previous:CategoryActionState,f:FormData):Promise<CategoryActionState>{try{const{s,user}=await requireAdminMutation();const categoryId=String(f.get('categoryId')??''),replacementId=String(f.get('replacementId')??'')||null;if(!categoryId)return{message:'Choose a category to delete.'};const{data,error}=await s.rpc('delete_category_branch',{p_category_id:categoryId,p_replacement_category_id:replacementId});if(error)return{message:error.message};const result=(data??{}) as {deleted_categories?:number;moved_products?:number};await audit(s,'category_branch_deleted','category',categoryId,{deleted_categories:result.deleted_categories??0,moved_products:result.moved_products??0,replacement_category_id:replacementId,actor_id:user.id});revalidatePath('/admin/categories');revalidatePath('/admin/products');revalidatePath('/');revalidatePath('/deals');return{ok:true,message:`Deleted ${result.deleted_categories??1} categor${result.deleted_categories===1?'y':'ies'}${result.moved_products?` and moved ${result.moved_products} product${result.moved_products===1?'':'s'}`:''}.`};}catch(error){return{message:error instanceof Error?error.message:'Unable to delete this category.'};}}
-export async function reassignCategoryProducts(f:FormData){const{s,user}=await requireAdminMutation();const from=String(f.get('from')??''),to=String(f.get('to')??'');if(!from||!to||from===to)throw new Error('Choose two different categories.');const{error}=await s.from('products').update({category_id:to,updated_at:new Date().toISOString()}).eq('category_id',from);if(error)throw new Error(error.message);await audit(s,'category_products_reassigned','category',from,{destination_category_id:to,actor_id:user.id});revalidatePath('/admin/categories');revalidatePath('/admin/products');revalidatePath('/');}
-export async function importCategories(f:FormData){const{s,user}=await requireAdminMutation();const file=f.get('file');if(!(file instanceof File)||file.size===0||file.size>1_000_000)throw new Error('Choose a CSV file smaller than 1 MB.');const lines=(await file.text()).split(/\r?\n/).map(x=>x.trim()).filter(Boolean).slice(1,501),rows=lines.map(line=>{const[name,parentSlug='',description='']=line.split(',').map(x=>x.trim().replace(/^"|"$/g,''));return{name,slug:slug(name),parentSlug,description};}).filter(x=>x.name&&x.slug);const{data:existing}=await s.from('categories').select('id,slug,level');const lookup=new Map((existing??[]).map(x=>[x.slug,x]));let created=0;for(const row of rows){if(lookup.has(row.slug))continue;const parent=lookup.get(row.parentSlug);if(row.parentSlug&&!parent)continue;const{data,error}=await s.from('categories').insert({name:row.name,slug:row.slug,parent_id:parent?.id??null,description:row.description||null,display_order:99,is_active:false}).select('id,slug,level').single();if(!error&&data){lookup.set(data.slug,data);created++;}}await audit(s,'categories_imported','category',null,{created,actor_id:user.id});revalidatePath('/admin/categories');redirect(`/admin/categories?success=${created}%20categories%20imported%20as%20drafts`);}
-export async function addStore(f:FormData){const{s}=await requireAdminMutation();const name=String(f.get('name')??''),url=String(f.get('url')??'');if(name&&url){const {data}=await s.from('merchants').insert({name,slug:slug(name),storefront_url:url,homepage_position:99,is_active:true}).select('id').single();if(data)await audit(s,'created','merchant',data.id,{name});refresh();}}
-export async function addProvider(f:FormData){const{s}=await requireAdminMutation();const name=String(f.get('name')??'').trim(),adapter_key=slug(String(f.get('adapterKey')??name));const mode=String(f.get('mode')??'manual');if(name&&adapter_key&&['manual','approval_required','automatic'].includes(mode)){const {data}=await s.from('affiliate_providers').insert({name,adapter_key,integration_mode:mode,is_active:false,config:{preview_only:true}}).select('id').single();if(data)await audit(s,'created','affiliate_provider',data.id,{name,adapter_key,mode});refresh();}}
-export async function addProduct(f:FormData){const{s}=await requireAdminMutation();const title=String(f.get('title')??'');if(title){const {data}=await s.from('products').insert({title,slug:slug(title),brand:String(f.get('brand')??''),description:String(f.get('description')??'')||null,image_url:String(f.get('image')??'')||null,category_id:String(f.get('category')??'')||null,is_active:true}).select('id').single();if(data)await audit(s,'created','product',data.id,{title});refresh();}}
-export async function addOffer(f:FormData){const{s}=await requireAdminMutation();const product_id=String(f.get('product')??''),merchant_id=String(f.get('merchant')??''),destination_url=String(f.get('url')??''),reward_type=String(f.get('rewardType')??'none');const valid=['none','fixed_cashback','percentage_cashback','coupon','merchant_promotion'];if(product_id&&merchant_id&&destination_url&&valid.includes(reward_type)){const cashback=reward_type==='fixed_cashback'?Number(f.get('cashback'))||null:null;const percent=reward_type==='percentage_cashback'?Number(f.get('cashbackPercent'))||null:null;const {data}=await s.from('offers').insert({product_id,merchant_id,provider_id:String(f.get('provider')??'')||null,destination_url,current_price:Number(f.get('price')),list_price:Number(f.get('listPrice'))||null,reward_type,cashback_amount:cashback,cashback_percent:percent,cashback_cap:percent?Number(f.get('cashbackCap'))||null:null,coupon_code:reward_type==='coupon'?String(f.get('couponCode')??'').trim()||null:null,reward_terms:String(f.get('rewardTerms')??'').trim()||null,cashback_tracking_supported:['fixed_cashback','percentage_cashback'].includes(reward_type),reward_funding_source:['fixed_cashback','percentage_cashback'].includes(reward_type)?String(f.get('fundingSource')??'provider'):'none',status:'active'}).select('id').single();if(data)await audit(s,'created','offer',data.id,{reward_type,provider_id:String(f.get('provider')??'')||null});refresh();}}
-export async function removeItem(f:FormData){const{s}=await requireAdminMutation();const table=String(f.get('table')),id=String(f.get('id'));if(['categories','merchants','products','offers','affiliate_providers'].includes(table)&&id){const {error}=await s.from(table).delete().eq('id',id);if(!error)await audit(s,'removed',table,id,{});refresh();}}
-export async function addSupportFaq(f:FormData){const{s,user}=await requireAdminMutation();const scope=String(f.get('scope')??'general'),question=String(f.get('question')??'').trim(),answer=String(f.get('answer')??'').trim(),merchantId=String(f.get('merchantId')??'')||null,offerId=String(f.get('offerId')??'')||null;if(!['general','merchant','offer','deal','cashback','wallet','account'].includes(scope)||question.length<5||answer.length<10)throw new Error('Add a clear question and approved answer.');if(scope==='merchant'&&!merchantId)throw new Error('Select a store for a merchant rule.');if(scope==='offer'&&!offerId)throw new Error('Select an offer for an offer rule.');const keywords=String(f.get('keywords')??'').split(',').map(x=>x.trim()).filter(Boolean).slice(0,12);const{data,error}=await s.from('support_faqs').insert({scope,merchant_id:merchantId,offer_id:offerId,question,answer,keywords,is_active:true,display_order:Number(f.get('displayOrder'))||100}).select('id').single();if(error)throw new Error(error.message);await audit(s,'created','support_faq',data.id,{scope,merchant_id:merchantId,offer_id:offerId,actor_id:user.id});refresh();revalidatePath('/support');revalidatePath('/admin/support');}
+"use server";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+const slug = (v: string) =>
+  v
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+const refresh = () => {
+  revalidatePath("/admin");
+  revalidatePath("/");
+  revalidatePath("/deals");
+};
+const audit = async (
+  s: Awaited<ReturnType<typeof createClient>>,
+  event_type: string,
+  entity_type: string,
+  entity_id: string | null,
+  metadata: Record<string, unknown>,
+) => {
+  await s
+    .from("audit_events")
+    .insert({
+      event_type,
+      entity_type,
+      entity_id,
+      source: "admin_preview",
+      metadata,
+    });
+};
+async function requireAdminMutation() {
+  const s = await createClient();
+  const [
+    {
+      data: { user },
+    },
+    { data: assurance },
+  ] = await Promise.all([
+    s.auth.getUser(),
+    s.auth.mfa.getAuthenticatorAssuranceLevel(),
+  ]);
+  if (!user) redirect("/admin/login");
+  const [{ data: profile }, { data: employee }] = await Promise.all([
+    s.from("profiles").select("role").eq("id", user.id).single(),
+    s.from("employees").select("status").eq("profile_id", user.id).single(),
+  ]);
+  if (
+    !profile ||
+    !["owner", "admin"].includes(profile.role) ||
+    !employee ||
+    employee.status !== "active" ||
+    assurance?.currentLevel !== "aal2"
+  )
+    throw new Error(
+      "A verified owner or administrator 2FA session is required.",
+    );
+  return { s, user };
+}
+async function storeOperator(approval = false) {
+  const { s, user } = await requireAdminMutation();
+  const { data: profile } = await s
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  const allowed = approval ? ["owner", "admin"] : ["owner", "admin", "editor"];
+  if (!profile || !allowed.includes(profile.role))
+    throw new Error("You do not have permission to change stores.");
+  return { s, user };
+}
+const storeRefresh = (slug?: string) => {
+  refresh();
+  revalidatePath("/admin/dashboard");
+  if (slug) revalidatePath(`/admin/stores/${slug}`);
+};
+async function categoryMediaUrl(
+  s: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  f: FormData,
+  handle: string,
+  fileField = "imageFile",
+  urlField = "imageUrl",
+) {
+  const file = f.get(fileField);
+  if (!(file instanceof File) || file.size === 0)
+    return String(f.get(urlField) ?? "").trim() || null;
+  if (file.size > 4_194_304)
+    throw new Error("Category media must be smaller than 4 MB.");
+  const extensions: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+    "image/svg+xml": "svg",
+  };
+  const extension = extensions[file.type];
+  if (!extension) throw new Error("Upload a PNG, JPG, WebP or SVG image.");
+  let body: Blob = file;
+  if (file.type === "image/svg+xml") {
+    const svg = await file.text();
+    if (
+      !/^\s*<svg[\s>]/i.test(svg) ||
+      /<script\b|\bon\w+\s*=|javascript:|<foreignObject\b|\b(?:href|xlink:href)\s*=\s*["']https?:/i.test(
+        svg,
+      )
+    )
+      throw new Error("This SVG contains unsafe or unsupported content.");
+    body = new Blob([svg], { type: file.type });
+  }
+  const path = `categories/${userId}/${Date.now()}-${fileField}-${handle}.${extension}`;
+  const { error } = await s.storage
+    .from("category-media")
+    .upload(path, body, { contentType: file.type, upsert: false });
+  if (error) throw new Error(`Media upload failed: ${error.message}`);
+  return s.storage.from("category-media").getPublicUrl(path).data.publicUrl;
+}
+export type CategoryActionState = {
+  ok?: boolean;
+  message?: string;
+  categoryId?: string;
+};
+export async function saveCategoryInline(
+  _previous: CategoryActionState,
+  f: FormData,
+): Promise<CategoryActionState> {
+  try {
+    const { s, user } = await requireAdminMutation();
+    const id = String(f.get("id") ?? ""),
+      name = String(f.get("name") ?? "").trim(),
+      parentId = String(f.get("parentId") ?? "") || null;
+    if (!name) return { message: "Enter a category name." };
+    const nameQuery = s
+      .from("categories")
+      .select("id")
+      .ilike("name", name)
+      .limit(1);
+    if (id) nameQuery.neq("id", id);
+    const { data: nameMatches, error: nameError } = await nameQuery;
+    if (nameError) return { message: nameError.message };
+    if (nameMatches?.length)
+      return {
+        message: `A category named “${name}” already exists. Use a distinct category name.`,
+      };
+    let handle = slug(name),
+      originalParent: string | null = null;
+    if (!id) {
+      const { data: similar } = await s
+        .from("categories")
+        .select("slug")
+        .like("slug", `${handle}%`);
+      const used = new Set((similar ?? []).map((row) => row.slug));
+      if (used.has(handle)) {
+        let suffix = 2;
+        while (used.has(`${handle}-${suffix}`)) suffix++;
+        handle = `${handle}-${suffix}`;
+      }
+    } else {
+      const { data: current } = await s
+        .from("categories")
+        .select("slug,parent_id")
+        .eq("id", id)
+        .single();
+      if (!current) return { message: "This category could not be found." };
+      handle = current.slug;
+      originalParent = current.parent_id;
+    }
+    const imageUrl = await categoryMediaUrl(s, user.id, f, handle),
+      bannerUrl = await categoryMediaUrl(
+        s,
+        user.id,
+        f,
+        handle,
+        "bannerFile",
+        "bannerUrl",
+      ),
+      mobileBannerUrl = await categoryMediaUrl(
+        s,
+        user.id,
+        f,
+        handle,
+        "mobileBannerFile",
+        "mobileBannerUrl",
+      );
+    const keywords = String(f.get("seoKeywords") ?? "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .slice(0, 20);
+    let filters: Record<string, unknown> = {};
+    try {
+      const raw = String(f.get("filterConfiguration") ?? "").trim();
+      filters = raw ? JSON.parse(raw) : {};
+    } catch {
+      return {
+        message:
+          "Advanced filter settings are invalid. Please correct or clear them.",
+      };
+    }
+    const { data: parent } = parentId
+      ? await s.from("categories").select("level").eq("id", parentId).single()
+      : { data: null };
+    const level = parent ? (Number(parent.level) || 1) + 1 : 1;
+    let displayOrder: number | undefined;
+    if (!id || originalParent !== parentId) {
+      const { data: lastSibling } = parentId
+        ? await s
+            .from("categories")
+            .select("display_order")
+            .eq("parent_id", parentId)
+            .order("display_order", { ascending: false })
+            .limit(1)
+        : await s
+            .from("categories")
+            .select("display_order")
+            .is("parent_id", null)
+            .order("display_order", { ascending: false })
+            .limit(1);
+      displayOrder = (Number(lastSibling?.[0]?.display_order) || 0) + 10;
+    }
+    const values = {
+      name,
+      slug: handle,
+      parent_id: parentId,
+      navigation_label: String(f.get("navigationLabel") ?? "").trim() || null,
+      short_description: String(f.get("shortDescription") ?? "").trim() || null,
+      description: String(f.get("description") ?? "").trim() || null,
+      category_type: level === 1 ? "department" : "subcategory",
+      image_url: imageUrl,
+      banner_url: bannerUrl,
+      mobile_banner_url: mobileBannerUrl,
+      icon_name: String(f.get("iconName") ?? "").trim() || null,
+      seo_title: String(f.get("seoTitle") ?? "").trim() || null,
+      seo_description: String(f.get("seoDescription") ?? "").trim() || null,
+      seo_keywords: keywords,
+      canonical_url: String(f.get("canonicalUrl") ?? "").trim() || null,
+      show_on_homepage: level === 1,
+      show_in_navigation: true,
+      is_searchable: true,
+      sort_mode: String(f.get("sortMode") ?? "featured"),
+      product_assignment: String(f.get("productAssignment") ?? "manual"),
+      filter_configuration: filters,
+      ...(displayOrder ? { display_order: displayOrder } : {}),
+      is_active: f.get("status") === "active",
+      archived_at:
+        f.get("status") === "archived" ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    };
+    if (id) {
+      const { error } = await s.from("categories").update(values).eq("id", id);
+      if (error) return { message: error.message };
+      await audit(s, "category_updated", "category", id, {
+        name,
+        parent_id: parentId,
+        actor_id: user.id,
+      });
+      revalidatePath("/admin/categories");
+      revalidatePath("/");
+      return {
+        ok: true,
+        message: "Category updated successfully.",
+        categoryId: id,
+      };
+    }
+    const { data, error } = await s
+      .from("categories")
+      .insert(values)
+      .select("id")
+      .single();
+    if (error) return { message: error.message };
+    await audit(s, "category_created", "category", data.id, {
+      name,
+      parent_id: parentId,
+      actor_id: user.id,
+    });
+    revalidatePath("/admin/categories");
+    revalidatePath("/");
+    return {
+      ok: true,
+      message: "Category created successfully.",
+      categoryId: data.id,
+    };
+  } catch (error) {
+    return {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unable to save this category. Please try again.",
+    };
+  }
+}
+export async function createStore(f: FormData) {
+  const { s, user } = await storeOperator();
+  const name = String(f.get("name") ?? "").trim(),
+    url = String(f.get("url") ?? "").trim();
+  if (!name || !/^https?:\/\//.test(url))
+    throw new Error("Enter a store name and a valid https URL.");
+  const handle = slug(name);
+  const { data, error } = await s
+    .from("merchants")
+    .insert({
+      name,
+      slug: handle,
+      storefront_url: url,
+      homepage_position: Number(f.get("homepagePosition")) || 99,
+      is_active: false,
+      approval_status: "draft",
+    })
+    .select("id,slug")
+    .single();
+  if (error) throw new Error(error.message);
+  await audit(s, "created", "merchant", data.id, {
+    name,
+    status: "draft",
+    actor_id: user.id,
+  });
+  storeRefresh(data.slug);
+  redirect(`/admin/stores/${data.slug}?success=Store%20created%20as%20draft`);
+}
+export async function updateStore(f: FormData) {
+  const { s, user } = await storeOperator();
+  const id = String(f.get("id") ?? ""),
+    slugValue = String(f.get("slug") ?? ""),
+    name = String(f.get("name") ?? "").trim(),
+    url = String(f.get("url") ?? "").trim();
+  if (!id || !name || !/^https?:\/\//.test(url))
+    throw new Error("Store name and a valid https URL are required.");
+  const { error } = await s
+    .from("merchants")
+    .update({
+      name,
+      storefront_url: url,
+      homepage_position: Number(f.get("homepagePosition")) || 99,
+      review_notes: String(f.get("reviewNotes") ?? "").trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  await audit(s, "updated", "merchant", id, { name, actor_id: user.id });
+  storeRefresh(slugValue);
+  redirect(`/admin/stores/${slugValue}?success=Store%20details%20saved`);
+}
+export async function changeStoreStatus(f: FormData) {
+  const action = String(f.get("action") ?? "");
+  const { s, user } = await storeOperator(
+    ["approve", "reject"].includes(action),
+  );
+  const id = String(f.get("id") ?? ""),
+    slugValue = String(f.get("slug") ?? "");
+  const values =
+    action === "approve"
+      ? {
+          approval_status: "approved",
+          is_active: true,
+          reviewed_at: new Date().toISOString(),
+          reviewed_by: user.id,
+        }
+      : action === "pause"
+        ? { approval_status: "paused", is_active: false }
+        : action === "resume"
+          ? { approval_status: "approved", is_active: true }
+          : action === "submit"
+            ? { approval_status: "pending", is_active: false }
+            : action === "reject"
+              ? {
+                  approval_status: "rejected",
+                  is_active: false,
+                  reviewed_at: new Date().toISOString(),
+                  reviewed_by: user.id,
+                }
+              : null;
+  if (!id || !values) throw new Error("Invalid store workflow action.");
+  const { error } = await s
+    .from("merchants")
+    .update({ ...values, updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  await audit(s, `store_${action}`, "merchant", id, { actor_id: user.id });
+  storeRefresh(slugValue);
+  redirect(`/admin/stores/${slugValue}?success=Store%20status%20updated`);
+}
+export async function addCategory(f: FormData) {
+  const { s, user } = await requireAdminMutation();
+  const name = String(f.get("name") ?? "").trim(),
+    handle = slug(String(f.get("slug") ?? name)),
+    parentId = String(f.get("parentId") ?? "") || null;
+  if (!name || !handle)
+    throw new Error("Category name and URL slug are required.");
+  const [nameMatch, slugMatch] = await Promise.all([
+    s.from("categories").select("id").ilike("name", name).limit(1),
+    s.from("categories").select("id").eq("slug", handle).limit(1),
+  ]);
+  if (nameMatch.data?.length || slugMatch.data?.length)
+    throw new Error("A category with this name or URL slug already exists.");
+  const imageUrl = await categoryMediaUrl(s, user.id, f, handle);
+  const { data, error } = await s
+    .from("categories")
+    .insert({
+      name,
+      slug: handle,
+      parent_id: parentId,
+      description: String(f.get("description") ?? "").trim() || null,
+      image_url: imageUrl,
+      icon_name: String(f.get("iconName") ?? "").trim() || null,
+      seo_title: String(f.get("seoTitle") ?? "").trim() || null,
+      seo_description: String(f.get("seoDescription") ?? "").trim() || null,
+      show_on_homepage: f.get("showOnHomepage") === "on",
+      display_order: Number(f.get("displayOrder")) || 99,
+      is_active: f.get("status") !== "draft",
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  await audit(s, "category_created", "category", data.id, {
+    name,
+    parent_id: parentId,
+    actor_id: user.id,
+  });
+  revalidatePath("/admin/categories");
+  revalidatePath("/");
+  redirect("/admin/categories?tab=hierarchy&success=Category%20created");
+}
+export async function updateCategory(f: FormData) {
+  const { s, user } = await requireAdminMutation();
+  const id = String(f.get("id") ?? ""),
+    name = String(f.get("name") ?? "").trim(),
+    handle = slug(String(f.get("slug") ?? name)),
+    parentId = String(f.get("parentId") ?? "") || null;
+  if (!id || !name || !handle)
+    throw new Error("Category, name and URL slug are required.");
+  const [nameMatch, slugMatch] = await Promise.all([
+    s
+      .from("categories")
+      .select("id")
+      .ilike("name", name)
+      .neq("id", id)
+      .limit(1),
+    s.from("categories").select("id").eq("slug", handle).neq("id", id).limit(1),
+  ]);
+  if (nameMatch.data?.length || slugMatch.data?.length)
+    throw new Error("Another category already uses this name or URL slug.");
+  const imageUrl = await categoryMediaUrl(s, user.id, f, handle);
+  const { error } = await s
+    .from("categories")
+    .update({
+      name,
+      slug: handle,
+      parent_id: parentId,
+      description: String(f.get("description") ?? "").trim() || null,
+      image_url: imageUrl,
+      icon_name: String(f.get("iconName") ?? "").trim() || null,
+      seo_title: String(f.get("seoTitle") ?? "").trim() || null,
+      seo_description: String(f.get("seoDescription") ?? "").trim() || null,
+      show_on_homepage: f.get("showOnHomepage") === "on",
+      display_order: Number(f.get("displayOrder")) || 99,
+      is_active: f.get("status") === "active",
+      archived_at:
+        f.get("status") === "archived" ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  await audit(s, "category_updated", "category", id, {
+    name,
+    parent_id: parentId,
+    actor_id: user.id,
+  });
+  revalidatePath("/admin/categories");
+  revalidatePath("/");
+  redirect(`/admin/categories?tab=add&manage=${id}&success=Category%20updated`);
+}
+export async function categoryBulkAction(f: FormData) {
+  const { s, user } = await requireAdminMutation();
+  const ids = f.getAll("ids").map(String).filter(Boolean),
+    action = String(f.get("action") ?? "");
+  if (!ids.length || !["activate", "pause", "archive"].includes(action))
+    throw new Error("Select categories and a valid bulk action.");
+  const values =
+    action === "activate"
+      ? { is_active: true, archived_at: null }
+      : action === "pause"
+        ? { is_active: false }
+        : { is_active: false, archived_at: new Date().toISOString() };
+  const { error } = await s
+    .from("categories")
+    .update({ ...values, updated_at: new Date().toISOString() })
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+  await audit(s, `categories_${action}`, "category", null, {
+    category_ids: ids,
+    actor_id: user.id,
+  });
+  revalidatePath("/admin/categories");
+  revalidatePath("/");
+}
+export async function saveCategoryOrder(
+  parentId: string | null,
+  orderedIds: string[],
+) {
+  const { s, user } = await requireAdminMutation();
+  const ids = [...new Set(orderedIds)].slice(0, 500);
+  if (!ids.length) throw new Error("There are no categories to reorder.");
+  const { data, error } = await s
+    .from("categories")
+    .select("id,parent_id")
+    .in("id", ids);
+  if (error) throw new Error(error.message);
+  if (
+    (data ?? []).length !== ids.length ||
+    (data ?? []).some((row) => (row.parent_id ?? null) !== (parentId ?? null))
+  )
+    throw new Error(
+      "Categories can only be reordered inside their current parent. Use Edit to move a category to another parent.",
+    );
+  for (const [id, index] of ids.map(
+    (value, index) => [value, index] as const,
+  )) {
+    const { error: updateError } = await s
+      .from("categories")
+      .update({
+        display_order: (index + 1) * 10,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+    if (updateError) throw new Error(updateError.message);
+  }
+  await audit(s, "categories_reordered", "category", parentId, {
+    ordered_ids: ids,
+    actor_id: user.id,
+  });
+  revalidatePath("/admin/categories");
+  revalidatePath("/");
+  revalidatePath("/deals");
+  return { ok: true };
+}
+export async function deleteCategoryBranch(
+  _previous: CategoryActionState,
+  f: FormData,
+): Promise<CategoryActionState> {
+  try {
+    const { s, user } = await requireAdminMutation();
+    const categoryId = String(f.get("categoryId") ?? ""),
+      replacementId = String(f.get("replacementId") ?? "") || null;
+    if (!categoryId) return { message: "Choose a category to delete." };
+    const { data, error } = await s.rpc("delete_category_branch", {
+      p_category_id: categoryId,
+      p_replacement_category_id: replacementId,
+    });
+    if (error) return { message: error.message };
+    const result = (data ?? {}) as {
+      deleted_categories?: number;
+      moved_products?: number;
+    };
+    await audit(s, "category_branch_deleted", "category", categoryId, {
+      deleted_categories: result.deleted_categories ?? 0,
+      moved_products: result.moved_products ?? 0,
+      replacement_category_id: replacementId,
+      actor_id: user.id,
+    });
+    revalidatePath("/admin/categories");
+    revalidatePath("/admin/products");
+    revalidatePath("/");
+    revalidatePath("/deals");
+    return {
+      ok: true,
+      message: `Deleted ${result.deleted_categories ?? 1} categor${result.deleted_categories === 1 ? "y" : "ies"}${result.moved_products ? ` and moved ${result.moved_products} product${result.moved_products === 1 ? "" : "s"}` : ""}.`,
+    };
+  } catch (error) {
+    return {
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unable to delete this category.",
+    };
+  }
+}
+export async function reassignCategoryProducts(f: FormData) {
+  const { s, user } = await requireAdminMutation();
+  const from = String(f.get("from") ?? ""),
+    to = String(f.get("to") ?? "");
+  if (!from || !to || from === to)
+    throw new Error("Choose two different categories.");
+  const { error } = await s
+    .from("products")
+    .update({ category_id: to, updated_at: new Date().toISOString() })
+    .eq("category_id", from);
+  if (error) throw new Error(error.message);
+  await audit(s, "category_products_reassigned", "category", from, {
+    destination_category_id: to,
+    actor_id: user.id,
+  });
+  revalidatePath("/admin/categories");
+  revalidatePath("/admin/products");
+  revalidatePath("/");
+}
+export async function importCategories(f: FormData) {
+  const { s, user } = await requireAdminMutation();
+  const file = f.get("file");
+  if (!(file instanceof File) || file.size === 0 || file.size > 1_000_000)
+    throw new Error("Choose a CSV file smaller than 1 MB.");
+  const lines = (await file.text())
+      .split(/\r?\n/)
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .slice(1, 501),
+    rows = lines
+      .map((line) => {
+        const [name, parentSlug = "", description = ""] = line
+          .split(",")
+          .map((x) => x.trim().replace(/^"|"$/g, ""));
+        return { name, slug: slug(name), parentSlug, description };
+      })
+      .filter((x) => x.name && x.slug);
+  const { data: existing } = await s.from("categories").select("id,slug,level");
+  const lookup = new Map((existing ?? []).map((x) => [x.slug, x]));
+  let created = 0;
+  for (const row of rows) {
+    if (lookup.has(row.slug)) continue;
+    const parent = lookup.get(row.parentSlug);
+    if (row.parentSlug && !parent) continue;
+    const { data, error } = await s
+      .from("categories")
+      .insert({
+        name: row.name,
+        slug: row.slug,
+        parent_id: parent?.id ?? null,
+        description: row.description || null,
+        display_order: 99,
+        is_active: false,
+      })
+      .select("id,slug,level")
+      .single();
+    if (!error && data) {
+      lookup.set(data.slug, data);
+      created++;
+    }
+  }
+  await audit(s, "categories_imported", "category", null, {
+    created,
+    actor_id: user.id,
+  });
+  revalidatePath("/admin/categories");
+  redirect(
+    `/admin/categories?success=${created}%20categories%20imported%20as%20drafts`,
+  );
+}
+export async function addStore(f: FormData) {
+  const { s } = await requireAdminMutation();
+  const name = String(f.get("name") ?? ""),
+    url = String(f.get("url") ?? "");
+  if (name && url) {
+    const { data } = await s
+      .from("merchants")
+      .insert({
+        name,
+        slug: slug(name),
+        storefront_url: url,
+        homepage_position: 99,
+        is_active: true,
+      })
+      .select("id")
+      .single();
+    if (data) await audit(s, "created", "merchant", data.id, { name });
+    refresh();
+  }
+}
+export async function addProvider(f: FormData) {
+  const { s } = await requireAdminMutation();
+  const name = String(f.get("name") ?? "").trim(),
+    adapter_key = slug(String(f.get("adapterKey") ?? name));
+  const mode = String(f.get("mode") ?? "manual");
+  if (
+    name &&
+    adapter_key &&
+    ["manual", "approval_required", "automatic"].includes(mode)
+  ) {
+    const { data } = await s
+      .from("affiliate_providers")
+      .insert({
+        name,
+        adapter_key,
+        integration_mode: mode,
+        is_active: false,
+        config: { preview_only: true },
+      })
+      .select("id")
+      .single();
+    if (data)
+      await audit(s, "created", "affiliate_provider", data.id, {
+        name,
+        adapter_key,
+        mode,
+      });
+    refresh();
+  }
+}
+export async function addProduct(f: FormData) {
+  const { s } = await requireAdminMutation();
+  const title = String(f.get("title") ?? "");
+  if (title) {
+    const { data } = await s
+      .from("products")
+      .insert({
+        title,
+        slug: slug(title),
+        brand: String(f.get("brand") ?? ""),
+        description: String(f.get("description") ?? "") || null,
+        image_url: String(f.get("image") ?? "") || null,
+        category_id: String(f.get("category") ?? "") || null,
+        is_active: false,
+      })
+      .select("id")
+      .single();
+    if (data) await audit(s, "created", "product", data.id, { title });
+    refresh();
+    if (data) redirect(`/admin/products/${data.id}?section=content&success=Draft%20product%20created`);
+  }
+}
+export async function addOffer(f: FormData) {
+  const { s } = await requireAdminMutation();
+  const product_id = String(f.get("product") ?? ""),
+    merchant_id = String(f.get("merchant") ?? ""),
+    destination_url = String(f.get("url") ?? ""),
+    reward_type = String(f.get("rewardType") ?? "none");
+  const valid = [
+    "none",
+    "fixed_cashback",
+    "percentage_cashback",
+    "coupon",
+    "merchant_promotion",
+  ];
+  if (
+    product_id &&
+    merchant_id &&
+    destination_url &&
+    valid.includes(reward_type)
+  ) {
+    const cashback =
+      reward_type === "fixed_cashback"
+        ? Number(f.get("cashback")) || null
+        : null;
+    const percent =
+      reward_type === "percentage_cashback"
+        ? Number(f.get("cashbackPercent")) || null
+        : null;
+    const { data } = await s
+      .from("offers")
+      .insert({
+        product_id,
+        merchant_id,
+        provider_id: String(f.get("provider") ?? "") || null,
+        destination_url,
+        current_price: Number(f.get("price")),
+        list_price: Number(f.get("listPrice")) || null,
+        reward_type,
+        cashback_amount: cashback,
+        cashback_percent: percent,
+        cashback_cap: percent ? Number(f.get("cashbackCap")) || null : null,
+        coupon_code:
+          reward_type === "coupon"
+            ? String(f.get("couponCode") ?? "").trim() || null
+            : null,
+        reward_terms: String(f.get("rewardTerms") ?? "").trim() || null,
+        cashback_tracking_supported: [
+          "fixed_cashback",
+          "percentage_cashback",
+        ].includes(reward_type),
+        reward_funding_source: [
+          "fixed_cashback",
+          "percentage_cashback",
+        ].includes(reward_type)
+          ? String(f.get("fundingSource") ?? "provider")
+          : "none",
+        status: "active",
+      })
+      .select("id")
+      .single();
+    if (data)
+      await audit(s, "created", "offer", data.id, {
+        reward_type,
+        provider_id: String(f.get("provider") ?? "") || null,
+      });
+    refresh();
+  }
+}
+export async function removeItem(f: FormData) {
+  const { s } = await requireAdminMutation();
+  const table = String(f.get("table")),
+    id = String(f.get("id"));
+  if (
+    [
+      "categories",
+      "merchants",
+      "products",
+      "offers",
+      "affiliate_providers",
+    ].includes(table) &&
+    id
+  ) {
+    const { error } = await s.from(table).delete().eq("id", id);
+    if (!error) await audit(s, "removed", table, id, {});
+    refresh();
+  }
+}
+export async function addSupportFaq(f: FormData) {
+  const { s, user } = await requireAdminMutation();
+  const scope = String(f.get("scope") ?? "general"),
+    question = String(f.get("question") ?? "").trim(),
+    answer = String(f.get("answer") ?? "").trim(),
+    merchantId = String(f.get("merchantId") ?? "") || null,
+    offerId = String(f.get("offerId") ?? "") || null;
+  if (
+    ![
+      "general",
+      "merchant",
+      "offer",
+      "deal",
+      "cashback",
+      "wallet",
+      "account",
+    ].includes(scope) ||
+    question.length < 5 ||
+    answer.length < 10
+  )
+    throw new Error("Add a clear question and approved answer.");
+  if (scope === "merchant" && !merchantId)
+    throw new Error("Select a store for a merchant rule.");
+  if (scope === "offer" && !offerId)
+    throw new Error("Select an offer for an offer rule.");
+  const keywords = String(f.get("keywords") ?? "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .slice(0, 12);
+  const { data, error } = await s
+    .from("support_faqs")
+    .insert({
+      scope,
+      merchant_id: merchantId,
+      offer_id: offerId,
+      question,
+      answer,
+      keywords,
+      is_active: true,
+      display_order: Number(f.get("displayOrder")) || 100,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  await audit(s, "created", "support_faq", data.id, {
+    scope,
+    merchant_id: merchantId,
+    offer_id: offerId,
+    actor_id: user.id,
+  });
+  refresh();
+  revalidatePath("/support");
+  revalidatePath("/admin/support");
+}
