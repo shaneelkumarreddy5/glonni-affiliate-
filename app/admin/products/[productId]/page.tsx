@@ -19,6 +19,7 @@ import {
   Store,
 } from "lucide-react";
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { ProductMediaUploader } from "@/components/product-media-uploader";
 import { createClient } from "@/lib/supabase/server";
 import {
   updateProductContent,
@@ -80,11 +81,13 @@ export default async function AdminProductDetail({
         .eq("product_id", productId)
         .order("recorded_at", { ascending: false })
         .limit(100),
-  ]);
+    ]);
   if (!product) notFound();
-  const productCategory = (Array.isArray(product.categories)
-    ? product.categories[0]
-    : product.categories) as { id: string; name: string; slug: string } | null;
+  const productCategory = (
+    Array.isArray(product.categories)
+      ? product.categories[0]
+      : product.categories
+  ) as { id: string; name: string; slug: string } | null;
   const gallery = values(product.gallery_images) as string[],
     variants = values(product.variants) as {
       label: string;
@@ -210,14 +213,14 @@ export default async function AdminProductDetail({
                       ))}
                     </select>
                   </label>
-                  <label>
-                    Primary image URL
-                    <input
-                      name="imageUrl"
-                      type="url"
-                      defaultValue={product.image_url ?? ""}
+                  <div className="wide">
+                    <ProductMediaUploader
+                      fieldName="imageUrl"
+                      label="Primary product image"
+                      productKey={product.id}
+                      initialUrls={product.image_url ? [product.image_url] : []}
                     />
-                  </label>
+                  </div>
                   <label className="wide">
                     Description
                     <textarea
@@ -283,18 +286,13 @@ export default async function AdminProductDetail({
                 <Settings2 />
               </header>
               <div className="content-editor-sections">
-                <label>
-                  <span>
-                    <b>Gallery images</b>
-                    <small>One image URL per line, up to 12.</small>
-                  </span>
-                  <textarea
-                    name="galleryImages"
-                    rows={7}
-                    defaultValue={gallery.join("\n")}
-                    placeholder="https://…/front.jpg&#10;https://…/side.jpg"
-                  />
-                </label>
+                <ProductMediaUploader
+                  fieldName="galleryImages"
+                  label="Product gallery"
+                  productKey={product.id}
+                  initialUrls={gallery}
+                  multiple
+                />
                 <label>
                   <span>
                     <b>Variants</b>

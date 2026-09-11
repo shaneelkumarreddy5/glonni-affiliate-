@@ -19,6 +19,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { AdminSidebar } from "@/components/admin-sidebar";
+import { ProductMediaUploader } from "@/components/product-media-uploader";
 import { createClient } from "@/lib/supabase/server";
 import { addProduct } from "../actions";
 
@@ -534,10 +535,13 @@ function Manual({
               ))}
             </select>
           </label>
-          <label>
-            Primary image URL
-            <input name="image" type="url" placeholder="https://…" />
-          </label>
+          <div className="wide">
+            <ProductMediaUploader
+              fieldName="image"
+              label="Primary product image"
+              productKey="new-product"
+            />
+          </div>
         </fieldset>
         <footer>
           <Link href="/admin/products">Cancel</Link>

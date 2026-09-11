@@ -523,6 +523,9 @@
 .manual-product-form .wide {
   grid-column: 1/-1;
 }
+.manual-product-form .product-media-uploader {
+  grid-column: 1/-1;
+}
 .manual-product-form footer {
   display: flex;
   justify-content: flex-end;
