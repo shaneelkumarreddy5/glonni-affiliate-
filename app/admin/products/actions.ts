@@ -73,16 +73,14 @@ async function audit(
   entityId: string,
   metadata: Record<string, unknown>,
 ) {
-  await supabase
-    .from("audit_events")
-    .insert({
-      actor_id: userId,
-      event_type: event,
-      entity_type: "product",
-      entity_id: entityId,
-      source: "admin",
-      metadata,
-    });
+  await supabase.from("audit_events").insert({
+    actor_id: userId,
+    event_type: event,
+    entity_type: "product",
+    entity_id: entityId,
+    source: "admin",
+    metadata,
+  });
 }
 function refresh(productId: string, slug?: string) {
   revalidatePath("/admin/products");
@@ -184,22 +182,19 @@ export async function updateProductOffer(form: FormData) {
     )
       ? requestedStockStatus
       : "unknown",
-    status = ["draft", "active", "paused", "expired"].includes(
-      requestedStatus,
-    )
+    status = ["draft", "active", "paused", "expired"].includes(requestedStatus)
       ? requestedStatus
       : "draft";
   const values = {
-    current_price: currentPrice !== null && currentPrice >= 0 ? currentPrice : null,
+    current_price:
+      currentPrice !== null && currentPrice >= 0 ? currentPrice : null,
     list_price: listPrice !== null && listPrice > 0 ? listPrice : null,
     bank_offer: String(form.get("bankOffer") ?? "").trim() || null,
     customer_rating:
       rating !== null && rating >= 0 && rating <= 5 ? rating : null,
-    rating_count:
-      ratingCount !== null && ratingCount >= 0 ? ratingCount : null,
+    rating_count: ratingCount !== null && ratingCount >= 0 ? ratingCount : null,
     stock_status: stockStatus,
-    cashback_confirmation_days:
-      days !== null && days >= 0 ? days : null,
+    cashback_confirmation_days: days !== null && days >= 0 ? days : null,
     variant_label: String(form.get("variantLabel") ?? "").trim() || null,
     reward_terms: String(form.get("rewardTerms") ?? "").trim() || null,
     status,
@@ -212,14 +207,12 @@ export async function updateProductOffer(form: FormData) {
     .eq("product_id", productId);
   if (error) throw new Error(error.message);
   if (values.current_price !== null)
-    await supabase
-      .from("product_price_history")
-      .insert({
-        product_id: productId,
-        offer_id: offerId,
-        price: values.current_price,
-        source: "admin",
-      });
+    await supabase.from("product_price_history").insert({
+      product_id: productId,
+      offer_id: offerId,
+      price: values.current_price,
+      source: "admin",
+    });
   const { data: product } = await supabase
     .from("products")
     .select("slug")
@@ -231,5 +224,414 @@ export async function updateProductOffer(form: FormData) {
   refresh(productId, product?.slug);
   redirect(
     `/admin/products/${productId}?section=offers&success=Store%20offer%20saved`,
+  );
+}
+
+const wizardSteps = [
+  "basic",
+  "images",
+  "variations",
+  "specifications",
+  "information",
+  "offers",
+  "history",
+  "discovery",
+  "review",
+] as const;
+type WizardStep = (typeof wizardSteps)[number];
+const wizardUrl = (productId: string, step: WizardStep, message?: string) =>
+  `/admin/products?view=manual&draft=${productId}&step=${step}${
+    message ? `&success=${encodeURIComponent(message)}` : ""
+  }`;
+const textList = (value: FormDataEntryValue | null) =>
+  String(value ?? "")
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+const formRows = (form: FormData, prefix: string) => {
+  const labels = form.getAll(`${prefix}Label`).map(String);
+  const values = form.getAll(`${prefix}Value`).map(String);
+  return labels
+    .map((label, index) => ({
+      label: label.trim(),
+      value: (values[index] ?? "").trim(),
+    }))
+    .filter((row) => row.label && row.value);
+};
+async function productSlug(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  title: string,
+  excludeId?: string,
+) {
+  const base = slugify(title) || `product-${Date.now()}`;
+  let candidate = base;
+  for (let suffix = 1; suffix < 100; suffix++) {
+    let query = supabase.from("products").select("id").eq("slug", candidate);
+    if (excludeId) query = query.neq("id", excludeId);
+    const { data } = await query.maybeSingle();
+    if (!data) return candidate;
+    candidate = `${base}-${suffix + 1}`;
+  }
+  return `${base}-${Date.now()}`;
+}
+async function mergeManualMetadata(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  productId: string,
+  patch: Record<string, unknown>,
+) {
+  const { data } = await supabase
+    .from("products")
+    .select("manual_metadata")
+    .eq("id", productId)
+    .single();
+  const current =
+    data?.manual_metadata && typeof data.manual_metadata === "object"
+      ? (data.manual_metadata as Record<string, unknown>)
+      : {};
+  const { error } = await supabase
+    .from("products")
+    .update({
+      manual_metadata: { ...current, ...patch },
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", productId);
+  if (error) throw new Error(error.message);
+}
+
+export async function createManualProductDraft(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const title = String(form.get("title") ?? "").trim();
+  const categoryId = String(form.get("categoryId") ?? "");
+  if (!title || !categoryId)
+    throw new Error("Product name and category are required.");
+  const slug = await productSlug(supabase, title);
+  const { data, error } = await supabase
+    .from("products")
+    .insert({
+      title,
+      slug,
+      brand: String(form.get("brand") ?? "").trim() || null,
+      category_id: categoryId,
+      description: String(form.get("description") ?? "").trim() || null,
+      is_active: false,
+      manual_metadata: {
+        model_code: String(form.get("modelCode") ?? "").trim(),
+        workflow_step: "images",
+      },
+    })
+    .select("id")
+    .single();
+  if (error || !data)
+    throw new Error(error?.message || "Unable to create draft.");
+  await audit(supabase, user.id, "manual_product_draft_created", data.id, {
+    title,
+  });
+  refresh(data.id, slug);
+  redirect(wizardUrl(data.id, "images", "Draft created. Add product images."));
+}
+
+export async function saveManualBasic(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const productId = String(form.get("productId") ?? "");
+  const title = String(form.get("title") ?? "").trim();
+  const categoryId = String(form.get("categoryId") ?? "");
+  if (!productId || !title || !categoryId)
+    throw new Error("Product, name and category are required.");
+  const slug = await productSlug(supabase, title, productId);
+  const { error } = await supabase
+    .from("products")
+    .update({
+      title,
+      slug,
+      brand: String(form.get("brand") ?? "").trim() || null,
+      category_id: categoryId,
+      description: String(form.get("description") ?? "").trim() || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", productId);
+  if (error) throw new Error(error.message);
+  await mergeManualMetadata(supabase, productId, {
+    model_code: String(form.get("modelCode") ?? "").trim(),
+    workflow_step: "images",
+  });
+  await audit(supabase, user.id, "manual_product_basic_saved", productId, {});
+  refresh(productId, slug);
+  redirect(wizardUrl(productId, "images", "Basic information saved."));
+}
+
+export async function saveManualImages(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const productId = String(form.get("productId") ?? "");
+  if (!productId) throw new Error("Product is required.");
+  const imageUrl = String(form.get("imageUrl") ?? "").trim() || null;
+  const gallery = lines(form.get("galleryImages")).slice(0, 12);
+  const { error } = await supabase
+    .from("products")
+    .update({
+      image_url: imageUrl,
+      gallery_images: gallery,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", productId);
+  if (error) throw new Error(error.message);
+  await mergeManualMetadata(supabase, productId, {
+    workflow_step: "variations",
+  });
+  await audit(supabase, user.id, "manual_product_images_saved", productId, {
+    gallery_count: gallery.length,
+  });
+  refresh(productId);
+  redirect(wizardUrl(productId, "variations", "Images saved."));
+}
+
+export async function saveManualVariations(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const productId = String(form.get("productId") ?? "");
+  const rows = formRows(form, "variation").map((row) => ({
+    label: row.label,
+    values: row.value
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  }));
+  const { error } = await supabase
+    .from("products")
+    .update({ variants: rows, updated_at: new Date().toISOString() })
+    .eq("id", productId);
+  if (error) throw new Error(error.message);
+  await mergeManualMetadata(supabase, productId, {
+    workflow_step: "specifications",
+  });
+  await audit(supabase, user.id, "manual_product_variations_saved", productId, {
+    groups: rows.length,
+  });
+  refresh(productId);
+  redirect(wizardUrl(productId, "specifications", "Variations saved."));
+}
+
+export async function saveManualSpecifications(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const productId = String(form.get("productId") ?? "");
+  const specifications = formRows(form, "specification").slice(0, 40);
+  const { error } = await supabase
+    .from("products")
+    .update({ specifications, updated_at: new Date().toISOString() })
+    .eq("id", productId);
+  if (error) throw new Error(error.message);
+  await mergeManualMetadata(supabase, productId, {
+    workflow_step: "information",
+  });
+  await audit(
+    supabase,
+    user.id,
+    "manual_product_specifications_saved",
+    productId,
+    {
+      count: specifications.length,
+    },
+  );
+  refresh(productId);
+  redirect(wizardUrl(productId, "information", "Specifications saved."));
+}
+
+export async function saveManualInformation(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const productId = String(form.get("productId") ?? "");
+  const keys = [
+    "highlights",
+    "features",
+    "materials",
+    "usage",
+    "package_contents",
+    "warranty",
+    "manufacturer",
+    "additional_details",
+  ];
+  const information = Object.fromEntries(
+    keys
+      .map((key) => [key, String(form.get(key) ?? "").trim()])
+      .filter(([, value]) => value),
+  );
+  const { error } = await supabase
+    .from("products")
+    .update({
+      product_information: information,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", productId);
+  if (error) throw new Error(error.message);
+  await mergeManualMetadata(supabase, productId, { workflow_step: "offers" });
+  await audit(
+    supabase,
+    user.id,
+    "manual_product_information_saved",
+    productId,
+    {},
+  );
+  refresh(productId);
+  redirect(wizardUrl(productId, "offers", "Product information saved."));
+}
+
+export async function addManualOffer(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const productId = String(form.get("productId") ?? "");
+  const merchantId = String(form.get("merchantId") ?? "");
+  const providerId = String(form.get("providerId") ?? "") || null;
+  const destinationUrl = String(form.get("destinationUrl") ?? "").trim();
+  if (!productId || !merchantId || !destinationUrl)
+    throw new Error("Product, store and affiliate URL are required.");
+  const parsed = new URL(destinationUrl);
+  if (!["http:", "https:"].includes(parsed.protocol))
+    throw new Error("Use a valid HTTP or HTTPS affiliate URL.");
+  const currentPrice = optionalNumber(form.get("currentPrice"));
+  if (currentPrice === null || currentPrice < 0)
+    throw new Error("Enter a valid selling price.");
+  const requestedRewardType = String(form.get("rewardType") ?? "none");
+  const rewardType = [
+    "none",
+    "fixed_cashback",
+    "percentage_cashback",
+    "coupon",
+    "merchant_promotion",
+  ].includes(requestedRewardType)
+    ? requestedRewardType
+    : "none";
+  const { data, error } = await supabase
+    .from("offers")
+    .insert({
+      product_id: productId,
+      merchant_id: merchantId,
+      provider_id: providerId,
+      external_offer_id:
+        String(form.get("externalOfferId") ?? "").trim() || null,
+      destination_url: destinationUrl,
+      current_price: currentPrice,
+      list_price: optionalNumber(form.get("listPrice")),
+      reward_type: rewardType,
+      cashback_amount: optionalNumber(form.get("cashbackAmount")),
+      cashback_percent: optionalNumber(form.get("cashbackPercent")),
+      commission_rate: optionalNumber(form.get("commissionRate")),
+      commission_amount: optionalNumber(form.get("commissionAmount")),
+      coupon_code: String(form.get("couponCode") ?? "").trim() || null,
+      bank_offer: String(form.get("bankOffer") ?? "").trim() || null,
+      customer_rating: optionalNumber(form.get("customerRating")),
+      rating_count: optionalNumber(form.get("ratingCount")),
+      stock_status: String(form.get("stockStatus") ?? "unknown"),
+      cashback_confirmation_days: optionalNumber(form.get("cashbackDays")),
+      variant_label: String(form.get("variantLabel") ?? "").trim() || null,
+      reward_terms: String(form.get("rewardTerms") ?? "").trim() || null,
+      status: "draft",
+    })
+    .select("id")
+    .single();
+  if (error || !data) throw new Error(error?.message || "Unable to add offer.");
+  await supabase.from("product_price_history").insert({
+    product_id: productId,
+    offer_id: data.id,
+    price: currentPrice,
+    source: "manual_entry",
+  });
+  await mergeManualMetadata(supabase, productId, { workflow_step: "history" });
+  await audit(supabase, user.id, "manual_product_offer_added", productId, {
+    offer_id: data.id,
+  });
+  refresh(productId);
+  redirect(wizardUrl(productId, "history", "Store offer added."));
+}
+
+export async function addManualPriceHistory(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const productId = String(form.get("productId") ?? "");
+  const offerId = String(form.get("offerId") ?? "");
+  const price = optionalNumber(form.get("price"));
+  if (!productId || !offerId || price === null || price < 0)
+    throw new Error("Offer and valid historical price are required.");
+  const recordedAt = String(form.get("recordedAt") ?? "");
+  const { error } = await supabase.from("product_price_history").insert({
+    product_id: productId,
+    offer_id: offerId,
+    price,
+    recorded_at: recordedAt
+      ? new Date(recordedAt).toISOString()
+      : new Date().toISOString(),
+    source: "manual_correction",
+  });
+  if (error) throw new Error(error.message);
+  await mergeManualMetadata(supabase, productId, {
+    workflow_step: "discovery",
+  });
+  await audit(supabase, user.id, "manual_price_history_added", productId, {
+    offer_id: offerId,
+  });
+  refresh(productId);
+  redirect(wizardUrl(productId, "discovery", "Price history saved."));
+}
+
+export async function saveManualDiscovery(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const productId = String(form.get("productId") ?? "");
+  await mergeManualMetadata(supabase, productId, {
+    search_keywords: textList(form.get("searchKeywords")),
+    tags: textList(form.get("tags")),
+    seo_title: String(form.get("seoTitle") ?? "").trim(),
+    seo_description: String(form.get("seoDescription") ?? "").trim(),
+    placement: String(form.get("placement") ?? "none"),
+    featured: form.get("featured") === "on",
+    related_product_ids: form
+      .getAll("relatedProductIds")
+      .map(String)
+      .filter(Boolean),
+    workflow_step: "review",
+  });
+  await audit(
+    supabase,
+    user.id,
+    "manual_product_discovery_saved",
+    productId,
+    {},
+  );
+  refresh(productId);
+  redirect(wizardUrl(productId, "review", "Discovery settings saved."));
+}
+
+export async function publishManualProduct(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const productId = String(form.get("productId") ?? "");
+  const { data: product } = await supabase
+    .from("products")
+    .select(
+      "slug,title,brand,category_id,image_url,specifications,offers(id,current_price,destination_url)",
+    )
+    .eq("id", productId)
+    .single();
+  if (!product) throw new Error("Product was not found.");
+  const missing = [
+    !product.title && "product name",
+    !product.brand && "brand",
+    !product.category_id && "category",
+    !product.image_url && "primary image",
+    !(product.offers ?? []).some(
+      (offer) => offer.current_price && offer.destination_url,
+    ) && "complete store offer",
+  ].filter(Boolean);
+  if (missing.length)
+    throw new Error(`Complete ${missing.join(", ")} before publishing.`);
+  await supabase
+    .from("offers")
+    .update({ status: "active" })
+    .eq("product_id", productId);
+  const { error } = await supabase
+    .from("products")
+    .update({ is_active: true, updated_at: new Date().toISOString() })
+    .eq("id", productId);
+  if (error) throw new Error(error.message);
+  await mergeManualMetadata(supabase, productId, {
+    workflow_step: "complete",
+    published_at: new Date().toISOString(),
+  });
+  await audit(supabase, user.id, "manual_product_published", productId, {});
+  refresh(productId, product.slug);
+  redirect(
+    `/admin/products/${productId}?section=preview&success=Product%20published`,
   );
 }

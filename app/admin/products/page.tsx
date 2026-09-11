@@ -19,7 +19,6 @@ import {
   UploadCloud,
 } from "lucide-react";
 import { AdminSidebar } from "@/components/admin-sidebar";
-import { ProductMediaUploader } from "@/components/product-media-uploader";
 import {
   categoryBranchIds,
   categoryOptionLabel,
@@ -27,7 +26,7 @@ import {
   type OrderedCategory,
 } from "@/lib/category-tree";
 import { createClient } from "@/lib/supabase/server";
-import { addProduct } from "../actions";
+import { ManualEntryWizard, type ManualStep } from "./manual-entry-wizard";
 
 export const dynamic = "force-dynamic";
 type View =
@@ -515,63 +514,6 @@ function Catalogue({
     </>
   );
 }
-function Manual({ categories }: { categories: ProductCategory[] }) {
-  return (
-    <FocusedHeader
-      icon={PackagePlus}
-      eyebrow="MANUAL ENTRY"
-      title="Create one canonical product"
-      text="Add product identity here. Connect store-specific prices, cashback and links as offers after creation."
-    >
-      <form action={addProduct} className="manual-product-form">
-        <fieldset>
-          <legend>Product identity</legend>
-          <label>
-            Product name
-            <input
-              name="title"
-              required
-              placeholder="e.g. Apple iPhone 16 128GB"
-            />
-          </label>
-          <label>
-            Brand
-            <input name="brand" placeholder="e.g. Apple" />
-          </label>
-          <label className="wide">
-            Short description
-            <textarea name="description" rows={4} />
-          </label>
-        </fieldset>
-        <fieldset>
-          <legend>Classification and media</legend>
-          <label>
-            Category
-            <select name="category">
-              <option value="">Choose the most specific category</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {categoryOptionLabel(c)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="wide">
-            <ProductMediaUploader
-              fieldName="image"
-              label="Primary product image"
-              productKey="new-product"
-            />
-          </div>
-        </fieldset>
-        <footer>
-          <Link href="/admin/products">Cancel</Link>
-          <button>Create product</button>
-        </footer>
-      </form>
-    </FocusedHeader>
-  );
-}
 function FocusedHeader({
   icon: Icon,
   eyebrow,
@@ -765,7 +707,14 @@ function Workflow({
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<CatalogueFilters & { view?: string }>;
+  searchParams: Promise<
+    CatalogueFilters & {
+      view?: string;
+      draft?: string;
+      step?: string;
+      success?: string;
+    }
+  >;
 }) {
   const query = await searchParams,
     view = (
@@ -800,8 +749,47 @@ export default async function ProductsPage({
     s.from("affiliate_providers").select("id,name,is_active").order("name"),
     s.from("merchants").select("id,name,slug,logo_url").order("name"),
   ]);
+  const draftId = query.draft || "";
+  const [{ data: draft }, { data: draftHistory }] = draftId
+    ? await Promise.all([
+        s
+          .from("products")
+          .select(
+            "id,title,slug,brand,description,image_url,gallery_images,variants,specifications,product_information,manual_metadata,category_id,is_active,offers(id,current_price,list_price,destination_url,status,reward_type,cashback_amount,cashback_percent,customer_rating,stock_status,merchants(id,name,logo_url),affiliate_providers(id,name))",
+          )
+          .eq("id", draftId)
+          .single(),
+        s
+          .from("product_price_history")
+          .select("id,price,recorded_at,source,offers(id,merchants(id,name))")
+          .eq("product_id", draftId)
+          .order("recorded_at", { ascending: false })
+          .limit(100),
+      ])
+    : [{ data: null }, { data: [] }];
   const products = (pd ?? []) as unknown as Product[],
     categoryTree = orderCategoryTree(categories ?? []),
+    brandOptions = [
+      ...new Set(
+        products
+          .map((product) => product.brand)
+          .filter((brand): brand is string => Boolean(brand)),
+      ),
+    ],
+    manualSteps: ManualStep[] = [
+      "basic",
+      "images",
+      "variations",
+      "specifications",
+      "information",
+      "offers",
+      "history",
+      "discovery",
+      "review",
+    ],
+    manualStep = (
+      manualSteps.includes(query.step as ManualStep) ? query.step : "basic"
+    ) as ManualStep,
     badge =
       (batches ?? []).filter((b) => b.status === "approval_required").length +
       products.filter((p) => !p.is_active).length;
@@ -835,7 +823,21 @@ export default async function ProductsPage({
               merchants={merchants ?? []}
             />
           ) : view === "manual" ? (
-            <Manual categories={categoryTree} />
+            <ManualEntryWizard
+              active={manualStep}
+              success={query.success}
+              draft={draft}
+              categories={categoryTree}
+              brands={brandOptions}
+              merchants={merchants ?? []}
+              providers={providers ?? []}
+              products={products.map((product) => ({
+                id: product.id,
+                title: product.title,
+                brand: product.brand,
+              }))}
+              history={draftHistory ?? []}
+            />
           ) : (
             <Workflow
               view={view}
