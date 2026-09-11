@@ -20,6 +20,12 @@ import {
 } from "lucide-react";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { ProductMediaUploader } from "@/components/product-media-uploader";
+import {
+  categoryBranchIds,
+  categoryOptionLabel,
+  orderCategoryTree,
+  type OrderedCategory,
+} from "@/lib/category-tree";
 import { createClient } from "@/lib/supabase/server";
 import { addProduct } from "../actions";
 
@@ -177,6 +183,12 @@ type CatalogueFilters = {
   minPrice?: string;
   maxPrice?: string;
 };
+type ProductCategory = OrderedCategory<{
+  id: string;
+  name: string;
+  parent_id: string | null;
+  display_order: number;
+}>;
 function Catalogue({
   products,
   filters,
@@ -185,11 +197,17 @@ function Catalogue({
 }: {
   products: Product[];
   filters: CatalogueFilters;
-  categories: { id: string; name: string }[];
+  categories: ProductCategory[];
   merchants: Merchant[];
 }) {
   const min = filters.minPrice ? Number(filters.minPrice) : null,
-    max = filters.maxPrice ? Number(filters.maxPrice) : null;
+    max = filters.maxPrice ? Number(filters.maxPrice) : null,
+    categoryIds = filters.category
+      ? categoryBranchIds(categories, filters.category)
+      : null,
+    categoryPaths = new Map(
+      categories.map((category) => [category.id, category.treePath]),
+    );
   const rows = products.filter(
     (p) =>
       (!filters.q ||
@@ -200,7 +218,8 @@ function Catalogue({
         (filters.status === "published" ? p.is_active : !p.is_active)) &&
       (!filters.missing || !(p.offers ?? []).length) &&
       (!filters.brand || p.brand === filters.brand) &&
-      (!filters.category || p.category_id === filters.category) &&
+      (!categoryIds ||
+        (p.category_id ? categoryIds.has(p.category_id) : false)) &&
       (!filters.store ||
         (p.offers ?? []).some((o) => o.merchants?.id === filters.store)) &&
       (min === null ||
@@ -318,7 +337,7 @@ function Catalogue({
               <option value="">All categories</option>
               {categories.map((category) => (
                 <option value={category.id} key={category.id}>
-                  {category.name}
+                  {categoryOptionLabel(category)}
                 </option>
               ))}
             </select>
@@ -419,7 +438,13 @@ function Catalogue({
                         </span>
                       </span>
                     </td>
-                    <td>{p.categories?.name || "Uncategorised"}</td>
+                    <td>
+                      {p.category_id
+                        ? categoryPaths.get(p.category_id) ||
+                          p.categories?.name ||
+                          "Uncategorised"
+                        : "Uncategorised"}
+                    </td>
                     <td>
                       <Stores offers={offers} />
                     </td>
@@ -490,11 +515,7 @@ function Catalogue({
     </>
   );
 }
-function Manual({
-  categories,
-}: {
-  categories: { id: string; name: string }[];
-}) {
+function Manual({ categories }: { categories: ProductCategory[] }) {
   return (
     <FocusedHeader
       icon={PackagePlus}
@@ -530,7 +551,7 @@ function Manual({
               <option value="">Choose the most specific category</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {categoryOptionLabel(c)}
                 </option>
               ))}
             </select>
@@ -766,9 +787,9 @@ export default async function ProductsPage({
       .order("updated_at", { ascending: false }),
     s
       .from("categories")
-      .select("id,name")
+      .select("id,name,parent_id,display_order")
       .eq("is_active", true)
-      .order("display_order"),
+      .is("archived_at", null),
     s
       .from("import_batches")
       .select(
@@ -780,6 +801,7 @@ export default async function ProductsPage({
     s.from("merchants").select("id,name,slug,logo_url").order("name"),
   ]);
   const products = (pd ?? []) as unknown as Product[],
+    categoryTree = orderCategoryTree(categories ?? []),
     badge =
       (batches ?? []).filter((b) => b.status === "approval_required").length +
       products.filter((p) => !p.is_active).length;
@@ -809,11 +831,11 @@ export default async function ProductsPage({
             <Catalogue
               products={products}
               filters={query}
-              categories={categories ?? []}
+              categories={categoryTree}
               merchants={merchants ?? []}
             />
           ) : view === "manual" ? (
-            <Manual categories={categories ?? []} />
+            <Manual categories={categoryTree} />
           ) : (
             <Workflow
               view={view}

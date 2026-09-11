@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { ProductMediaUploader } from "@/components/product-media-uploader";
+import { categoryOptionLabel, orderCategoryTree } from "@/lib/category-tree";
 import { createClient } from "@/lib/supabase/server";
 import {
   updateProductContent,
@@ -72,9 +73,9 @@ export default async function AdminProductDetail({
         .single(),
       s
         .from("categories")
-        .select("id,name,level")
+        .select("id,name,parent_id,display_order")
         .eq("is_active", true)
-        .order("display_order"),
+        .is("archived_at", null),
       s
         .from("product_price_history")
         .select("id,price,recorded_at,source,offers(merchants(name))")
@@ -98,7 +99,8 @@ export default async function AdminProductDetail({
       value: string;
     }[],
     info = object(product.product_information),
-    offers = (product.offers ?? []) as any[];
+    offers = (product.offers ?? []) as any[],
+    categoryTree = orderCategoryTree(categories ?? []);
   const checks = [
       ["Primary image", Boolean(product.image_url)],
       ["Gallery images", gallery.length > 0],
@@ -205,10 +207,9 @@ export default async function AdminProductDetail({
                       defaultValue={product.category_id ?? ""}
                     >
                       <option value="">Uncategorised</option>
-                      {(categories ?? []).map((category) => (
+                      {categoryTree.map((category) => (
                         <option value={category.id} key={category.id}>
-                          {"— ".repeat(category.level || 0)}
-                          {category.name}
+                          {categoryOptionLabel(category)}
                         </option>
                       ))}
                     </select>
