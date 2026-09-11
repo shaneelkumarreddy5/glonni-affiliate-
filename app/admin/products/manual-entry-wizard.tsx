@@ -74,16 +74,24 @@ const href = (draftId: string, step: Step) =>
 const money = (value: number | string | null) =>
   value === null ? "—" : `₹${Number(value).toLocaleString("en-IN")}`;
 
-function WizardTabs({ active, draftId }: { active: Step; draftId?: string }) {
+function WizardTabs({
+  active,
+  draftId,
+  completed,
+}: {
+  active: Step;
+  draftId?: string;
+  completed: Set<Step>;
+}) {
   return (
     <nav className="manual-wizard-tabs" aria-label="Manual product steps">
-      {steps.map(([key, label, Icon], index) => {
+      {steps.map(([key, label, Icon]) => {
         const current = active === key;
         const body = (
           <>
-            <span>{index + 1}</span>
             <Icon />
             <b>{label}</b>
+            {completed.has(key) && <CheckCircle2 className="tab-complete" />}
           </>
         );
         return draftId ? (
@@ -95,10 +103,7 @@ function WizardTabs({ active, draftId }: { active: Step; draftId?: string }) {
             {body}
           </Link>
         ) : (
-          <span
-            className={`${current ? "current" : ""} ${index ? "locked" : ""}`}
-            key={key}
-          >
+          <span className={current ? "current" : ""} key={key}>
             {body}
           </span>
         );
@@ -114,15 +119,12 @@ function Header({ step, draft }: { step: Step; draft?: Draft | null }) {
     <header className="manual-step-heading">
       <Icon />
       <div>
-        <p>
-          MANUAL ENTRY · STEP {steps.findIndex(([key]) => key === step) + 1} OF
-          9
-        </p>
+        <p>MANUAL ENTRY · {item[1].toUpperCase()}</p>
         <h2>{item[1]}</h2>
         <span>
           {draft
-            ? `${draft.title} · Draft saves independently at every step.`
-            : "Start with the product identity. The remaining steps unlock after the draft is created."}
+            ? `${draft.title} · Complete sections in any order. Each section saves independently.`
+            : "Create the product record once, then complete sections in any order."}
         </span>
       </div>
       {draft && (
@@ -132,25 +134,16 @@ function Header({ step, draft }: { step: Step; draft?: Draft | null }) {
   );
 }
 
-function NavButtons({
-  draftId,
-  step,
-  submit = "Save & continue",
+function SectionActions({
+  submit = "Save this section",
   disabled = false,
 }: {
-  draftId: string;
-  step: Step;
   submit?: string;
   disabled?: boolean;
 }) {
-  const index = steps.findIndex(([key]) => key === step);
   return (
     <footer className="manual-step-actions">
-      {index > 0 ? (
-        <Link href={href(draftId, steps[index - 1][0])}>← Previous</Link>
-      ) : (
-        <span />
-      )}
+      <span>Changes are saved only for this section.</span>
       <button disabled={disabled}>{submit}</button>
     </footer>
   );
@@ -183,9 +176,36 @@ export function ManualEntryWizard({
   const info = getObject(draft?.product_information);
   const offers = getArray(draft?.offers);
   const brandOptions = [...new Set(brands.filter(Boolean))].sort();
+  const completed = new Set<Step>();
+  if (draft?.title && draft?.category_id) completed.add("basic");
+  if (draft?.image_url || getArray(draft?.gallery_images).length)
+    completed.add("images");
+  if (variants.length) completed.add("variations");
+  if (specs.length) completed.add("specifications");
+  if (Object.keys(info).length) completed.add("information");
+  if (offers.length) completed.add("offers");
+  if (history.length) completed.add("history");
+  if (metadata.search_keywords || metadata.placement)
+    completed.add("discovery");
   return (
     <section className="manual-wizard-shell">
-      <WizardTabs active={active} draftId={draft?.id} />
+      <header className="manual-entry-overview">
+        <div>
+          <p>MANUAL PRODUCT ENTRY</p>
+          <h2>Add product manually</h2>
+          <span>Complete each section in any order, then review and publish.</span>
+        </div>
+        <Link href="/admin/products">Exit</Link>
+      </header>
+      <div className="manual-order-note">
+        <span>Complete sections in any order. Your saved draft is preserved.</span>
+        <b>{completed.size} of 9 sections complete</b>
+      </div>
+      <WizardTabs
+        active={active}
+        draftId={draft?.id}
+        completed={completed}
+      />
       <Header step={active} draft={draft} />
       {success && (
         <p className="manual-save-message">
@@ -263,7 +283,7 @@ export function ManualEntryWizard({
           <footer className="manual-step-actions">
             <Link href="/admin/products">Cancel</Link>
             <button>
-              {draft ? "Save & continue" : "Create draft & continue"}
+              {draft ? "Save this section" : "Create product draft"}
             </button>
           </footer>
         </form>
@@ -287,7 +307,7 @@ export function ManualEntryWizard({
               multiple
             />
           </div>
-          <NavButtons draftId={draft.id} step="images" />
+          <SectionActions />
         </form>
       )}
 
@@ -343,7 +363,7 @@ export function ManualEntryWizard({
               ),
             )}
           </div>
-          <NavButtons draftId={draft.id} step="variations" />
+          <SectionActions />
         </form>
       )}
 
@@ -399,7 +419,7 @@ export function ManualEntryWizard({
               </div>
             ))}
           </div>
-          <NavButtons draftId={draft.id} step="specifications" />
+          <SectionActions />
         </form>
       )}
 
@@ -423,7 +443,7 @@ export function ManualEntryWizard({
               </label>
             ))}
           </div>
-          <NavButtons draftId={draft.id} step="information" />
+          <SectionActions />
         </form>
       )}
 
@@ -611,15 +631,8 @@ export function ManualEntryWizard({
             </label>
           </section>
           <footer className="manual-step-actions">
-            <Link href={href(draft.id, "information")}>← Previous</Link>
-            <span className="manual-step-actions-right">
-              {offers.length > 0 && (
-                <Link href={href(draft.id, "history")}>
-                  Continue without another offer →
-                </Link>
-              )}
-              <button>Add store offer & continue</button>
-            </span>
+            <span>Add another store offer whenever this product has more sellers.</span>
+            <button>Add store offer</button>
           </footer>
         </form>
       )}
@@ -676,12 +689,10 @@ export function ManualEntryWizard({
               <input name="recordedAt" type="datetime-local" />
             </label>
           </section>
-          <NavButtons
-            draftId={draft.id}
-            step="history"
+          <SectionActions
             disabled={!offers.length}
             submit={
-              offers.length ? "Save history & continue" : "Add an offer first"
+              offers.length ? "Save price history" : "Add a store offer first"
             }
           />
         </form>
@@ -772,7 +783,7 @@ export function ManualEntryWizard({
               <small>Hold Ctrl or Command to select multiple products.</small>
             </label>
           </section>
-          <NavButtons draftId={draft.id} step="discovery" />
+          <SectionActions />
         </form>
       )}
 
@@ -823,7 +834,7 @@ export function ManualEntryWizard({
                 <form action={publishManualProduct}>
                   <input type="hidden" name="productId" value={draft.id} />
                   <footer className="manual-step-actions">
-                    <Link href={href(draft.id, "discovery")}>← Previous</Link>
+                    <span>Publishing makes this product visible to shoppers.</span>
                     <button disabled={!ready}>
                       {ready ? "Publish product" : "Complete required sections"}
                     </button>

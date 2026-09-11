@@ -682,64 +682,114 @@
 /* Guided nine-step manual product entry */
 .manual-wizard-shell {
   display: grid;
+  gap: 18px;
+  width: 100%;
+}
+.manual-entry-overview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.manual-entry-overview p,
+.manual-entry-overview h2,
+.manual-entry-overview span {
+  margin: 0;
+}
+.manual-entry-overview p {
+  color: #597197;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 1px;
+}
+.manual-entry-overview h2 {
+  margin: 4px 0;
+  color: #10203c;
+  font: 800 23px "Plus Jakarta Sans";
+}
+.manual-entry-overview span {
+  color: #687a95;
+  font-size: 10px;
+}
+.manual-entry-overview > a {
+  padding: 10px 18px;
+  border: 1px solid #d4dfed;
+  border-radius: 8px;
+  background: #fff;
+  color: #253754;
+  font-size: 9px;
+  font-weight: 800;
+}
+.manual-order-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 16px;
+  padding: 11px 14px;
+  border: 1px solid #d7e5fa;
+  border-radius: 9px;
+  background: #f4f8ff;
+  color: #526985;
+  font-size: 9px;
+}
+.manual-order-note b {
+  color: #173b72;
 }
 .manual-wizard-tabs {
   display: grid;
-  grid-template-columns: repeat(9, minmax(105px, 1fr));
-  gap: 3px;
-  padding: 5px;
-  overflow-x: auto;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  overflow: hidden;
   border: 1px solid #dfe7f2;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #fff;
 }
 .manual-wizard-tabs > a,
 .manual-wizard-tabs > span {
-  display: grid;
-  grid-template-columns: 20px 15px;
-  grid-template-rows: 20px auto;
+  position: relative;
+  display: flex;
   align-items: center;
-  gap: 3px 6px;
-  min-width: 105px;
-  min-height: 64px;
-  padding: 8px;
-  border-radius: 8px;
-  color: #68778d;
+  justify-content: center;
+  gap: 7px;
+  min-width: 0;
+  min-height: 54px;
+  padding: 9px 7px;
+  border-right: 1px solid #e7edf5;
+  color: #445674;
+  text-align: center;
+}
+.manual-wizard-tabs > :last-child {
+  border-right: 0;
 }
 .manual-wizard-tabs > a:hover {
-  background: #f5f8fd;
+  background: #f7faff;
+  color: #1558ce;
 }
 .manual-wizard-tabs > .current {
-  background: #eaf2ff;
+  background: #f1f6ff;
   color: #1456cb;
 }
-.manual-wizard-tabs > .locked {
-  opacity: 0.45;
-}
-.manual-wizard-tabs span > span,
-.manual-wizard-tabs a > span {
-  display: grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #edf1f6;
-  font-size: 8px;
-  font-weight: 850;
-}
-.manual-wizard-tabs .current > span {
+.manual-wizard-tabs > .current::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
   background: #1760d9;
-  color: #fff;
+  content: "";
 }
 .manual-wizard-tabs svg {
-  width: 14px;
+  width: 16px;
+  flex: 0 0 auto;
 }
 .manual-wizard-tabs b {
-  grid-column: 1/-1;
-  align-self: start;
-  font-size: 8px;
-  line-height: 12px;
+  overflow: hidden;
+  font-size: 9px;
+  line-height: 13px;
+  text-overflow: ellipsis;
+}
+.manual-wizard-tabs .tab-complete {
+  width: 13px;
+  color: #149358;
 }
 .manual-step-heading {
   display: flex;
@@ -748,7 +798,7 @@
   padding: 18px 20px;
   border: 1px solid #dfe7f2;
   border-radius: 12px;
-  background: linear-gradient(120deg, #fff, #f5f8ff);
+  background: #fff;
 }
 .manual-step-heading > svg {
   width: 40px;
@@ -867,6 +917,10 @@
   gap: 10px;
   padding: 15px 22px;
   border-top: 1px solid #e9eef5;
+}
+.manual-step-actions > span {
+  color: #75849a;
+  font-size: 8px;
 }
 .manual-step-actions a {
   color: #52647e;
@@ -1127,6 +1181,17 @@
   grid-template-columns: repeat(3, 1fr);
 }
 @media (max-width: 900px) {
+  .manual-wizard-tabs {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .manual-wizard-tabs > a,
+  .manual-wizard-tabs > span {
+    border-bottom: 1px solid #e7edf5;
+  }
+  .manual-entry-overview,
+  .manual-order-note {
+    align-items: flex-start;
+  }
   .manual-field-grid,
   .manual-info-grid,
   .manual-review-grid {
@@ -1146,5 +1211,25 @@
   }
   .manual-field-grid.compact {
     grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .manual-entry-overview,
+  .manual-order-note {
+    display: grid;
+  }
+  .manual-wizard-tabs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .manual-step-heading {
+    align-items: flex-start;
+  }
+  .manual-step-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .manual-step-actions button {
+    width: 100%;
+    margin: 0;
   }
 }

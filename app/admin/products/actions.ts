@@ -327,7 +327,7 @@ export async function createManualProductDraft(form: FormData) {
     title,
   });
   refresh(data.id, slug);
-  redirect(wizardUrl(data.id, "images", "Draft created. Add product images."));
+  redirect(wizardUrl(data.id, "basic", "Product draft created."));
 }
 
 export async function saveManualBasic(form: FormData) {
@@ -356,7 +356,7 @@ export async function saveManualBasic(form: FormData) {
   });
   await audit(supabase, user.id, "manual_product_basic_saved", productId, {});
   refresh(productId, slug);
-  redirect(wizardUrl(productId, "images", "Basic information saved."));
+  redirect(wizardUrl(productId, "basic", "Basic information saved."));
 }
 
 export async function saveManualImages(form: FormData) {
@@ -381,7 +381,7 @@ export async function saveManualImages(form: FormData) {
     gallery_count: gallery.length,
   });
   refresh(productId);
-  redirect(wizardUrl(productId, "variations", "Images saved."));
+  redirect(wizardUrl(productId, "images", "Images saved."));
 }
 
 export async function saveManualVariations(form: FormData) {
@@ -406,7 +406,7 @@ export async function saveManualVariations(form: FormData) {
     groups: rows.length,
   });
   refresh(productId);
-  redirect(wizardUrl(productId, "specifications", "Variations saved."));
+  redirect(wizardUrl(productId, "variations", "Variations saved."));
 }
 
 export async function saveManualSpecifications(form: FormData) {
@@ -431,7 +431,7 @@ export async function saveManualSpecifications(form: FormData) {
     },
   );
   refresh(productId);
-  redirect(wizardUrl(productId, "information", "Specifications saved."));
+  redirect(wizardUrl(productId, "specifications", "Specifications saved."));
 }
 
 export async function saveManualInformation(form: FormData) {
@@ -469,7 +469,7 @@ export async function saveManualInformation(form: FormData) {
     {},
   );
   refresh(productId);
-  redirect(wizardUrl(productId, "offers", "Product information saved."));
+  redirect(wizardUrl(productId, "information", "Product information saved."));
 }
 
 export async function addManualOffer(form: FormData) {
@@ -536,7 +536,7 @@ export async function addManualOffer(form: FormData) {
     offer_id: data.id,
   });
   refresh(productId);
-  redirect(wizardUrl(productId, "history", "Store offer added."));
+  redirect(wizardUrl(productId, "offers", "Store offer added."));
 }
 
 export async function addManualPriceHistory(form: FormData) {
@@ -564,7 +564,7 @@ export async function addManualPriceHistory(form: FormData) {
     offer_id: offerId,
   });
   refresh(productId);
-  redirect(wizardUrl(productId, "discovery", "Price history saved."));
+  redirect(wizardUrl(productId, "history", "Price history saved."));
 }
 
 export async function saveManualDiscovery(form: FormData) {
@@ -591,7 +591,7 @@ export async function saveManualDiscovery(form: FormData) {
     {},
   );
   refresh(productId);
-  redirect(wizardUrl(productId, "review", "Discovery settings saved."));
+  redirect(wizardUrl(productId, "discovery", "Discovery settings saved."));
 }
 
 export async function publishManualProduct(form: FormData) {
