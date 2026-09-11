@@ -298,6 +298,47 @@ async function mergeManualMetadata(
   if (error) throw new Error(error.message);
 }
 
+export async function createEmptyManualProductDraft(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const requestedStep = String(form.get("step") ?? "basic");
+  const allowedSteps = new Set([
+    "basic",
+    "images",
+    "variations",
+    "specifications",
+    "information",
+    "offers",
+    "history",
+    "discovery",
+    "review",
+  ]);
+  const step = (allowedSteps.has(requestedStep)
+    ? requestedStep
+    : "basic") as WizardStep;
+  const title = "Untitled product";
+  const slug = await productSlug(supabase, title);
+  const { data, error } = await supabase
+    .from("products")
+    .insert({
+      title,
+      slug,
+      is_active: false,
+      manual_metadata: {
+        workflow_step: step,
+        auto_created_draft: true,
+      },
+    })
+    .select("id")
+    .single();
+  if (error || !data)
+    throw new Error(error?.message || "Unable to create product draft.");
+  await audit(supabase, user.id, "manual_product_draft_created", data.id, {
+    entry_step: step,
+  });
+  refresh(data.id, slug);
+  redirect(wizardUrl(data.id, step, "Draft workspace created."));
+}
+
 export async function createManualProductDraft(form: FormData) {
   const { supabase, user } = await requireProductAdmin();
   const title = String(form.get("title") ?? "").trim();

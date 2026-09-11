@@ -20,6 +20,7 @@ import { categoryOptionLabel, type OrderedCategory } from "@/lib/category-tree";
 import {
   addManualOffer,
   addManualPriceHistory,
+  createEmptyManualProductDraft,
   createManualProductDraft,
   publishManualProduct,
   saveManualBasic,
@@ -103,9 +104,15 @@ function WizardTabs({
             {body}
           </Link>
         ) : (
-          <span className={current ? "current" : ""} key={key}>
-            {body}
-          </span>
+          <form action={createEmptyManualProductDraft} key={key}>
+            <input type="hidden" name="step" value={key} />
+            <button
+              className={current ? "current" : ""}
+              aria-current={current ? "step" : undefined}
+            >
+              {body}
+            </button>
+          </form>
         );
       })}
     </nav>
