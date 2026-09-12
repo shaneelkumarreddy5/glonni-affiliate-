@@ -54,9 +54,12 @@ export default {
     const models = ["gpt-5.4-nano", "gpt-5-nano", "gpt-5.6-luna"]; let result: any; let selectedModel = ""; const failures: string[] = [];
     for (const model of models) {
       const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model, instructions, input: context, tools: [{ type: "web_search" }], include: ["web_search_call.action.sources"], max_output_tokens: 5000, text: { format: { type: "json_schema", name: "product_enrichment", strict: true, schema } } }) });
-      result = await response.json(); if (response.ok) { selectedModel = model; break; } failures.push(`${model}: ${response.status}`);
+      result = await response.json();
+      if (response.ok) { selectedModel = model; break; }
+      const code = String(result?.error?.code ?? result?.error?.type ?? response.status);
+      failures.push(`${model}: ${code}`);
     }
-    if (!selectedModel) return respond({ error: `Product research is temporarily unavailable (${failures.join(", ")}).` }, 502);
+    if (!selectedModel) return respond({ error: `OpenAI could not complete this product search. ${failures.join(", ")}. Please retry in a moment.` }, 502);
     let proposal: any; try { proposal = JSON.parse(extractText(result)); } catch { return respond({ error: "AI returned product information in an unreadable format. Please try again." }, 502); }
     const allowedCategoryIds = new Set((categories ?? []).map((item: any) => item.id));
     const allowedStores = new Map(connectedStores.map((name: string) => [name.toLowerCase(), name]));

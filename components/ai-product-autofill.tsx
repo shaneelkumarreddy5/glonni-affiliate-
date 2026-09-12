@@ -11,6 +11,24 @@ const activityHeaders = () => ({
   "x-glonni-device-id": document.cookie.split("; ").find((item) => item.startsWith("glonni_device_id="))?.split("=")[1] ?? "",
 });
 
+async function functionErrorMessage(error: any) {
+  const response = error?.context;
+  if (response && typeof response.clone === "function") {
+    try {
+      const body = await response.clone().json();
+      if (typeof body?.error === "string" && body.error.trim()) return body.error.trim();
+    } catch {
+      try {
+        const text = await response.clone().text();
+        if (text.trim()) return text.trim().slice(0, 500);
+      } catch {}
+    }
+  }
+  return typeof error?.message === "string" && error.message.trim()
+    ? error.message
+    : "AI product research could not be completed. Please try again.";
+}
+
 export function AiProductAutofill({ productId, initialTitle }: { productId?: string; initialTitle: string }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle === "Untitled product" ? "" : initialTitle);
@@ -22,7 +40,7 @@ export function AiProductAutofill({ productId, initialTitle }: { productId?: str
     if (title.trim().length < 3) { setError("Enter a clear product name first."); return; }
     setFetching(true); setError(""); setProposal(null);
     const { data, error: invokeError } = await createClient().functions.invoke("ai-product-enrichment", { body: { query: title.trim() }, headers: activityHeaders() });
-    if (invokeError || data?.error) setError(data?.error ?? "AI product research could not be completed. Please try again.");
+    if (invokeError || data?.error) setError(data?.error ?? await functionErrorMessage(invokeError));
     else setProposal(data.proposal);
     setFetching(false);
   }
