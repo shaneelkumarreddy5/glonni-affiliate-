@@ -6,11 +6,6 @@ import { CheckCircle2, ExternalLink, LoaderCircle, Sparkles } from "lucide-react
 import { createClient } from "@/lib/supabase/client";
 import { applyAiProductProposal } from "@/app/admin/products/actions";
 
-const activityHeaders = () => ({
-  "x-glonni-session-id": document.cookie.split("; ").find((item) => item.startsWith("glonni_session_id="))?.split("=")[1] ?? "",
-  "x-glonni-device-id": document.cookie.split("; ").find((item) => item.startsWith("glonni_device_id="))?.split("=")[1] ?? "",
-});
-
 async function functionErrorMessage(error: any) {
   const response = error?.context;
   if (response && typeof response.clone === "function") {
@@ -39,7 +34,7 @@ export function AiProductAutofill({ productId, initialTitle }: { productId?: str
   async function fetchProduct() {
     if (title.trim().length < 3) { setError("Enter a clear product name first."); return; }
     setFetching(true); setError(""); setProposal(null);
-    const { data, error: invokeError } = await createClient().functions.invoke("ai-product-enrichment", { body: { query: title.trim() }, headers: activityHeaders() });
+    const { data, error: invokeError } = await createClient().functions.invoke("ai-product-enrichment", { body: { query: title.trim() } });
     if (invokeError || data?.error) setError(data?.error ?? await functionErrorMessage(invokeError));
     else setProposal(data.proposal);
     setFetching(false);
@@ -59,7 +54,7 @@ export function AiProductAutofill({ productId, initialTitle }: { productId?: str
       <label htmlFor="manual-product-title">Product name <strong>Required</strong></label>
       <div className="ai-product-input-row">
         <input id="manual-product-title" name="title" required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="e.g. Apple iPhone 16 128GB" />
-        <button type="button" onClick={fetchProduct} disabled={fetching || title.trim().length < 3}>
+        <button type="button" data-live-control="true" onClick={fetchProduct} disabled={fetching || title.trim().length < 3}>
           {fetching ? <LoaderCircle className="spin" /> : <Sparkles />} {fetching ? "Researching…" : "Fetch with AI"}
         </button>
       </div>

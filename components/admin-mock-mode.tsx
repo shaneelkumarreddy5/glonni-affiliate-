@@ -13,7 +13,7 @@ export function AdminMockMode({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.querySelectorAll<HTMLButtonElement>('.admin-v2 .admin-content button[disabled]').forEach((button) => {
-      if (button.closest('.owner-chat, .emergency-bar')) return;
+      if (button.closest('.owner-chat, .emergency-bar') || button.dataset.liveControl === 'true') return;
       button.disabled = false;
       button.dataset.mockControl = 'true';
       button.setAttribute('aria-label', `${button.textContent?.trim() || 'Control'} — mock preview`);
