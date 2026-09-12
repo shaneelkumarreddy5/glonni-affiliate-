@@ -27,6 +27,7 @@ import {
 } from "@/lib/category-tree";
 import { createClient } from "@/lib/supabase/server";
 import { ManualEntryWizard, type ManualStep } from "./manual-entry-wizard";
+import { AiDiscoveryWorkspace } from "@/components/ai-discovery-workspace";
 
 export const dynamic = "force-dynamic";
 type View =
@@ -838,6 +839,8 @@ export default async function ProductsPage({
               }))}
               history={draftHistory ?? []}
             />
+          ) : view === "ai" ? (
+            <AiDiscoveryWorkspace merchants={merchants ?? []} categories={categoryTree} />
           ) : (
             <Workflow
               view={view}
