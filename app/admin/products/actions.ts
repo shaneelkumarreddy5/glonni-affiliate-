@@ -298,6 +298,57 @@ async function mergeManualMetadata(
   if (error) throw new Error(error.message);
 }
 
+const cleanText = (value: unknown, max = 4000) =>
+  typeof value === "string" ? value.trim().slice(0, max) : "";
+const cleanUrl = (value: unknown) => {
+  const text = cleanText(value, 2000);
+  try {
+    return ["http:", "https:"].includes(new URL(text).protocol) ? text : "";
+  } catch {
+    return "";
+  }
+};
+
+export async function applyAiProductProposal(raw: unknown, existingId?: string) {
+  const { supabase, user } = await requireProductAdmin();
+  if (!raw || typeof raw !== "object") throw new Error("AI product details are missing.");
+  const proposal = raw as Record<string, any>;
+  const title = cleanText(proposal.title, 240);
+  if (!title) throw new Error("AI could not confirm the product name.");
+  const requestedCategory = cleanText(proposal.category_id, 80);
+  const { data: category } = requestedCategory
+    ? await supabase.from("categories").select("id").eq("id", requestedCategory).eq("is_active", true).maybeSingle()
+    : { data: null };
+  const variants = (Array.isArray(proposal.variations) ? proposal.variations : []).map((item: any) => ({ label: cleanText(item?.label, 80), values: (Array.isArray(item?.values) ? item.values : []).map((value: unknown) => cleanText(value, 120)).filter(Boolean).slice(0, 30) })).filter((item: any) => item.label && item.values.length).slice(0, 20);
+  const specifications = (Array.isArray(proposal.specifications) ? proposal.specifications : []).map((item: any) => ({ label: cleanText(item?.label, 120), value: cleanText(item?.value, 500) })).filter((item: any) => item.label && item.value).slice(0, 40);
+  const gallery = (Array.isArray(proposal.gallery_images) ? proposal.gallery_images : []).map(cleanUrl).filter(Boolean).slice(0, 12);
+  const sourceRows = (Array.isArray(proposal.sources) ? proposal.sources : []).map((item: any) => ({ title: cleanText(item?.title, 240), url: cleanUrl(item?.url) })).filter((item: any) => item.url).slice(0, 12);
+  const offerCandidates = (Array.isArray(proposal.offer_candidates) ? proposal.offer_candidates : []).map((item: any) => ({ store_name: cleanText(item?.store_name, 120), product_url: cleanUrl(item?.product_url) || null, current_price: Number.isFinite(item?.current_price) ? item.current_price : null, list_price: Number.isFinite(item?.list_price) ? item.list_price : null, currency: cleanText(item?.currency, 10) || null, stock_status: cleanText(item?.stock_status, 40) || null, customer_rating: Number.isFinite(item?.customer_rating) ? item.customer_rating : null, rating_count: Number.isFinite(item?.rating_count) ? item.rating_count : null, bank_offer: cleanText(item?.bank_offer, 500) || null, coupon_code: cleanText(item?.coupon_code, 100) || null, cashback_confirmation_days: Number.isFinite(item?.cashback_confirmation_days) ? item.cashback_confirmation_days : null, terms: cleanText(item?.terms, 1200) || null })).filter((item: any) => item.store_name).slice(0, 10);
+  const productInformation = proposal.product_information && typeof proposal.product_information === "object" ? {
+    highlights: cleanText(proposal.product_information.highlights),
+    features: cleanText(proposal.product_information.overview),
+    usage: cleanText(proposal.product_information.care_instructions),
+    package_contents: cleanText(proposal.product_information.in_the_box),
+    warranty: cleanText(proposal.product_information.warranty),
+  } : {};
+  const primaryImage = cleanUrl(proposal.primary_image_url) || gallery[0] || null;
+  const values = { title, brand: cleanText(proposal.brand, 160) || null, category_id: category?.id ?? null, description: cleanText(proposal.description) || null, image_url: primaryImage, gallery_images: gallery, variants, specifications, product_information: Object.fromEntries(Object.entries(productInformation).filter(([, value]) => value)), updated_at: new Date().toISOString() };
+  let productId = existingId;
+  let slug = await productSlug(supabase, title, existingId);
+  if (existingId) {
+    const { error } = await supabase.from("products").update(values).eq("id", existingId);
+    if (error) throw new Error(error.message);
+  } else {
+    const { data, error } = await supabase.from("products").insert({ ...values, slug, is_active: false }).select("id").single();
+    if (error || !data) throw new Error(error?.message || "Unable to create the AI-assisted draft.");
+    productId = data.id;
+  }
+  await mergeManualMetadata(supabase, productId!, { model_code: cleanText(proposal.model_code, 160), workflow_step: "basic", ai_offer_candidates: offerCandidates, ai_enrichment: { confidence: Math.max(0, Math.min(100, Number(proposal.confidence) || 0)), sources: sourceRows, model: cleanText(proposal.ai_model, 80), fetched_at: new Date().toISOString(), needs_review: true } });
+  await audit(supabase, user.id, "ai_product_details_applied", productId!, { source_count: sourceRows.length, offer_candidate_count: offerCandidates.length });
+  refresh(productId!, slug);
+  return { productId: productId! };
+}
+
 export async function createEmptyManualProductDraft(form: FormData) {
   const { supabase, user } = await requireProductAdmin();
   const requestedStep = String(form.get("step") ?? "basic");
@@ -648,7 +699,6 @@ export async function publishManualProduct(form: FormData) {
   if (!product) throw new Error("Product was not found.");
   const missing = [
     !product.title && "product name",
-    !product.brand && "brand",
     !product.category_id && "category",
     !product.image_url && "primary image",
     !(product.offers ?? []).some(

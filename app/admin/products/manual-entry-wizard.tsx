@@ -13,9 +13,11 @@ import {
   PackagePlus,
   Search,
   Settings2,
+  Sparkles,
   Store,
 } from "lucide-react";
 import { ProductMediaUploader } from "@/components/product-media-uploader";
+import { AiProductAutofill } from "@/components/ai-product-autofill";
 import { categoryOptionLabel, type OrderedCategory } from "@/lib/category-tree";
 import {
   addManualOffer,
@@ -182,6 +184,7 @@ export function ManualEntryWizard({
   const specs = getArray(draft?.specifications);
   const info = getObject(draft?.product_information);
   const offers = getArray(draft?.offers);
+  const aiOfferCandidates = getArray(metadata.ai_offer_candidates);
   const brandOptions = [...new Set(brands.filter(Boolean))].sort();
   const completed = new Set<Step>();
   if (draft?.title && draft?.category_id) completed.add("basic");
@@ -228,15 +231,7 @@ export function ManualEntryWizard({
         >
           {draft && <input type="hidden" name="productId" value={draft.id} />}
           <section className="manual-field-grid">
-            <label>
-              Product name <strong>Required</strong>
-              <input
-                name="title"
-                required
-                defaultValue={draft?.title ?? ""}
-                placeholder="e.g. Apple iPhone 16 128GB"
-              />
-            </label>
+            <AiProductAutofill productId={draft?.id} initialTitle={draft?.title ?? ""} />
             <label>
               Brand <strong>Required</strong>
               <input
@@ -457,6 +452,14 @@ export function ManualEntryWizard({
       {draft && active === "offers" && (
         <form action={addManualOffer} className="manual-step-card">
           <input type="hidden" name="productId" value={draft.id} />
+          {aiOfferCandidates.length > 0 && (
+            <section className="ai-offer-candidates">
+              <header><Sparkles /><div><h3>AI-found store candidates</h3><p>Research data only. Confirm the exact variant and replace the public URL with your tracked affiliate URL before adding an offer.</p></div></header>
+              <div>{aiOfferCandidates.map((candidate: any, index) => (
+                <article key={`${candidate.store_name}-${index}`}><Store /><span><b>{candidate.store_name}</b><small>{candidate.stock_status || "Stock needs review"}{candidate.customer_rating ? ` · ★ ${candidate.customer_rating}` : ""}</small></span><span><b>{candidate.current_price ? money(candidate.current_price) : "Price needs review"}</b><small>{candidate.bank_offer || candidate.coupon_code || "Offers need review"}</small></span>{candidate.product_url && <a href={candidate.product_url} target="_blank" rel="noreferrer">Check source ↗</a>}</article>
+              ))}</div>
+            </section>
+          )}
           {offers.length > 0 && (
             <div className="manual-existing-offers">
               {offers.map((offer: any) => {
@@ -798,22 +801,23 @@ export function ManualEntryWizard({
         active === "review" &&
         (() => {
           const checks = [
-            ["Product name", Boolean(draft.title)],
-            ["Brand", Boolean(draft.brand)],
-            ["Category", Boolean(draft.category_id)],
-            ["Primary image", Boolean(draft.image_url)],
-            ["Gallery", getArray(draft.gallery_images).length > 0],
-            ["Variations", variants.length > 0],
-            ["Top specifications", specs.length >= 10],
-            ["Product information", Object.keys(info).length > 0],
+            ["Product name", Boolean(draft.title), true],
+            ["Brand", Boolean(draft.brand), false],
+            ["Category", Boolean(draft.category_id), true],
+            ["Primary image", Boolean(draft.image_url), true],
+            ["Gallery", getArray(draft.gallery_images).length > 0, false],
+            ["Variations", variants.length > 0, false],
+            ["Top specifications", specs.length > 0, false],
+            ["Product information", Object.keys(info).length > 0, false],
             [
               "Store price & affiliate URL",
               offers.some(
                 (offer: any) => offer.current_price && offer.destination_url,
               ),
+              true,
             ],
           ] as const;
-          const ready = checks.every(([, ok]) => ok);
+          const ready = checks.filter(([, , required]) => required).every(([, ok]) => ok);
           return (
             <section className="manual-review-grid">
               <article className="manual-step-card">
@@ -822,18 +826,17 @@ export function ManualEntryWizard({
                   <div>
                     <h3>Publishing readiness</h3>
                     <p>
-                      {checks.filter(([, ok]) => ok).length} of {checks.length}{" "}
-                      sections complete
+                      {checks.filter(([, ok]) => ok).length} of {checks.length} sections complete · optional details can be added later
                     </p>
                   </div>
                 </header>
                 <div className="review-checks">
-                  {checks.map(([label, ok]) => (
+                  {checks.map(([label, ok, required]) => (
                     <p className={ok ? "complete" : "missing"} key={label}>
                       {ok ? <CheckCircle2 /> : <Circle />}
                       <span>
                         <b>{label}</b>
-                        <small>{ok ? "Complete" : "Needs information"}</small>
+                        <small>{ok ? "Complete" : required ? "Required before publishing" : "Optional — can be added later"}</small>
                       </span>
                     </p>
                   ))}
