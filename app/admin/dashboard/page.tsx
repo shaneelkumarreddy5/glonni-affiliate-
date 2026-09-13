@@ -39,7 +39,7 @@ export default async function Dashboard() {
   const confirmedCommission = confirmedOrders.reduce((sum, item) => sum + Number(item.commission_amount ?? 0), 0);
   const cashbackLiability = confirmedOrders.reduce((sum, item) => sum + Number(item.cashback_amount ?? 0), 0);
   const pendingCommission = conversionList.filter((item) => item.status === 'pending').reduce((sum, item) => sum + Number(item.commission_amount ?? 0), 0);
-  const payoutExposure = (withdrawals ?? []).filter((item) => ['requested', 'on_hold', 'approved'].includes(item.status ?? '')).reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+  const payoutExposure = (withdrawals ?? []).filter((item) => ['requested', 'on_hold', 'approved', 'batched', 'processing'].includes(item.status ?? '')).reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
   const pendingApprovals = (approvals ?? []).filter((item) => item.status === 'pending_approval');
   const errorEvents = eventList.filter((item) => (item.request_status ?? 200) >= 400);
   const confirmedWallet = (entries ?? []).filter((item) => item.entry_type === 'cashback_confirmed').reduce((sum, item) => sum + Number(item.amount ?? 0), 0);

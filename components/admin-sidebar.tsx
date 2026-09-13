@@ -36,7 +36,7 @@ const sections = [
   ] },
   { title: 'WORKSPACE', icon: Settings, links: [
     { label: 'Support Centre', href: '/admin/support', icon: Headphones },
-    { label: 'Analytics & Reporting', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'Affiliate Control Centre', href: '/admin/analytics', icon: BarChart3 },
     { label: 'Activity & Audit Log', href: '/admin/activity', icon: FileClock },
     { label: 'Website Builder', href: '/admin/cms', icon: LayoutTemplate },
     { label: 'Notifications', href: '/admin/notifications', icon: Bell },
