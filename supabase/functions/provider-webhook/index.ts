@@ -152,7 +152,7 @@ export default {
     const parsedOccurred = occurred && !Number.isNaN(Date.parse(occurred)) ? new Date(occurred).toISOString() : null;
     const rawStatus = first(body, ["status", "conversion_status", "order_status"]);
     const { data: clickRows } = clickReference ? await ctx.supabaseAdmin.from("redirect_events")
-      .select("id,profile_id,offer_id,merchant_id,provider_id")
+      .select("id,profile_id,offer_id,merchant_id,provider_id,reward_type_snapshot,cashback_fixed_snapshot,cashback_percent_snapshot,cashback_cap_snapshot,reward_funding_source_snapshot,cashback_tracking_supported_snapshot,commission_rate_snapshot,commission_fixed_snapshot")
       .eq("provider_id", provider.id).eq("attribution_value", clickReference).limit(2) : { data: [] };
     const matches = clickRows ?? [];
     const click = matches.length === 1 ? matches[0] : null;
@@ -166,6 +166,11 @@ export default {
       provider_order_reference: orderReference, provider_click_reference: clickReference,
       status: conversionStatus(rawStatus), order_value: orderValue, commission_amount: commission,
       cashback_amount: null, cashback_eligible: false, currency: /^[A-Z]{3}$/.test(currency) ? currency : "INR",
+      reward_type_snapshot: click?.reward_type_snapshot ?? null, cashback_fixed_snapshot: click?.cashback_fixed_snapshot ?? null,
+      cashback_percent_snapshot: click?.cashback_percent_snapshot ?? null, cashback_cap_snapshot: click?.cashback_cap_snapshot ?? null,
+      reward_funding_source_snapshot: click?.reward_funding_source_snapshot ?? null, commission_rate_snapshot: click?.commission_rate_snapshot ?? null,
+      cashback_tracking_supported_snapshot: click?.cashback_tracking_supported_snapshot ?? null,
+      commission_fixed_snapshot: click?.commission_fixed_snapshot ?? null,
       occurred_at: parsedOccurred, match_status: matchStatus, match_method: click ? "provider_click_reference" : null,
       issue_code: issueCode, provider_payload: normalized,
     };
@@ -173,7 +178,7 @@ export default {
       ? await ctx.supabaseAdmin.from("referral_conversions").update({
           status: conversionValues.status, order_value: orderValue, commission_amount: commission,
           currency: conversionValues.currency, occurred_at: parsedOccurred, provider_payload: normalized, updated_at: new Date().toISOString(),
-          ...(click ? { redirect_event_id: click.id, profile_id: click.profile_id, offer_id: click.offer_id, merchant_id: click.merchant_id, provider_click_reference: clickReference, match_status: "matched", match_method: "provider_click_reference", issue_code: null } : {}),
+          ...(click ? { redirect_event_id: click.id, profile_id: click.profile_id, offer_id: click.offer_id, merchant_id: click.merchant_id, provider_click_reference: clickReference, match_status: "matched", match_method: "provider_click_reference", issue_code: null, reward_type_snapshot: click.reward_type_snapshot, cashback_fixed_snapshot: click.cashback_fixed_snapshot, cashback_percent_snapshot: click.cashback_percent_snapshot, cashback_cap_snapshot: click.cashback_cap_snapshot, reward_funding_source_snapshot: click.reward_funding_source_snapshot, cashback_tracking_supported_snapshot: click.cashback_tracking_supported_snapshot, commission_rate_snapshot: click.commission_rate_snapshot, commission_fixed_snapshot: click.commission_fixed_snapshot } : {}),
         }).eq("id", existing.id).select("id").single()
       : await ctx.supabaseAdmin.from("referral_conversions").insert(conversionValues).select("id").single();
     const { data: conversion, error: conversionError } = conversionResult;
