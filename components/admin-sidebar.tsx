@@ -6,7 +6,7 @@ import {
   BarChart3, Bell, Bot, Boxes, Building2, Cable, ChartNoAxesCombined, Clock3, Headphones,
   ChevronDown, ChevronLeft, ClipboardCheck, FolderKanban, Gift, KeyRound, LayoutTemplate,
   LogOut, Megaphone, Package, PlugZap, ReceiptText, Search, Settings, Share2, ShieldCheck, Store, FileClock, Scale,
-  Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote,
+  Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote, FlaskConical,
 } from 'lucide-react';
 
 const sections = [
@@ -37,6 +37,7 @@ const sections = [
   { title: 'WORKSPACE', icon: Settings, links: [
     { label: 'Support Centre', href: '/admin/support', icon: Headphones },
     { label: 'Affiliate Control Centre', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'System Testing', href: '/admin/testing', icon: FlaskConical },
     { label: 'Activity & Audit Log', href: '/admin/activity', icon: FileClock },
     { label: 'Website Builder', href: '/admin/cms', icon: LayoutTemplate },
     { label: 'Notifications', href: '/admin/notifications', icon: Bell },
