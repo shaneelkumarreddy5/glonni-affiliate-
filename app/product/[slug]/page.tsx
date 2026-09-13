@@ -517,7 +517,7 @@ export default async function ProductPage({
                     <small>Provider update</small>
                   </span>
                   <div>
-                    <a className="pdp-view" href={`/out/${offer.id}`}>
+                    <a className="pdp-view" href={`/out/${offer.id}?source=product&medium=store-comparison&placement=product-comparison`}>
                       View deal
                     </a>
                   </div>
