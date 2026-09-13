@@ -15,6 +15,7 @@ export default {
     const authorization = req.headers.get("authorization") ?? "";
     const token = authorization.replace(/^Bearer\s+/i, "");
     const requestId = crypto.randomUUID();
+    const startedAt = Date.now();
     const sessionId = req.headers.get("x-glonni-session-id");
     const deviceId = req.headers.get("x-glonni-device-id");
     const logActivity = async (actorId: string, eventType: string, status: number, metadata: Record<string, unknown> = {}, errorDetails?: string) => {
@@ -30,6 +31,7 @@ export default {
     if (!body.message?.trim() && body.mode !== "daily_brief") return reply({ error: "Enter a question for Glonni." }, 400);
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) return reply({ error: "OpenAI is not configured. Add OPENAI_API_KEY in Supabase Edge Function Secrets." }, 503);
+    await ctx.supabaseAdmin.from("ai_agents").update({ runtime_status: "running", latest_error: null, updated_at: new Date().toISOString() }).eq("key", "ceo_operations");
 
     const [{ data: work }, { data: instructions }, { count: userCount }] = await Promise.all([
       ctx.supabaseAdmin.from("ai_work_items").select("title, summary, area, risk_level, status, context").order("created_at", { ascending: false }).limit(20),
@@ -60,10 +62,12 @@ export default {
       if (openai.ok) { selectedModel = model; break; }
       failures.push(`${model}: ${openai.status}`);
     }
-    if (!selectedModel || !openai?.ok) { await logActivity(auth.user.id, "ai_owner_chat_failed", 502, { attempted_models: candidates }, failures.join(", ")); return reply({ error: `This OpenAI project cannot use its approved models (${failures.join(", ")}).`, request_id: openai?.headers.get("x-request-id") }, 502); }
+    if (!selectedModel || !openai?.ok) { const failure = failures.join(", "); await logActivity(auth.user.id, "ai_owner_chat_failed", 502, { attempted_models: candidates }, failure); const { data: agent } = await ctx.supabaseAdmin.from("ai_agents").select("failure_count").eq("key", "ceo_operations").single(); await ctx.supabaseAdmin.from("ai_agents").update({ runtime_status: "failed", last_run_at: new Date().toISOString(), last_duration_ms: Date.now() - startedAt, failure_count: Number(agent?.failure_count ?? 0) + 1, latest_error: failure, updated_at: new Date().toISOString() }).eq("key", "ceo_operations"); return reply({ error: `This OpenAI project cannot use its approved models (${failure}).`, request_id: openai?.headers.get("x-request-id") }, 502); }
     const answer = extractText(result) || "The AI returned an empty response. Please try again.";
     await ctx.supabaseAdmin.from("audit_events").insert({ actor_id: auth.user.id, event_type: body.mode === "daily_brief" ? "ai_daily_brief_requested" : "ai_owner_chat_requested", entity_type: "ai_company", source: "admin", metadata: { model: selectedModel } });
     await logActivity(auth.user.id, body.mode === "daily_brief" ? "ai_daily_brief_requested" : "ai_owner_chat_requested", 200, { model: selectedModel, mode: body.mode ?? "chat" });
+    const { data: agent } = await ctx.supabaseAdmin.from("ai_agents").select("success_count").eq("key", "ceo_operations").single();
+    await ctx.supabaseAdmin.from("ai_agents").update({ runtime_status: "idle", last_run_at: new Date().toISOString(), last_duration_ms: Date.now() - startedAt, success_count: Number(agent?.success_count ?? 0) + 1, latest_error: null, updated_at: new Date().toISOString() }).eq("key", "ceo_operations");
     return reply({ answer });
   }),
 };

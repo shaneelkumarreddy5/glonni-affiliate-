@@ -43,6 +43,8 @@ export default {
     if (!query || query.length < 3) return respond({ error: "Enter a clear product name first." }, 400);
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) return respond({ error: "OpenAI is not configured for product enrichment." }, 503);
+    const startedAt = Date.now();
+    await ctx.supabaseAdmin.from("ai_agents").update({ runtime_status: "running", latest_error: null, updated_at: new Date().toISOString() }).eq("key", "catalogue_merchandising");
     const [{ data: categories }, { data: merchants }, { data: providers }] = await Promise.all([
       ctx.supabaseAdmin.from("categories").select("id,name,parent_id").eq("is_active", true).is("archived_at", null),
       ctx.supabaseAdmin.from("merchants").select("id,name").eq("is_active", true),
@@ -59,7 +61,7 @@ export default {
       const code = String(result?.error?.code ?? result?.error?.type ?? response.status);
       failures.push(`${model}: ${code}`);
     }
-    if (!selectedModel) return respond({ error: `OpenAI could not complete this product search. ${failures.join(", ")}. Please retry in a moment.` }, 502);
+    if (!selectedModel) { const failure = failures.join(", "); const { data: agent } = await ctx.supabaseAdmin.from("ai_agents").select("failure_count").eq("key", "catalogue_merchandising").single(); await ctx.supabaseAdmin.from("ai_agents").update({ runtime_status: "failed", last_run_at: new Date().toISOString(), last_duration_ms: Date.now() - startedAt, failure_count: Number(agent?.failure_count ?? 0) + 1, latest_error: failure, updated_at: new Date().toISOString() }).eq("key", "catalogue_merchandising"); return respond({ error: `OpenAI could not complete this product search. ${failure}. Please retry in a moment.` }, 502); }
     let proposal: any; try { proposal = JSON.parse(extractText(result)); } catch { return respond({ error: "AI returned product information in an unreadable format. Please try again." }, 502); }
     const allowedCategoryIds = new Set((categories ?? []).map((item: any) => item.id));
     const allowedStores = new Map(connectedStores.map((name: string) => [name.toLowerCase(), name]));
@@ -69,6 +71,8 @@ export default {
     proposal.specifications = (Array.isArray(proposal.specifications) ? proposal.specifications : []).slice(0, 10);
     proposal.sources = sourceList(result); proposal.ai_model = selectedModel;
     await ctx.supabaseAdmin.from("audit_events").insert({ actor_id: auth.user.id, event_type: "ai_product_enrichment_requested", entity_type: "product", source: "admin", metadata: { query, model: selectedModel, source_count: proposal.sources.length, offer_candidate_count: proposal.offer_candidates.length } });
+    const { data: agent } = await ctx.supabaseAdmin.from("ai_agents").select("success_count").eq("key", "catalogue_merchandising").single();
+    await ctx.supabaseAdmin.from("ai_agents").update({ runtime_status: "idle", last_run_at: new Date().toISOString(), last_duration_ms: Date.now() - startedAt, success_count: Number(agent?.success_count ?? 0) + 1, latest_error: null, updated_at: new Date().toISOString() }).eq("key", "catalogue_merchandising");
     return respond({ proposal });
   }),
 };
