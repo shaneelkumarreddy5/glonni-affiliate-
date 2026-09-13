@@ -29,6 +29,29 @@ function timingSafeEqual(left: string, right: string) {
   return difference === 0;
 }
 
+type ProviderPayload = Record<string, unknown>;
+const object = (value: unknown): ProviderPayload => value && typeof value === "object" && !Array.isArray(value) ? value as ProviderPayload : {};
+const first = (payload: ProviderPayload, keys: string[]) => {
+  const containers = [payload, object(payload.data), object(payload.order), object(payload.conversion), object(object(payload.data).order)];
+  for (const container of containers) for (const key of keys) {
+    const value = container[key];
+    if (value !== null && value !== undefined && String(value).trim()) return String(value).trim();
+  }
+  return null;
+};
+const amount = (value: string | null) => {
+  if (!value) return null;
+  const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed * 100) / 100 : null;
+};
+const conversionStatus = (value: string | null) => {
+  const status = (value ?? "pending").toLowerCase();
+  if (["approved", "confirmed", "completed", "paid", "valid"].includes(status)) return "confirmed";
+  if (["rejected", "declined", "invalid"].includes(status)) return "rejected";
+  if (["cancelled", "canceled", "refunded", "void"].includes(status)) return "cancelled";
+  return "pending";
+};
+
 export default {
   fetch: withSupabase({ auth: "none" }, async (request, ctx) => {
     if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -112,16 +135,59 @@ export default {
       await delivery({ provider_id: provider.id, payload_sha256: payloadSha256, payload_bytes: textEncoder.encode(rawPayload).byteLength, signature_valid: true, outcome: "failed", response_status: 500, error_code: "event_store_failed" });
       return json({ error: "Webhook could not be queued." }, 500);
     }
-    const { error: payloadError } = await ctx.supabaseAdmin.from("provider_webhook_payloads").insert({ event_id: event.id, payload });
+    const { error: payloadError } = await ctx.supabaseAdmin.rpc("store_private_provider_payload", { p_event_id: event.id, p_payload: payload });
     if (payloadError) {
       await ctx.supabaseAdmin.from("provider_webhook_events").update({ delivery_status: "failed", error_code: "payload_store_failed" }).eq("id", event.id);
       await delivery({ provider_id: provider.id, payload_sha256: payloadSha256, payload_bytes: textEncoder.encode(rawPayload).byteLength, signature_valid: true, outcome: "failed", response_status: 500, error_code: "payload_store_failed" });
       return json({ error: "Webhook could not be stored." }, 500);
     }
+
+    const body = object(payload);
+    const clickReference = first(body, ["click_id", "clickid", "click_ref", "click_reference", "subid", "sub_id", "aff_sub", "sid", "transaction_id"]);
+    const orderReference = first(body, ["order_id", "order_reference", "transaction_id", "conversion_id", "sale_id"]) ?? providerEventId;
+    const orderValue = amount(first(body, ["order_value", "sale_amount", "amount", "revenue", "basket_value"]));
+    const commission = amount(first(body, ["commission", "commission_amount", "payout", "earning"]));
+    const currency = (first(body, ["currency", "currency_code"]) ?? "INR").toUpperCase().slice(0, 3);
+    const occurred = first(body, ["occurred_at", "conversion_time", "transaction_date", "created_at", "timestamp"]);
+    const parsedOccurred = occurred && !Number.isNaN(Date.parse(occurred)) ? new Date(occurred).toISOString() : null;
+    const rawStatus = first(body, ["status", "conversion_status", "order_status"]);
+    const { data: clickRows } = clickReference ? await ctx.supabaseAdmin.from("redirect_events")
+      .select("id,profile_id,offer_id,merchant_id,provider_id")
+      .eq("provider_id", provider.id).eq("attribution_value", clickReference).limit(2) : { data: [] };
+    const matches = clickRows ?? [];
+    const click = matches.length === 1 ? matches[0] : null;
+    const matchStatus = click ? "matched" : matches.length > 1 ? "ambiguous" : "unmatched";
+    const issueCode = click ? null : clickReference ? (matches.length > 1 ? "multiple_click_matches" : "click_reference_not_found") : "missing_click_reference";
+    const normalized = { provider_status: rawStatus, provider_event_type: eventType };
+    const { data: existing } = await ctx.supabaseAdmin.from("referral_conversions").select("id").eq("provider_id", provider.id).eq("provider_order_reference", orderReference).maybeSingle();
+    const conversionValues = {
+      webhook_event_id: event.id, redirect_event_id: click?.id ?? null, profile_id: click?.profile_id ?? null,
+      offer_id: click?.offer_id ?? null, merchant_id: click?.merchant_id ?? null, provider_id: provider.id,
+      provider_order_reference: orderReference, provider_click_reference: clickReference,
+      status: conversionStatus(rawStatus), order_value: orderValue, commission_amount: commission,
+      cashback_amount: null, cashback_eligible: false, currency: /^[A-Z]{3}$/.test(currency) ? currency : "INR",
+      occurred_at: parsedOccurred, match_status: matchStatus, match_method: click ? "provider_click_reference" : null,
+      issue_code: issueCode, provider_payload: normalized,
+    };
+    const conversionResult = existing?.id
+      ? await ctx.supabaseAdmin.from("referral_conversions").update({
+          status: conversionValues.status, order_value: orderValue, commission_amount: commission,
+          currency: conversionValues.currency, occurred_at: parsedOccurred, provider_payload: normalized, updated_at: new Date().toISOString(),
+          ...(click ? { redirect_event_id: click.id, profile_id: click.profile_id, offer_id: click.offer_id, merchant_id: click.merchant_id, provider_click_reference: clickReference, match_status: "matched", match_method: "provider_click_reference", issue_code: null } : {}),
+        }).eq("id", existing.id).select("id").single()
+      : await ctx.supabaseAdmin.from("referral_conversions").insert(conversionValues).select("id").single();
+    const { data: conversion, error: conversionError } = conversionResult;
+    if (conversionError) {
+      const duplicate = conversionError.code === "23505";
+      await ctx.supabaseAdmin.from("provider_webhook_events").update({ delivery_status: duplicate ? "processed" : "failed", error_code: duplicate ? "duplicate_conversion" : "conversion_store_failed", processed_at: new Date().toISOString() }).eq("id", event.id);
+      if (!duplicate) return json({ error: "Conversion could not be normalized." }, 500);
+    } else {
+      await ctx.supabaseAdmin.from("provider_webhook_events").update({ conversion_id: conversion.id, delivery_status: "processed", error_code: existing?.id ? "conversion_status_updated" : null, processed_at: new Date().toISOString() }).eq("id", event.id);
+    }
     await Promise.all([
       delivery({ provider_id: provider.id, payload_sha256: payloadSha256, payload_bytes: textEncoder.encode(rawPayload).byteLength, signature_valid: true, outcome: "accepted", response_status: 202 }),
       ctx.supabaseAdmin.from("activity_events").insert({ request_id: requestId, surface: "api", event_type: "provider_webhook_queued", endpoint: "/functions/v1/provider-webhook", http_method: "POST", request_status: 202, response_time_ms: 0, error_details: null, metadata: { provider_key: providerKey, provider_event_id: providerEventId, event_type: eventType } }),
     ]);
-    return json({ ok: true, status: "queued" }, 202);
+    return json({ ok: true, status: existing?.id ? "updated" : conversionError?.code === "23505" ? "duplicate" : matchStatus }, 202);
   }),
 };
