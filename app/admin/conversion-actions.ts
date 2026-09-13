@@ -26,7 +26,7 @@ export async function matchConversion(formData: FormData) {
   if (!conversionId || !clickToken) throw new Error('Conversion and click ID are required.');
   const [{ data: conversion }, { data: click }] = await Promise.all([
     supabase.from('referral_conversions').select('id,provider_id').eq('id', conversionId).single(),
-    supabase.from('redirect_events').select('id,profile_id,offer_id,merchant_id,provider_id,click_token,reward_type_snapshot,cashback_fixed_snapshot,cashback_percent_snapshot,cashback_cap_snapshot,reward_funding_source_snapshot,cashback_tracking_supported_snapshot,commission_rate_snapshot,commission_fixed_snapshot').eq('click_token', clickToken).single(),
+    supabase.from('redirect_events').select('id,profile_id,offer_id,merchant_id,provider_id,click_token,reward_type_snapshot,cashback_fixed_snapshot,cashback_percent_snapshot,cashback_cap_snapshot,reward_funding_source_snapshot,cashback_tracking_supported_snapshot,commission_rate_snapshot,commission_fixed_snapshot,cashback_confirmation_days_snapshot').eq('click_token', clickToken).single(),
   ]);
   if (!conversion || !click || conversion.provider_id !== click.provider_id) throw new Error('The click must belong to the same affiliate provider.');
   const { error } = await supabase.from('referral_conversions').update({
@@ -37,6 +37,7 @@ export async function matchConversion(formData: FormData) {
     reward_funding_source_snapshot: click.reward_funding_source_snapshot, commission_rate_snapshot: click.commission_rate_snapshot,
     cashback_tracking_supported_snapshot: click.cashback_tracking_supported_snapshot,
     commission_fixed_snapshot: click.commission_fixed_snapshot,
+    cashback_confirmation_days_snapshot: click.cashback_confirmation_days_snapshot,
     match_status: 'matched', match_method: 'manual_admin', issue_code: null,
     reviewed_at: new Date().toISOString(), reviewed_by: user.id,
   }).eq('id', conversionId);

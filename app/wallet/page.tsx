@@ -12,6 +12,7 @@ type Props = { searchParams: Promise<{ error?: string; success?: string; tab?: s
 type Claim = { id: string; order_reference: string; claimed_amount: number | null; purchase_amount: number | null; status: string; created_at: string; offers: { merchants: { name: string } | null } | null };
 type Entry = { id: string; amount: number; entry_type: string; note: string | null; created_at: string };
 type Withdrawal = { id: string; amount: number; status: string; upi_id: string; created_at: string; reviewer_note: string | null };
+type Award = { id:string; amount:number; status:string; available_at:string; created_at:string; referral_conversions:{provider_order_reference:string|null;merchants:{name:string}|null}|null };
 const money = (value: number) => `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const outstanding = ['requested', 'on_hold', 'approved'];
 const tabValues = ['transactions', 'withdrawals'] as const;
@@ -38,19 +39,21 @@ export default async function WalletPage({ searchParams }: Props) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
-  const [{ data: rawClaims }, { data: rawEntries }, { data: rawWithdrawals }] = await Promise.all([
+  const [{ data: rawClaims }, { data: rawEntries }, { data: rawWithdrawals }, { data: rawAwards }] = await Promise.all([
     supabase.from('cashback_claims').select('id,order_reference,claimed_amount,purchase_amount,status,created_at,offers(merchants(name))').order('created_at', { ascending: false }).limit(100),
     supabase.from('wallet_entries').select('id,amount,entry_type,note,created_at').order('created_at', { ascending: false }).limit(100),
     supabase.from('withdrawal_requests').select('id,amount,status,upi_id,created_at,reviewer_note').order('created_at', { ascending: false }).limit(100),
+    supabase.from('cashback_awards').select('id,amount,status,available_at,created_at,referral_conversions(provider_order_reference,merchants(name))').order('created_at',{ascending:false}).limit(100),
   ]);
-  const showPreview = !rawClaims?.length && !rawEntries?.length && !rawWithdrawals?.length;
+  const showPreview = !rawClaims?.length && !rawEntries?.length && !rawWithdrawals?.length && !rawAwards?.length;
   const claims = (showPreview ? previewClaims : rawClaims ?? []) as unknown as Claim[];
   const entries = (showPreview ? previewEntries : rawEntries ?? []) as Entry[];
   const withdrawals = (showPreview ? previewWithdrawals : rawWithdrawals ?? []) as Withdrawal[];
-  const ledger = entries.reduce((total, entry) => total + Number(entry.amount), 0);
+  const awards = (rawAwards ?? []) as unknown as Award[];
+  const ledger = entries.filter(entry=>entry.entry_type!=='cashback_pending').reduce((total, entry) => total + Number(entry.amount), 0);
   const reserved = withdrawals.filter((item) => outstanding.includes(item.status)).reduce((total, item) => total + Number(item.amount), 0);
   const available = Math.max(0, ledger - reserved);
-  const pending = claims.filter((item) => ['submitted', 'needs_info'].includes(item.status)).reduce((total, item) => total + Number(item.claimed_amount ?? 0), 0);
+  const pending = claims.filter((item) => ['submitted', 'needs_info'].includes(item.status)).reduce((total, item) => total + Number(item.claimed_amount ?? 0), 0)+awards.filter(item=>['pending','held'].includes(item.status)).reduce((total,item)=>total+Number(item.amount),0);
   const lifetime = entries.filter((item) => item.entry_type === 'cashback_confirmed').reduce((total, item) => total + Math.max(0, Number(item.amount)), 0);
   const query = params.q?.trim().toLowerCase() || '';
   const filteredClaims = claims.filter((item) => !query || `${item.order_reference} ${item.offers?.merchants?.name ?? ''} ${item.status}`.toLowerCase().includes(query));
@@ -68,7 +71,7 @@ export default async function WalletPage({ searchParams }: Props) {
     {showPreview && <p className="wallet-preview-note"><b>Preview data</b> This account has no live wallet activity yet, so the records below show how confirmed cashback and payouts will appear.</p>}
     <section className="wallet-history">
       <header className="history-top"><div className="history-tabs"><Link href="/wallet?tab=transactions" className={tab === 'transactions' ? 'active' : ''}>Transaction history</Link><Link href="/wallet?tab=withdrawals" className={tab === 'withdrawals' ? 'active' : ''}>Withdrawal history</Link></div>{tab === 'transactions' && <form className="wallet-search" action="/wallet"><input type="hidden" name="tab" value="transactions"/><Search size={16}/><input name="q" defaultValue={params.q || ''} placeholder="Search order or store"/><button>Search</button></form>}</header>
-      {tab === 'transactions' && <Transactions claims={filteredClaims}/>}
+      {tab === 'transactions' && <Transactions claims={filteredClaims} awards={awards}/>}
       {tab === 'withdrawals' && <Withdrawals withdrawals={withdrawals}/>}
     </section>
     <section id="request-payout" className="payout-request"><div><p>REQUEST A PAYOUT</p><h2>Withdraw confirmed cashback</h2><span>KYC and a verified payout method will be required before live payout execution is switched on.</span></div><form action={requestWithdrawal}><label>Amount<input name="amount" type="number" min="100" max={available} step="0.01" required placeholder="Minimum ₹100"/></label><label>UPI ID<input name="upiId" required maxLength={100} placeholder="name@bank"/></label><SimpleCaptcha/><button type="submit" className="primary">Request payout</button></form></section>
@@ -76,6 +79,6 @@ export default async function WalletPage({ searchParams }: Props) {
 }
 
 function Status({ value }: { value: string }) { const label = value.replaceAll('_', ' '); const tone = ['confirmed', 'paid'].includes(value) ? 'confirmed' : ['submitted', 'requested', 'approved'].includes(value) ? 'pending' : value === 'on_hold' ? 'hold' : ['rejected', 'reversed'].includes(value) ? 'rejected' : 'neutral'; return <span className={`wallet-status ${tone}`}>{label}</span>; }
-function Transactions({ claims }: { claims: Claim[] }) { return claims.length ? <div className="wallet-table-wrap"><table className="wallet-table"><thead><tr><th>Date</th><th>Store / description</th><th>Order ID</th><th>Purchase amount</th><th>Cashback</th><th>Status</th></tr></thead><tbody>{claims.map((item) => <tr key={item.id}><td>{new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td><td><b>{item.offers?.merchants?.name || 'Store pending'}</b><small>Cashback claim</small></td><td>{item.order_reference}</td><td>{item.purchase_amount ? money(Number(item.purchase_amount)) : '—'}</td><td className="cashback-amount">{money(Number(item.claimed_amount ?? 0))}</td><td><Status value={item.status}/></td></tr>)}</tbody></table></div> : <Empty icon={<CircleAlert/>} title="No cashback transactions yet" text="Eligible cashback transactions will appear here after you shop through a tracked Glonni offer."/>; }
+function Transactions({ claims, awards }: { claims: Claim[]; awards:Award[] }) { return claims.length||awards.length ? <div className="wallet-table-wrap"><table className="wallet-table"><thead><tr><th>Date</th><th>Store / description</th><th>Order ID</th><th>Purchase amount</th><th>Cashback</th><th>Status</th></tr></thead><tbody>{awards.map(item=><tr key={item.id}><td>{new Date(item.created_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</td><td><b>{item.referral_conversions?.merchants?.name||'Affiliate purchase'}</b><small>{item.status==='pending'?`Expected after ${new Date(item.available_at).toLocaleDateString('en-IN')}`:'Automatic tracked cashback'}</small></td><td>{item.referral_conversions?.provider_order_reference||'Tracked order'}</td><td>—</td><td className="cashback-amount">{money(Number(item.amount))}</td><td><Status value={item.status}/></td></tr>)}{claims.map((item) => <tr key={item.id}><td>{new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td><td><b>{item.offers?.merchants?.name || 'Store pending'}</b><small>Missing cashback claim</small></td><td>{item.order_reference}</td><td>{item.purchase_amount ? money(Number(item.purchase_amount)) : '—'}</td><td className="cashback-amount">{money(Number(item.claimed_amount ?? 0))}</td><td><Status value={item.status}/></td></tr>)}</tbody></table></div> : <Empty icon={<CircleAlert/>} title="No cashback transactions yet" text="Eligible cashback transactions will appear here after you shop through a tracked Glonni offer."/>; }
 function Withdrawals({ withdrawals }: { withdrawals: Withdrawal[] }) { return withdrawals.length ? <div className="wallet-table-wrap"><table className="wallet-table"><thead><tr><th>Requested</th><th>Destination</th><th>Amount</th><th>Status</th><th>Review note</th></tr></thead><tbody>{withdrawals.map((item) => <tr key={item.id}><td>{new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td><td>UPI ••••{item.upi_id.slice(-4)}</td><td className="cashback-amount">{money(Number(item.amount))}</td><td><Status value={item.status}/></td><td>{item.reviewer_note || 'Awaiting review'}</td></tr>)}</tbody></table></div> : <Empty icon={<Landmark/>} title="No payout requests yet" text="When you request a payout, its review and payment status will appear here."/>; }
 function Empty({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) { return <div className="wallet-empty">{icon}<div><h2>{title}</h2><p>{text}</p></div></div>; }

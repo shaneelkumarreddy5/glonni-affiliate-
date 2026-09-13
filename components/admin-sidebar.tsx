@@ -6,7 +6,7 @@ import {
   BarChart3, Bell, Bot, Boxes, Building2, Cable, ChartNoAxesCombined, Clock3, Headphones,
   ChevronDown, ChevronLeft, ClipboardCheck, FolderKanban, Gift, KeyRound, LayoutTemplate,
   LogOut, Megaphone, Package, PlugZap, ReceiptText, Search, Settings, Share2, ShieldCheck, Store, FileClock, Scale,
-  Tags, UserPlus, Users, UsersRound, WalletCards,
+  Tags, UserPlus, Users, UsersRound, WalletCards, Award,
 } from 'lucide-react';
 
 const sections = [
@@ -18,7 +18,7 @@ const sections = [
   { title: 'CATALOGUE', icon: Store, links: [
     { label: 'Stores & Brands', href: '/admin', icon: Store }, { label: 'Categories', href: '/admin/categories', icon: Boxes },
     { label: 'Products', href: '/admin/products', icon: Package }, { label: 'Deals & Banners', href: '/admin/campaigns', icon: Tags },
-    { label: 'Orders & Earnings', href: '/admin/orders', icon: ReceiptText }, { label: 'Financial Validation', href: '/admin/reconciliation', icon: Scale }, { label: 'Reported Orders', href: '/admin/reported-orders', icon: ClipboardCheck },
+    { label: 'Orders & Earnings', href: '/admin/orders', icon: ReceiptText }, { label: 'Financial Validation', href: '/admin/reconciliation', icon: Scale }, { label: 'Cashback Operations', href: '/admin/cashback-operations', icon: Award }, { label: 'Reported Orders', href: '/admin/reported-orders', icon: ClipboardCheck },
   ] },
   { title: 'PARTNERS & GROWTH', icon: Cable, links: [
     { label: 'Affiliate Providers', href: '/admin/providers', icon: Cable }, { label: 'API Integrations', href: '/admin/integrations', icon: PlugZap },
