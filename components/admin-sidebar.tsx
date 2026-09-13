@@ -6,14 +6,14 @@ import {
   BarChart3, Bell, Bot, Boxes, Building2, Cable, ChartNoAxesCombined, Clock3, Headphones,
   ChevronDown, ChevronLeft, ClipboardCheck, FolderKanban, Gift, KeyRound, LayoutTemplate,
   LogOut, Megaphone, Package, PlugZap, ReceiptText, Search, Settings, Share2, ShieldCheck, Store, FileClock, Scale,
-  Tags, UserPlus, Users, UsersRound, WalletCards, Award,
+  Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote,
 } from 'lucide-react';
 
 const sections = [
   { title: 'AI COMPANY', icon: Bot, links: [{ label: 'AI Agents', href: '/admin/ai-agents', icon: Bot }, { label: 'Approval Inbox', href: '/admin/approvals', icon: ClipboardCheck }] },
   { title: 'OPERATIONS', icon: ChartNoAxesCombined, links: [
     { label: 'Dashboard', href: '/admin/dashboard', icon: ChartNoAxesCombined }, { label: 'Users', href: '/admin/users', icon: Users },
-    { label: 'Wallet & Payouts', href: '/admin/wallet', icon: WalletCards }, { label: 'Offers & Rewards', href: '/admin/offers', icon: Gift },
+    { label: 'Wallet & Payouts', href: '/admin/wallet', icon: WalletCards }, { label: 'Payout Operations', href: '/admin/payout-operations', icon: Banknote }, { label: 'Offers & Rewards', href: '/admin/offers', icon: Gift },
   ] },
   { title: 'CATALOGUE', icon: Store, links: [
     { label: 'Stores & Brands', href: '/admin', icon: Store }, { label: 'Categories', href: '/admin/categories', icon: Boxes },

@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { verifySimpleCaptcha } from '@/lib/security/simple-captcha';
 
-const outstandingStatuses = ['requested', 'on_hold', 'approved'];
+const outstandingStatuses = ['requested', 'on_hold', 'approved', 'batched', 'processing'];
 
 export async function requestWithdrawal(formData: FormData) {
   const supabase = await createClient();
