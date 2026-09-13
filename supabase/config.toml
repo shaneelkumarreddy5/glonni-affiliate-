@@ -23,6 +23,12 @@ import_map = "./functions/ai-product-enrichment/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
 entrypoint = "./functions/ai-product-enrichment/index.ts"
+
+[functions.ai-job-runner]
+enabled = true
+verify_jwt = false
+import_map = "./functions/ai-job-runner/deno.json"
+entrypoint = "./functions/ai-job-runner/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/ai-product-enrichment/*.html" ]
