@@ -185,6 +185,7 @@ export function ManualEntryWizard({
   const info = getObject(draft?.product_information);
   const offers = getArray(draft?.offers);
   const aiOfferCandidates = getArray(metadata.ai_offer_candidates);
+  const aiEnrichment = getObject(metadata.ai_enrichment);
   const brandOptions = [...new Set(brands.filter(Boolean))].sort();
   const completed = new Set<Step>();
   if (draft?.title && draft?.category_id) completed.add("basic");
@@ -861,6 +862,7 @@ export function ManualEntryWizard({
                 <Link href={`/admin/products/${draft.id}?section=preview`}>
                   Open full admin preview →
                 </Link>
+                {Object.keys(aiEnrichment).length>0&&<div className="manual-ai-quality"><h4>AI enrichment quality</h4><p>Overall confidence <b>{Math.round(Number(aiEnrichment.confidence)||0)}%</b></p>{getArray(aiEnrichment.missing_fields).length>0&&<p><span>Missing information</span><b>{getArray(aiEnrichment.missing_fields).length}</b></p>}{getArray(aiEnrichment.conflicts).length>0&&<p><span>Source conflicts</span><b>{getArray(aiEnrichment.conflicts).length}</b></p>}{getArray(aiEnrichment.duplicate_candidates).length>0&&<p className="warning"><span>Possible duplicates</span><b>{getArray(aiEnrichment.duplicate_candidates).length}</b></p>}<small>Review conflicts, duplicate warnings and connected-store candidates before publishing.</small></div>}
               </aside>
             </section>
           );

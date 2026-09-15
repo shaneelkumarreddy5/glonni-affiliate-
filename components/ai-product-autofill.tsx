@@ -61,13 +61,15 @@ export function AiProductAutofill({ productId, initialTitle }: { productId?: str
       <small>AI researches the exact product and prepares editable details. Nothing is published automatically.</small>
       {error && <p className="ai-product-error">{error}</p>}
       {proposal && (
-        <article className="ai-product-result">
+        <article className="ai-product-result enriched">
           <div className="ai-product-result-icon">{proposal.primary_image_url ? <img src={proposal.primary_image_url} alt="" /> : <Sparkles />}</div>
           <div>
             <span><CheckCircle2 /> Research complete · {Math.round(proposal.confidence ?? 0)}% confidence</span>
             <h3>{proposal.title}</h3>
             <p>{proposal.brand || "Brand needs review"}{proposal.model_code ? ` · ${proposal.model_code}` : ""}</p>
             <small>Prepared information across {sectionCount} sections. Missing details remain editable and optional details do not block your draft.</small>
+            <div className="ai-quality-grid">{Object.entries(proposal.section_confidence??{}).map(([key,value])=><span key={key}><small>{key.replaceAll('_',' ')}</small><b>{Math.round(Number(value)||0)}%</b></span>)}</div>
+            {(proposal.missing_fields?.length>0||proposal.conflicts?.length>0||proposal.duplicate_candidates?.length>0)&&<div className="ai-enrichment-warnings">{proposal.missing_fields?.length>0&&<p><b>Missing:</b> {proposal.missing_fields.join(', ')}</p>}{proposal.conflicts?.length>0&&<p><b>Conflicts:</b> {proposal.conflicts.length} source disagreement{proposal.conflicts.length===1?'':'s'} require review.</p>}{proposal.duplicate_candidates?.length>0&&<p><b>Possible duplicates:</b> {proposal.duplicate_candidates.map((item:any)=>`${item.title} (${item.similarity}%)`).join(', ')}</p>}</div>}
             {proposal.sources?.length > 0 && <details><summary>View {proposal.sources.length} research sources</summary>{proposal.sources.map((source: any) => <a href={source.url} target="_blank" rel="noreferrer" key={source.url}>{source.title}<ExternalLink /></a>)}</details>}
           </div>
           <button type="button" className="apply-ai-product" onClick={applyProposal} disabled={applying}>{applying ? <LoaderCircle className="spin" /> : <Sparkles />}{applying ? "Applying…" : "Apply AI details"}</button>

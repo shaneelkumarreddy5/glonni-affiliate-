@@ -46,6 +46,10 @@ type Presentation = {
   guideText: string;
 };
 const icon = (node: ReactNode) => <span className="pdp-spec-icon">{node}</span>;
+const specificationIcon = (key?: string) => {
+  const value=(key??'').toLowerCase();
+  if(/display|screen/.test(value))return icon(<MonitorSmartphone/>); if(/processor|performance|speed/.test(value))return icon(<CircleGauge/>); if(/camera|photo/.test(value))return icon(<Camera/>); if(/battery|power/.test(value))return icon(<Battery/>); if(/colour|color|shade|pattern/.test(value))return icon(<Palette/>); if(/size|dimension|weight|measurement/.test(value))return icon(<Ruler/>); if(/fit|fabric|material|sleeve/.test(value))return icon(<Shirt/>); if(/skin|coverage/.test(value))return icon(<Droplets/>); if(/security|face/.test(value))return icon(<ScanFace/>); if(/connect|wifi|network/.test(value))return icon(<Wifi/>); if(/warranty|safety|protection/.test(value))return icon(<ShieldCheck/>); return icon(<PackageCheck/>);
+};
 
 function presentationFor(category: string, title: string): Presentation {
   const text = `${category} ${title}`.toLowerCase();
@@ -296,7 +300,7 @@ export default async function ProductPage({
     fallbackView = presentationFor(category, product.title),
     storedVariants = product.variants?.filter((v) => v.label && v.values?.length) ?? [],
     storedSpecs = product.specifications?.filter((s) => s.label && s.value) ?? [],
-    view = { ...fallbackView, variants: storedVariants.length ? storedVariants : fallbackView.variants, specs: storedSpecs.length ? storedSpecs.slice(0,10).map((spec,index)=>({...spec,icon:fallbackView.specs[index%fallbackView.specs.length].icon})) : fallbackView.specs },
+    view = { ...fallbackView, variants: storedVariants.length ? storedVariants : fallbackView.variants, specs: storedSpecs.length ? storedSpecs.slice(0,10).map((spec)=>({...spec,icon:specificationIcon(spec.icon_key||spec.label)})) : fallbackView.specs },
     parent = safeReturnPath(
       (await searchParams).from,
       product.categories?.slug

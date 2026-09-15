@@ -26,7 +26,7 @@ export type CatalogOffer = {
     description: string | null;
     gallery_images: string[] | null;
     variants: { label: string; values: string[] }[] | null;
-    specifications: { label: string; value: string }[] | null;
+    specifications: { label: string; value: string; icon_key?: string }[] | null;
     product_information: Record<string, string> | null;
     categories: { id: string; name: string; slug: string } | null;
   } | null;
