@@ -44,6 +44,7 @@ type Merchant = {
   name: string;
   slug: string;
   logo_url: string | null;
+  is_active?: boolean;
 };
 type Offer = {
   id: string;
@@ -714,6 +715,8 @@ export default async function ProductsPage({
       draft?: string;
       step?: string;
       success?: string;
+      error?: string;
+      job?: string;
     }
   >;
 }) {
@@ -748,7 +751,7 @@ export default async function ProductsPage({
       .order("created_at", { ascending: false })
       .limit(50),
     s.from("affiliate_providers").select("id,name,is_active").order("name"),
-    s.from("merchants").select("id,name,slug,logo_url").order("name"),
+    s.from("merchants").select("id,name,slug,logo_url,is_active").order("name"),
   ]);
   const draftId = query.draft || "";
   const [{ data: draft }, { data: draftHistory }] = draftId
@@ -768,6 +771,10 @@ export default async function ProductsPage({
           .limit(100),
       ])
     : [{ data: null }, { data: [] }];
+  const [{data:discoveryJobs},{data:discoveryCandidates}]=view==='ai'?await Promise.all([
+    s.from('ai_jobs').select('id,status,review_status,input,created_at,completed_at,latest_error').eq('job_type','product_discovery').order('created_at',{ascending:false}).limit(30),
+    query.job?s.from('ai_discovery_candidates').select('*').eq('job_id',query.job).order('position'):Promise.resolve({data:[]}),
+  ]):[{data:[]},{data:[]}];
   const products = (pd ?? []) as unknown as Product[],
     categoryTree = orderCategoryTree(categories ?? []),
     brandOptions = [
@@ -840,7 +847,7 @@ export default async function ProductsPage({
               history={draftHistory ?? []}
             />
           ) : view === "ai" ? (
-            <AiDiscoveryWorkspace merchants={merchants ?? []} categories={categoryTree} />
+            <AiDiscoveryWorkspace merchants={(merchants??[]).filter(merchant=>merchant.is_active)} categories={categoryTree} jobs={discoveryJobs??[]} candidates={discoveryCandidates??[]} activeJobId={query.job} success={query.success} error={query.error}/>
           ) : (
             <Workflow
               view={view}
