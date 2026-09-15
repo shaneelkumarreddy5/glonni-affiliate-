@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
+import { safeCustomerReturnPath } from '@/lib/navigation';
 
-export function RecoverySessionHandler({ audience }: { audience: 'customer' | 'admin' }) {
+export function RecoverySessionHandler({ audience, next }: { audience: 'customer' | 'admin'; next?: string }) {
   const router = useRouter();
   const [error, setError] = useState('');
   const redirecting = useRef(false);
@@ -49,7 +50,8 @@ export function RecoverySessionHandler({ audience }: { audience: 'customer' | 'a
       }
 
       redirecting.current = true;
-      router.replace(isAdmin ? '/admin/reset-password' : '/reset-password');
+      const destination = safeCustomerReturnPath(next);
+      router.replace(isAdmin ? '/admin/reset-password' : `/reset-password?next=${encodeURIComponent(destination)}`);
       router.refresh();
       return true;
     }
@@ -71,7 +73,7 @@ export function RecoverySessionHandler({ audience }: { audience: 'customer' | 'a
       clearTimeout(timer);
       listener.subscription.unsubscribe();
     };
-  }, [audience, router, supabase]);
+  }, [audience, next, router, supabase]);
 
   return error
     ? <div className="auth-notice error">{error}</div>

@@ -5,11 +5,9 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createRecoveryRequestClient } from '@/lib/supabase/recovery';
 import { verifySimpleCaptcha } from '@/lib/security/simple-captcha';
+import { safeCustomerReturnPath } from '@/lib/navigation';
 
-const safeNext = (value: FormDataEntryValue | null, fallback = '/account') => {
-  const path = typeof value === 'string' ? value : fallback;
-  return path.startsWith('/') && !path.startsWith('//') ? path : fallback;
-};
+const safeNext = (value: FormDataEntryValue | null, fallback = '/account') => safeCustomerReturnPath(typeof value === 'string' ? value : undefined, fallback);
 
 const message = (value: string) => encodeURIComponent(value);
 
@@ -48,27 +46,31 @@ export async function signUp(formData: FormData) {
   });
   if (error) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message(error.message)}`);
   if (data.session) redirect(next);
-  redirect(`/login?mode=signin&success=${message('Account created. Check your email and confirm your address before signing in.')}`);
+  redirect(`/login?mode=signin&next=${encodeURIComponent(next)}&success=${message('Account created. Check your email and confirm your address before signing in.')}`);
 }
 
 export async function requestPasswordReset(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
-  if (!verifySimpleCaptcha(String(formData.get('captchaToken') ?? ''), String(formData.get('captchaAnswer') ?? ''))) redirect(`/forgot-password?error=${message('Please complete the quick security check and try again.')}`);
+  const next = safeNext(formData.get('next'));
+  if (!verifySimpleCaptcha(String(formData.get('captchaToken') ?? ''), String(formData.get('captchaAnswer') ?? ''))) redirect(`/forgot-password?next=${encodeURIComponent(next)}&error=${message('Please complete the quick security check and try again.')}`);
   const supabase = createRecoveryRequestClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await origin()}/auth/recovery?audience=customer` });
-  if (error?.status === 429) redirect(`/forgot-password?error=${message('Too many recovery emails were requested. Supabase has temporarily limited delivery; please wait before trying again.')}`);
-  if (error) redirect(`/forgot-password?error=${message('We could not send a recovery email. Please try again later.')}`);
-  redirect(`/forgot-password?success=${message('If an account exists, a five-minute recovery link has been sent. Open only the newest email.')}`);
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await origin()}/auth/recovery?audience=customer&next=${encodeURIComponent(next)}` });
+  if (error?.status === 429) redirect(`/forgot-password?next=${encodeURIComponent(next)}&error=${message('Too many recovery emails were requested. Please wait before trying again.')}`);
+  if (error) redirect(`/forgot-password?next=${encodeURIComponent(next)}&error=${message('We could not send a recovery email. Please try again later.')}`);
+  redirect(`/forgot-password?next=${encodeURIComponent(next)}&success=${message('If an account exists, a five-minute recovery link has been sent. Open only the newest email.')}`);
 }
 
 export async function updatePassword(formData: FormData) {
   const password = String(formData.get('password') ?? '');
-  if (password.length < 8) redirect(`/reset-password?error=${message('Use a password with at least 8 characters.')}`);
+  const confirmation = String(formData.get('passwordConfirmation') ?? '');
+  const next = safeNext(formData.get('next'));
+  if (password.length < 8) redirect(`/reset-password?next=${encodeURIComponent(next)}&error=${message('Use a password with at least 8 characters.')}`);
+  if (password !== confirmation) redirect(`/reset-password?next=${encodeURIComponent(next)}&error=${message('The two passwords do not match.')}`);
   const supabase = await createClient();
   const { error } = await supabase.auth.updateUser({ password });
-  if (error) redirect(`/reset-password?error=${message('This reset link is invalid or expired. Please request a new one.')}`);
+  if (error) redirect(`/reset-password?next=${encodeURIComponent(next)}&error=${message('This reset link is invalid or expired. Please request a new one.')}`);
   await supabase.auth.signOut();
-  redirect(`/login?success=${message('Password updated. Sign in with your new password.')}`);
+  redirect(`/login?next=${encodeURIComponent(next)}&success=${message('Password updated. Sign in with your new password.')}`);
 }
 
 export async function signOut() {
