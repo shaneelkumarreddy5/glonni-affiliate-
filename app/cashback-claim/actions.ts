@@ -20,9 +20,17 @@ export async function submitCashbackClaim(formData: FormData) {
   const offerId = String(formData.get('offerId') ?? '').trim() || null;
   const note = String(formData.get('note') ?? '').trim() || null;
 
-  if (orderReference.length < 3 || !Number.isFinite(purchaseAmount) || purchaseAmount <= 0 || !Number.isFinite(claimedAmount) || claimedAmount <= 0) {
+  if (orderReference.length < 3 || orderReference.length > 120 || !Number.isFinite(purchaseAmount) || purchaseAmount <= 0 || !Number.isFinite(claimedAmount) || claimedAmount <= 0 || claimedAmount > purchaseAmount) {
     redirect('/cashback-claim?error=Please+complete+the+order+and+cashback+details.');
   }
+
+  if (offerId) {
+    const { data: offer } = await supabase.from('offers').select('id').eq('id', offerId).eq('status', 'active').maybeSingle();
+    if (!offer) redirect('/cashback-claim?error=That+offer+is+not+available.+Choose+another+offer+or+leave+it+unselected.');
+  }
+
+  const { data: duplicate } = await supabase.from('cashback_claims').select('id').eq('order_reference', orderReference).maybeSingle();
+  if (duplicate) redirect('/cashback-claim?error=A+claim+for+this+order+reference+already+exists.');
 
   const { error } = await supabase.from('cashback_claims').insert({ profile_id: user.id, offer_id: offerId, order_reference: orderReference, purchase_amount: purchaseAmount, claimed_amount: claimedAmount, note });
   if (error) redirect('/cashback-claim?error=Your+claim+could+not+be+submitted.+Please+try+again.');

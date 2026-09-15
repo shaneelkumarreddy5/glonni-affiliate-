@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowUpRight, CircleAlert, Clock3, Landmark, Search, ShieldCheck, WalletCards } from 'lucide-react';
+import { ArrowUpRight, CircleAlert, Clock3, FileSearch, Landmark, Search, ShieldCheck, WalletCards } from 'lucide-react';
 import { redirect } from 'next/navigation';
 import { Header } from '@/components/header';
 import { createClient } from '@/lib/supabase/server';
@@ -38,7 +38,7 @@ export default async function WalletPage({ searchParams }: Props) {
   const tab = tabValues.includes(params.tab as typeof tabValues[number]) ? params.tab as typeof tabValues[number] : 'transactions';
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  if (!user) redirect('/login?next=/wallet');
   const [{ data: rawClaims }, { data: rawEntries }, { data: rawWithdrawals }, { data: rawAwards }] = await Promise.all([
     supabase.from('cashback_claims').select('id,order_reference,claimed_amount,purchase_amount,status,created_at,offers(merchants(name))').order('created_at', { ascending: false }).limit(100),
     supabase.from('wallet_entries').select('id,amount,entry_type,note,created_at').order('created_at', { ascending: false }).limit(100),
@@ -53,7 +53,8 @@ export default async function WalletPage({ searchParams }: Props) {
   const ledger = entries.filter(entry=>entry.entry_type!=='cashback_pending').reduce((total, entry) => total + Number(entry.amount), 0);
   const reserved = withdrawals.filter((item) => outstanding.includes(item.status)).reduce((total, item) => total + Number(item.amount), 0);
   const available = Math.max(0, ledger - reserved);
-  const pending = claims.filter((item) => ['submitted', 'needs_info'].includes(item.status)).reduce((total, item) => total + Number(item.claimed_amount ?? 0), 0)+awards.filter(item=>['pending','held'].includes(item.status)).reduce((total,item)=>total+Number(item.amount),0);
+  const pending = awards.filter(item=>['pending','held'].includes(item.status)).reduce((total,item)=>total+Number(item.amount),0);
+  const openClaims = claims.filter((item) => ['submitted', 'needs_info'].includes(item.status)).length;
   const lifetime = entries.filter((item) => item.entry_type === 'cashback_confirmed').reduce((total, item) => total + Math.max(0, Number(item.amount)), 0);
   const query = params.q?.trim().toLowerCase() || '';
   const filteredClaims = claims.filter((item) => !query || `${item.order_reference} ${item.offers?.merchants?.name ?? ''} ${item.status}`.toLowerCase().includes(query));
@@ -61,20 +62,21 @@ export default async function WalletPage({ searchParams }: Props) {
   return <><Header/><main className="wallet-page">
     <nav className="wallet-crumb"><Link href="/">Home</Link><span>›</span><Link href="/account?section=profile">Profile</Link><span>›</span><b>Wallet &amp; Payouts</b></nav>
     <header className="wallet-heading"><p>GLONNI REWARDS</p><h1>Wallet &amp; Payouts</h1><span>See cashback progress, request a payout when eligible, and keep every reward record in one place.</span></header>
-    {params.error && <p className="auth-notice error">{params.error}</p>}{params.success && <p className="auth-notice success">{params.success}</p>}
+    {params.error && <p className="auth-notice error" role="alert">{params.error}</p>}{params.success && <p className="auth-notice success" role="status">{params.success}</p>}
     <section className="wallet-summary">
       <article className="withdrawable-card"><WalletCards/><div><small>Available to withdraw</small><b>{money(available)}</b><span>Confirmed cashback after payout holds</span></div><a href="#request-payout">Request payout <ArrowUpRight size={15}/></a></article>
       <article><Clock3/><div><small>Pending cashback</small><b>{money(pending)}</b><span>Awaiting merchant confirmation</span></div></article>
       <article><Landmark/><div><small>Lifetime earnings</small><b>{money(lifetime)}</b><span>Confirmed cashback credits</span></div></article>
+      <article><FileSearch/><div><small>Claims under review</small><b>{openClaims}</b><span>Not counted as earnings until confirmed</span></div><Link className="wallet-card-link" href="/cashback-claim">View claims</Link></article>
     </section>
     <p className="wallet-rule"><ShieldCheck/>Only cashback confirmed by the merchant and cleared for payout is withdrawable.</p>
     {showPreview && <p className="wallet-preview-note"><b>Preview data</b> This account has no live wallet activity yet, so the records below show how confirmed cashback and payouts will appear.</p>}
     <section className="wallet-history">
-      <header className="history-top"><div className="history-tabs"><Link href="/wallet?tab=transactions" className={tab === 'transactions' ? 'active' : ''}>Transaction history</Link><Link href="/wallet?tab=withdrawals" className={tab === 'withdrawals' ? 'active' : ''}>Withdrawal history</Link></div>{tab === 'transactions' && <form className="wallet-search" action="/wallet"><input type="hidden" name="tab" value="transactions"/><Search size={16}/><input name="q" defaultValue={params.q || ''} placeholder="Search order or store"/><button>Search</button></form>}</header>
+      <header className="history-top"><div className="history-tabs"><Link href="/wallet?tab=transactions" className={tab === 'transactions' ? 'active' : ''}>Cashback activity</Link><Link href="/wallet?tab=withdrawals" className={tab === 'withdrawals' ? 'active' : ''}>Payout history</Link><Link href="/cashback-claim">Missing cashback claims</Link></div>{tab === 'transactions' && <form className="wallet-search" action="/wallet"><input type="hidden" name="tab" value="transactions"/><Search size={16}/><input name="q" defaultValue={params.q || ''} placeholder="Search order or store"/><button>Search</button></form>}</header>
       {tab === 'transactions' && <Transactions claims={filteredClaims} awards={awards}/>}
       {tab === 'withdrawals' && <Withdrawals withdrawals={withdrawals}/>}
     </section>
-    <section id="request-payout" className="payout-request"><div><p>REQUEST A PAYOUT</p><h2>Withdraw confirmed cashback</h2><span>KYC and a verified payout method will be required before live payout execution is switched on.</span></div><form action={requestWithdrawal}><label>Amount<input name="amount" type="number" min="100" max={available} step="0.01" required placeholder="Minimum ₹100"/></label><label>UPI ID<input name="upiId" required maxLength={100} placeholder="name@bank"/></label><SimpleCaptcha/><button type="submit" className="primary">Request payout</button></form></section>
+    <section id="request-payout" className="payout-request"><div><p>REQUEST A PAYOUT</p><h2>Withdraw confirmed cashback</h2><span>{showPreview ? 'This is a preview account. A payout can be requested only after real confirmed cashback is available.' : 'KYC and a verified payout method are required before a payout can be processed.'}</span></div><form action={requestWithdrawal}><label>Amount<input name="amount" type="number" min="100" max={available} step="0.01" required disabled={showPreview || available < 100} placeholder="Minimum ₹100"/></label><label>UPI ID<input name="upiId" required maxLength={100} disabled={showPreview || available < 100} placeholder="name@bank"/></label>{!showPreview && available >= 100 && <SimpleCaptcha/>}<button type="submit" className="primary" disabled={showPreview || available < 100}>{showPreview ? 'Preview only' : available < 100 ? 'Minimum ₹100 required' : 'Request payout'}</button></form></section>
   </main></>;
 }
 
