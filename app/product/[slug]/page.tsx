@@ -2,12 +2,13 @@ import { Header } from "@/components/header";
 import { BrowseNav } from "@/components/browse-nav";
 import { PriceAlertButton } from "@/components/price-alert-button";
 import { SaveOfferButton } from "@/components/save-offer-button";
+import { ProductGallery } from "@/components/product-gallery";
 import {
   getCatalogOffers,
   getProductOffers,
   type CatalogOffer,
 } from "@/lib/catalog";
-import { hasCashback, rewardLabel } from "@/lib/rewards";
+import { rewardLabel } from "@/lib/rewards";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ContextualFaqs } from "@/components/contextual-faqs";
@@ -20,7 +21,6 @@ import {
   CircleGauge,
   Droplets,
   Eye,
-  Maximize2,
   MonitorSmartphone,
   PackageCheck,
   Palette,
@@ -38,6 +38,7 @@ import type { ReactNode } from "react";
 export const dynamic = "force-dynamic";
 const money = (value: number | null | undefined) =>
   `₹${Math.round(value ?? 0).toLocaleString("en-IN")}`;
+const updatedLabel = (value: string | null) => value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Update time unavailable';
 type Presentation = {
   kind: "electronics" | "fashion" | "beauty" | "general";
   variants: { label: string; values: string[] }[];
@@ -300,7 +301,7 @@ export default async function ProductPage({
     fallbackView = presentationFor(category, product.title),
     storedVariants = product.variants?.filter((v) => v.label && v.values?.length) ?? [],
     storedSpecs = product.specifications?.filter((s) => s.label && s.value) ?? [],
-    view = { ...fallbackView, variants: storedVariants.length ? storedVariants : fallbackView.variants, specs: storedSpecs.length ? storedSpecs.slice(0,10).map((spec)=>({...spec,icon:specificationIcon(spec.icon_key||spec.label)})) : fallbackView.specs },
+    view = { ...fallbackView, variants: storedVariants, specs: storedSpecs.slice(0,10).map((spec)=>({...spec,icon:specificationIcon(spec.icon_key||spec.label)})) },
     parent = safeReturnPath(
       (await searchParams).from,
       product.categories?.slug
@@ -320,9 +321,13 @@ export default async function ProductPage({
         : best,
     ),
     low = lowest.current_price ?? 0;
-  const cashbackOffers = offers.filter(hasCashback),
-    bestCashback = Math.max(0, ...offers.map(cashbackValue)),
-    effective = Math.max(0, low - cashbackValue(lowest));
+  const sortedOffers=[...offers].sort((a,b)=>((a.current_price??Infinity)-cashbackValue(a))-((b.current_price??Infinity)-cashbackValue(b))),
+    bestEffectiveOffer=sortedOffers[0],
+    bestCashback = cashbackValue(bestEffectiveOffer),
+    effective = Math.max(0, (bestEffectiveOffer.current_price??0) - cashbackValue(bestEffectiveOffer));
+  const ratedOffers=offers.filter(offer=>offer.customer_rating),
+    totalRatings=ratedOffers.reduce((sum,offer)=>sum+(offer.rating_count??1),0),
+    averageRating=totalRatings?ratedOffers.reduce((sum,offer)=>sum+(offer.customer_rating??0)*(offer.rating_count??1),0)/totalRatings:null;
   const supabase = await createClient(),
     offerIds = offers.map((offer) => offer.id);
   const [{ data: offerFaqs },{data:storedHistory}] = await Promise.all([offerIds.length
@@ -343,14 +348,18 @@ export default async function ProductPage({
           list.findIndex((x) => x.products?.slug === o.products?.slug) === i,
       )
       .slice(0, 5);
-  const storedPrices=(storedHistory??[]).map(row=>Number(row.price)).filter(Number.isFinite),
-    high = storedPrices.length?Math.max(...storedPrices):low + Math.max(500, Math.round(low * 0.12)),
-    history = storedPrices.length?storedPrices:[high, high * 0.96, high * 0.98, high * 0.91, high * 0.93, low],
-    avg = Math.round(history.reduce((a, b) => a + b, 0) / history.length);
+  const historyRows=(storedHistory??[]).map(row=>({price:Number(row.price),recordedAt:String(row.recorded_at)})).filter(row=>Number.isFinite(row.price)),
+    storedPrices=historyRows.map(row=>row.price),
+    historyLow=storedPrices.length?Math.min(...storedPrices):null,
+    high = storedPrices.length?Math.max(...storedPrices):null,
+    avg = storedPrices.length?Math.round(storedPrices.reduce((a, b) => a + b, 0) / storedPrices.length):null,
+    chartMin=historyLow??0,
+    chartRange=Math.max(1,(high??0)-chartMin),
+    chartPoints=historyRows.map((row,index)=>`${historyRows.length===1?350:(index/(historyRows.length-1))*700},${155-((row.price-chartMin)/chartRange)*120}`).join(' '),
+    firstHistoryDate=historyRows[0]?.recordedAt?new Date(historyRows[0].recordedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'',
+    lastHistoryDate=historyRows.at(-1)?.recordedAt?new Date(historyRows.at(-1)!.recordedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'';
   const gallery=[product.image_url,...(product.gallery_images??[])].filter((url,index,list):url is string=>Boolean(url)&&list.indexOf(url)===index).slice(0,5);
-  const informationEntries: [string,string|null][] = Object.keys(product.product_information??{}).length
-    ? Object.entries(product.product_information??{})
-    : [["Product description",product.description],["Variants and attributes",null],["Material / ingredients",null],["What is included",null],["Warranty, expiry or care",null],["Delivery and returns",null]];
+  const informationEntries: [string,string][] = Object.entries(product.product_information??{}).filter((entry):entry is [string,string]=>typeof entry[1]==='string'&&Boolean(entry[1].trim()));
   return (
     <>
       <Header />
@@ -363,37 +372,13 @@ export default async function ProductPage({
           fallback={parent}
         />
         <section className="pdp-hero">
-          <div className="pdp-gallery">
-            <div className="pdp-thumbs">
-              {gallery.map((url,i) => (
-                <button className={i === 0 ? "active" : ""} key={url}>
-                  <img src={url} alt="" />
-                </button>
-              ))}
-            </div>
-            <div className="pdp-main-image">
-              <img src={gallery[0] || ""} alt={product.title} />
-              <span>
-                <Maximize2 /> Zoom
-              </span>
-            </div>
-          </div>
+          <ProductGallery images={gallery} title={product.title}/>
           <div className="pdp-summary">
             <p className="pdp-brand">
               {product.brand ?? "GLONNI"} · {category}
             </p>
             <h1>{product.title}</h1>
-            <div className="pdp-rating">
-              <span>
-                <Star />
-                <Star />
-                <Star />
-                <Star />
-                <Star />
-              </span>
-              <b>4.4</b>
-              <small>Provider rating shown where available</small>
-            </div>
+            {averageRating ? <div className="pdp-rating"><span><Star/></span><b>{averageRating.toFixed(1)} / 5</b><small>{totalRatings.toLocaleString('en-IN')} ratings across reporting stores</small></div> : <div className="pdp-rating pdp-rating-missing"><small>Customer ratings are not available from connected stores yet.</small></div>}
             <p>
               {product.description ||
                 "Compare the exact same product variant across verified stores before choosing where to buy."}
@@ -416,7 +401,7 @@ export default async function ProductPage({
                 price={low}
               />
             </div>
-            {view.variants.map((variant, group) => (
+            {view.variants.length ? view.variants.map((variant, group) => (
               <div className="pdp-variants" key={variant.label}>
                 <div>
                   <b>{variant.label}</b>
@@ -426,17 +411,17 @@ export default async function ProductPage({
                 </div>
                 <div>
                   {variant.values.map((value, i) => (
-                    <button className={i === 0 ? "selected" : ""} key={value}>
+                    <span className={i === 0 ? "selected" : ""} key={value}>
                       {value}
-                    </button>
+                    </span>
                   ))}
                 </div>
               </div>
-            ))}
-            <div className="pdp-selected">
+            )) : <div className="pdp-missing-inline"><b>Variants not provided</b><span>Open a store offer below to confirm available sizes, colours or configurations.</span></div>}
+            {view.variants.length > 0 && <div className="pdp-selected">
               Selected variant{" "}
               <b>{view.variants.map((v) => v.values[0]).join(" · ")}</b>
-            </div>
+            </div>}
             <div className="pdp-best">
               <span>
                 <small>Lowest price</small>
@@ -450,6 +435,7 @@ export default async function ProductPage({
               <span>
                 <small>Effective price</small>
                 <b>{money(effective)}</b>
+                <em>on {bestEffectiveOffer.merchants?.name}</em>
               </span>
             </div>
             <a className="pdp-compare-link" href="#offers">
@@ -480,23 +466,21 @@ export default async function ProductPage({
               <b>Stock & updated</b>
               <b>Action</b>
             </div>
-            {offers.map((offer, index) => {
+            {sortedOffers.map((offer, index) => {
               const cb = cashbackValue(offer),
                 rating = offer.customer_rating?.toFixed(1)??'—',
                 reviews = offer.rating_count?.toLocaleString("en-IN")??'No';
               return (
                 <article className="pdp-offer" key={offer.id}>
                   <div className="pdp-store">
-                    <strong>{offer.merchants?.name}</strong>
+                    <strong>{offer.merchants?.logo_url ? <img src={offer.merchants.logo_url} alt=""/> : null}{offer.merchants?.name}</strong>
                     <small>
                       {offer.variant_label||view.variants.map((v) => v.values[0]).join(" · ")}
                     </small>
                     {index === 0 && <em>Best effective price</em>}
                   </div>
-                  <strong>{money(offer.current_price)}</strong>
-                  <span>
-                    {offer.bank_offer||offer.coupon_code&&`Use ${offer.coupon_code}`||"No bank offer reported"}
-                  </span>
+                  <strong>{offer.current_price == null ? '—' : money(offer.current_price)}</strong>
+                  <span className="pdp-promotions">{offer.bank_offer ? <b>{offer.bank_offer}</b> : null}{offer.coupon_code ? <small>Coupon: {offer.coupon_code}</small> : null}{!offer.bank_offer && !offer.coupon_code ? 'No promotion reported' : null}</span>
                   <span className="pdp-cashback">
                     {cb ? money(cb) : "Not available"}
                     <small>
@@ -504,7 +488,7 @@ export default async function ProductPage({
                     </small>
                   </span>
                   <strong className="pdp-effective">
-                    {money((offer.current_price ?? 0) - cb)}
+                    {offer.current_price == null ? '—' : money(Math.max(0, offer.current_price - cb))}
                   </strong>
                   <span className="pdp-merchant-rating">
                     <b>
@@ -516,9 +500,9 @@ export default async function ProductPage({
                       on {offer.merchants?.name}
                     </small>
                   </span>
-                  <span className="pdp-stock">
+                  <span className={`pdp-stock ${(offer.stock_status??'').toLowerCase().includes('out')?'unavailable':''}`}>
                     <b>● {(offer.stock_status||'unknown').replaceAll('_',' ')}</b>
-                    <small>Provider update</small>
+                    <small>Updated {updatedLabel(offer.updated_at)}</small>
                   </span>
                   <div>
                     <a className="pdp-view" href={`/out/${offer.id}?source=product&medium=store-comparison&placement=product-comparison`}>
@@ -543,21 +527,14 @@ export default async function ProductPage({
           <header>
             <div>
               <h2>Price history</h2>
-              <p>History for the selected product variant</p>
-            </div>
-            <div>
-              {["30D", "3M", "6M", "1Y", "All"].map((x, i) => (
-                <button className={i === 0 ? "active" : ""} key={x}>
-                  {x}
-                </button>
-              ))}
+              <p>Verified recorded prices for this product</p>
             </div>
           </header>
-          <div className="pdp-chart">
+          {historyRows.length ? <><div className="pdp-chart">
             <svg
               viewBox="0 0 700 180"
               role="img"
-              aria-label="Illustrative product price history"
+              aria-label="Recorded product price history"
             >
               <defs>
                 <linearGradient id="pdpFill" x1="0" x2="0" y1="0" y2="1">
@@ -565,32 +542,27 @@ export default async function ProductPage({
                   <stop offset="1" stopColor="#1760db" stopOpacity="0" />
                 </linearGradient>
               </defs>
-              <path
-                d="M0 35 L140 70 L280 55 L420 120 L560 95 L700 138 V180 H0 Z"
-                fill="url(#pdpFill)"
-              />
               <polyline
-                points="0,35 140,70 280,55 420,120 560,95 700,138"
+                points={chartPoints}
                 fill="none"
                 stroke="#1760db"
                 strokeWidth="5"
                 strokeLinecap="round"
               />
-              <circle cx="700" cy="138" r="7" fill="#1760db" />
             </svg>
             <div>
-              <span>Six weeks ago</span>
-              <span>Today</span>
+              <span>{firstHistoryDate}</span>
+              <span>{lastHistoryDate}</span>
             </div>
           </div>
           <dl>
             <div>
               <dt>Current price</dt>
-              <dd>{money(low)}</dd>
+              <dd>{money(storedPrices.at(-1))}</dd>
             </div>
             <div>
               <dt>Lowest recorded price</dt>
-              <dd>{money(low)}</dd>
+              <dd>{money(historyLow)}</dd>
             </div>
             <div>
               <dt>Highest price</dt>
@@ -602,9 +574,9 @@ export default async function ProductPage({
             </div>
           </dl>
           <small>
-            Illustrative history until verified merchant price-history feeds are
-            connected.
+            Based only on recorded catalogue prices. Store checkout prices can change.
           </small>
+          </> : <div className="pdp-history-empty"><b>Price history is not available yet</b><span>Glonni will show a chart after verified price records have been collected.</span></div>}
         </section>
         <section className="pdp-card pdp-specifications">
           <header>
@@ -614,7 +586,7 @@ export default async function ProductPage({
             </div>
             <a href="#full-information">View all specifications</a>
           </header>
-          <div>
+          {view.specs.length ? <div>
             {view.specs.map((spec) => (
               <article key={spec.label}>
                 {spec.icon}
@@ -624,7 +596,7 @@ export default async function ProductPage({
                 </span>
               </article>
             ))}
-          </div>
+          </div> : <div className="pdp-section-empty"><b>Specifications have not been added</b><span>Confirm technical details on the selected store before purchasing.</span></div>}
         </section>
         <section id="category-guide" className="pdp-information-grid">
           <article className="pdp-card">
@@ -653,18 +625,17 @@ export default async function ProductPage({
           </article>
           <article id="full-information" className="pdp-card">
             <h2>Complete product information</h2>
-            {informationEntries.map(([key,value]) => (
+            {informationEntries.length ? informationEntries.map(([key,value]) => (
               <details key={key}>
                 <summary>
                   {key.replaceAll('_',' ')}
                   <ChevronDown />
                 </summary>
                 <p>
-                  {value || product.description ||
-                    "Complete verified provider information will appear here when available."}
+                  {value}
                 </p>
               </details>
-            ))}
+            )) : <div className="pdp-section-empty"><b>Complete information is not available</b><span>{product.description || 'Verified product details will appear here after they are added.'}</span></div>}
           </article>
         </section>
         <ContextualFaqs

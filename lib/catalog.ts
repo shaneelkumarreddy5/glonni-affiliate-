@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 export type CatalogOffer = {
   id: string;
+  updated_at: string | null;
   current_price: number | null;
   list_price: number | null;
   cashback_amount: number | null;
@@ -33,6 +34,7 @@ export type CatalogOffer = {
   merchants: {
     name: string;
     slug: string;
+    logo_url: string | null;
     storefront_url: string | null;
   } | null;
 };
@@ -43,7 +45,7 @@ export type CatalogFilters = {
   categoryIds?: string[];
 };
 const selection =
-  "id,current_price,list_price,cashback_amount,reward_type,cashback_percent,cashback_cap,coupon_code,reward_terms,cashback_tracking_supported,reward_funding_source,bank_offer,customer_rating,rating_count,stock_status,cashback_confirmation_days,variant_label,products!inner(id,title,slug,image_url,brand,description,gallery_images,variants,specifications,product_information,categories(id,name,slug)),merchants!inner(name,slug,storefront_url)";
+  "id,updated_at,current_price,list_price,cashback_amount,reward_type,cashback_percent,cashback_cap,coupon_code,reward_terms,cashback_tracking_supported,reward_funding_source,bank_offer,customer_rating,rating_count,stock_status,cashback_confirmation_days,variant_label,products!inner(id,title,slug,image_url,brand,description,gallery_images,variants,specifications,product_information,categories(id,name,slug)),merchants!inner(name,slug,logo_url,storefront_url)";
 export async function getCatalogOffers(filters: CatalogFilters = {}) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [] as CatalogOffer[];
   const supabase = await createClient();
