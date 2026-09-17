@@ -19,7 +19,8 @@ function interactionCopy(row: Interaction) {
 }
 
 export default async function ShoppingActivityPage({ searchParams }: Props) {
-  const { filter = 'all' } = await searchParams;
+  const { filter: requestedFilter = 'all' } = await searchParams;
+  const filter = ['all','interactions','clicks'].includes(requestedFilter) ? requestedFilter : 'all';
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/login?next=${encodeURIComponent(`/shopping-activity?filter=${filter}`)}`);

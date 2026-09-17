@@ -1,0 +1,1 @@
+export default function Loading(){return <main className="customer-state-page" aria-live="polite" aria-busy="true"><span className="customer-loader"/><h1>Loading Glonni…</h1><p>Preparing the latest information for this page.</p></main>;}
