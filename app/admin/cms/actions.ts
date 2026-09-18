@@ -135,6 +135,21 @@ export async function updateBuilderBlock(formData: FormData) {
   revalidatePath('/', 'layout');
 }
 
+export async function deleteBuilderBlock(formData: FormData) {
+  const { supabase, user } = await contentAdmin();
+  const id = cleanText(formData.get('id'), 80);
+  const pageId = cleanText(formData.get('pageId'), 80);
+  if (!id || !pageId) throw new Error('Section not found.');
+  const { data: block } = await supabase.from('site_page_blocks').select('id,block_type,title').eq('id', id).eq('page_id', pageId).maybeSingle();
+  if (!block) throw new Error('Section not found.');
+  const { error } = await supabase.from('site_page_blocks').delete().eq('id', id).eq('page_id', pageId);
+  if (error) throw new Error(error.message);
+  await snapshotPage(pageId, `Deleted ${block.title || block.block_type} section`, user.id);
+  await supabase.from('audit_events').insert({ actor_id: user.id, event_type: 'site_block_deleted', entity_type: 'site_page_block', entity_id: id, source: 'admin', metadata: { page_id: pageId, type: block.block_type } });
+  revalidatePath('/admin/cms');
+  revalidatePath('/', 'layout');
+}
+
 export async function reorderBuilderBlocks(formData: FormData) {
   const { supabase, user } = await contentAdmin();
   const pageId = cleanText(formData.get('pageId'), 80);
