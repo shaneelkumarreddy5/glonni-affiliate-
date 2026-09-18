@@ -83,11 +83,12 @@ export async function getStores() {
       slug: string;
       logo_url: string | null;
       storefront_url: string | null;
+      review_notes: string | null;
     }[];
   const supabase = await createClient();
   const { data } = await supabase
     .from("merchants")
-    .select("id,name,slug,logo_url,storefront_url")
+    .select("id,name,slug,logo_url,storefront_url,review_notes")
     .eq("is_active", true)
     .order("homepage_position");
   return data ?? [];

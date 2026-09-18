@@ -124,6 +124,7 @@
 .store-terms ul{margin:0;padding:0 0 0 18px;color:#655f52;font-size:11px;line-height:17px}
 .store-terms li+li{margin-top:7px}
 @media(max-width:700px){.stores-browse-page,.store-detail-page{padding:12px 16px 50px}.store-directory-search{max-width:none}.store-directory-grid{grid-template-columns:1fr}.store-profile-hero>div{align-items:flex-start}.store-profile-hero aside{display:grid;grid-template-columns:auto 1fr;align-items:baseline}.store-profile-hero aside small{border:0}.store-category-select>div{display:grid}.store-category-select form,.store-category-select button{width:100%}.store-category-select button{min-height:40px}.store-terms{grid-template-columns:1fr;gap:16px}}
+.store-policy-content{margin:22px 0;padding:24px;border:1px solid #dfe7f2;border-radius:16px;background:#fff}.store-policy-content>h2{margin:4px 0 16px}.store-policy-content>div{display:grid;gap:8px}.store-policy-content details{padding:14px 16px;border:1px solid #e3e9f2;border-radius:10px;background:#fbfcfe}.store-policy-content summary{cursor:pointer;color:#17233d;font-weight:800}.store-policy-content details p{margin-top:10px;color:#66758d;line-height:1.7;white-space:pre-line}
 
 /* Product-first deals discovery */
 .deals-page{max-width:1320px}

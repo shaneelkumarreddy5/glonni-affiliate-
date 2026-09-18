@@ -325,13 +325,16 @@ export async function updateStore(f: FormData) {
     url = String(f.get("url") ?? "").trim();
   if (!id || !name || !/^https?:\/\//.test(url))
     throw new Error("Store name and a valid https URL are required.");
+  const { data: current } = await s.from("merchants").select("review_notes").eq("id", id).single();
+  let notes: Record<string, unknown> = {};
+  try { notes = JSON.parse(current?.review_notes || "{}"); } catch { notes = { internalNote: current?.review_notes || "" }; }
   const { error } = await s
     .from("merchants")
     .update({
       name,
       storefront_url: url,
       homepage_position: Number(f.get("homepagePosition")) || 99,
-      review_notes: String(f.get("reviewNotes") ?? "").trim() || null,
+      review_notes: JSON.stringify({ ...notes, internalNote: String(f.get("reviewNotes") ?? "").trim() }),
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
@@ -339,6 +342,27 @@ export async function updateStore(f: FormData) {
   await audit(s, "updated", "merchant", id, { name, actor_id: user.id });
   storeRefresh(slugValue);
   redirect(`/admin/stores/${slugValue}?success=Store%20details%20saved`);
+}
+export async function updateStorePolicies(f: FormData) {
+  const { s, user } = await storeOperator();
+  const id = String(f.get("id") ?? ""), slugValue = String(f.get("slug") ?? "");
+  if (!id || !slugValue) throw new Error("Store information is missing.");
+  const { data: current } = await s.from("merchants").select("review_notes").eq("id", id).single();
+  let notes: Record<string, unknown> = {};
+  try { notes = JSON.parse(current?.review_notes || "{}"); } catch { notes = { internalNote: current?.review_notes || "" }; }
+  const policies = {
+    cashbackRules: String(f.get("cashbackRules") ?? "").trim(),
+    termsConditions: String(f.get("termsConditions") ?? "").trim(),
+    privacyPolicy: String(f.get("privacyPolicy") ?? "").trim(),
+    returnsPolicy: String(f.get("returnsPolicy") ?? "").trim(),
+    customerNotice: String(f.get("customerNotice") ?? "").trim(),
+  };
+  const { error } = await s.from("merchants").update({ review_notes: JSON.stringify({ ...notes, policies }), updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw new Error(error.message);
+  await audit(s, "store_policies_updated", "merchant", id, { actor_id: user.id });
+  storeRefresh(slugValue);
+  revalidatePath(`/store/${slugValue}`);
+  redirect(`/admin/stores/${slugValue}?tab=policies&success=Store%20policies%20saved`);
 }
 export async function changeStoreStatus(f: FormData) {
   const action = String(f.get("action") ?? "");
@@ -856,4 +880,15 @@ export async function addSupportFaq(f: FormData) {
   refresh();
   revalidatePath("/support");
   revalidatePath("/admin/support");
+}
+export async function updateStoreFaq(f: FormData) {
+  const { s, user } = await requireAdminMutation();
+  const id = String(f.get("id") ?? ""), merchantId = String(f.get("merchantId") ?? ""), slugValue = String(f.get("slug") ?? ""), question = String(f.get("question") ?? "").trim(), answer = String(f.get("answer") ?? "").trim();
+  if (!id || !merchantId || question.length < 5 || answer.length < 10) throw new Error("Add a clear question and approved answer.");
+  const { error } = await s.from("support_faqs").update({ question, answer, updated_at: new Date().toISOString() }).eq("id", id).eq("merchant_id", merchantId);
+  if (error) throw new Error(error.message);
+  await audit(s, "updated", "support_faq", id, { merchant_id: merchantId, actor_id: user.id });
+  storeRefresh(slugValue);
+  revalidatePath(`/store/${slugValue}`);
+  redirect(`/admin/stores/${slugValue}?tab=policies&success=FAQ%20updated`);
 }
