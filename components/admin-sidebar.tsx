@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   BarChart3, Bell, Bot, Boxes, Building2, Cable, ChartNoAxesCombined, Clock3, Headphones,
-  ChevronDown, ChevronLeft, ClipboardCheck, FolderKanban, Gift, KeyRound, LayoutTemplate,
+  ChevronDown, ChevronLeft, ClipboardCheck, FolderKanban, Gift, KeyRound,
   LogOut, Megaphone, Package, PlugZap, ReceiptText, Search, Settings, Share2, ShieldCheck, Store, FileClock, Scale, GitCompareArrows,
   Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote, FlaskConical,
 } from 'lucide-react';
@@ -39,7 +39,6 @@ const sections = [
     { label: 'Affiliate Control Centre', href: '/admin/analytics', icon: BarChart3 },
     { label: 'System Testing', href: '/admin/testing', icon: FlaskConical },
     { label: 'Activity & Audit Log', href: '/admin/activity', icon: FileClock },
-    { label: 'Website Builder', href: '/admin/cms', icon: LayoutTemplate },
     { label: 'Notifications', href: '/admin/notifications', icon: Bell },
     { label: 'Settings', href: '/admin/settings', icon: Settings },
     { label: 'Sign Out', href: '/admin/logout', icon: LogOut },
