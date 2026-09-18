@@ -7,6 +7,7 @@ import { OfferGrid } from '@/components/offer-grid';
 import { getCatalogOffers, getCategories, getStores } from '@/lib/catalog';
 import { categoryBranchIds } from '@/lib/category-tree';
 import { hasCashback } from '@/lib/rewards';
+import { CmsManagedSections } from '@/components/cms-managed-sections';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,9 +66,11 @@ export default async function CategoryPage({ params, searchParams }: { params: P
       <div><p className="eyebrow">SHOP BY CATEGORY</p><h1>{category.name}</h1><p>{category.short_description || category.description || `Explore ${category.name}, open its subcategories, and compare available store offers.`}</p></div>
       <aside><span><b>{allProductIds.size}</b><small>products</small></span><span><b>{categoryStores.length}</b><small>stores</small></span><span><b>{cashbackCount}</b><small>eligible offers</small></span></aside>
     </section>
+    <CmsManagedSections pageKey="category" slot="after_heading"/>
 
     {children.length > 0 && <section className="vertical-section category-children"><div className="section-title"><div><p className="eyebrow">ONE LEVEL AT A TIME</p><h2>Explore {category.name}</h2></div><small>Select a subcategory to open its next level</small></div><div className="category-grid">{children.map((child) => <Link href={`/category/${child.slug}`} key={child.id}><span className="category-icon">{child.image_url ? <img src={child.image_url} alt=""/> : '›'}</span><span><b>{child.name}</b><small>Open category</small></span></Link>)}</div></section>}
 
+    <CmsManagedSections pageKey="category" slot="before_results"/>
     <section className="vertical-section category-results">
       <div className="section-title"><div><p className="eyebrow">PRODUCTS IN THIS BRANCH</p><h2>Browse and compare</h2></div>{hasFilters && <Link className="clear-category-filters" href={`/category/${category.slug}`}><RotateCcw size={14}/>Clear filters</Link>}</div>
       <form className="category-search" action={`/category/${category.slug}`}><Search size={18}/><input name="q" defaultValue={filters.q} aria-label={`Search in ${category.name}`} placeholder={`Search products and brands in ${category.name}`}/><button type="submit">Search</button></form>
@@ -81,5 +84,6 @@ export default async function CategoryPage({ params, searchParams }: { params: P
       <div className="category-result-summary"><b>{products.length} {products.length === 1 ? 'product' : 'products'}</b><span>{hasFilters ? `matching your filters in ${category.name}` : `available across ${category.name} and its subcategories`}</span></div>
       {products.length ? <OfferGrid offers={products} contextHref={categoryLink(category.slug, filters, {})}/> : <div className="empty-state category-empty"><Store size={30}/><h2>{hasFilters ? 'No products match these filters' : `No products in ${category.name} yet`}</h2><p>{hasFilters ? 'Clear the filters or try a broader search.' : `Products assigned to ${category.name} or its subcategories will appear here automatically.`}</p>{hasFilters ? <Link href={`/category/${category.slug}`} className="primary">Clear all filters</Link> : parent ? <Link href={`/category/${parent.slug}`} className="primary">Return to {parent.name}</Link> : <Link href="/#categories" className="primary">Explore other categories</Link>}</div>}
     </section>
+    <CmsManagedSections pageKey="category" slot="page_end"/>
   </main></>;
 }

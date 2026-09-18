@@ -6,6 +6,7 @@ import { signOut } from '@/app/auth/actions';
 import { createClient } from '@/lib/supabase/server';
 import { changePassword, updatePreferences, updateProfile } from './actions';
 import { ReferralShare } from '@/app/wallet/referral-share';
+import { CmsManagedSections } from '@/components/cms-managed-sections';
 import './account.css';
 import './profile-details.css';
 import './referral.css';
@@ -59,11 +60,13 @@ export default async function AccountPage({ searchParams }: Props) {
   return <><Header/><main className="account-hub">
     <div className="account-breadcrumb"><Link href="/">Home</Link><ChevronRight size={14}/><b>Profile</b></div>
     <section className="profile-identity"><div className="profile-avatar-large">{profile?.avatar_url ? <img src={profile.avatar_url} alt=""/> : initials}</div><div><p>GLONNI PROFILE</p><h1>{name}</h1><span><MapPin size={15}/>{location}</span></div><Link href="/account?section=profile" className="profile-edit">Edit profile</Link></section>
+    <CmsManagedSections pageKey="profile" slot="after_identity"/>
     {params.error && <p className="auth-notice error">{params.error}</p>}{params.success && <p className="auth-notice success">{params.success}</p>}
     <div className="account-hub-layout">
       <aside className="account-menu"><p>MY ACCOUNT</p>{sections.map(([key, label, description, Icon]) => <Link href={key === 'wallet' ? '/wallet' : `/account?section=${key}`} className={active === key ? 'selected' : ''} key={key}><Icon size={19}/><span><b>{label}</b><small>{description}</small></span><ChevronRight size={16}/></Link>)}</aside>
       <section className="account-workspace">{active === 'profile' && <ProfileSection name={name} profile={profile} email={user.email || ''} emailVerified={Boolean(user.email_confirmed_at)} phone={user.phone || ''} meta={profileMeta}/>} {active === 'wallet' && <WalletSection available={available} pending={pending}/>} {active === 'referral' && <ReferralSection code={referralCode} referrals={referrals}/>} {active === 'shopping' && <ShoppingSection saved={saved}/>} {active === 'preferences' && <PreferencesSection preferences={preferences} categories={(rawCategories ?? []).map(item => item.name)} stores={(rawStores ?? []).map(item => item.name)} emailVerified={Boolean(user.email_confirmed_at)} phoneVerified={Boolean(user.phone)}/>} {active === 'security' && <SecuritySection email={user.email || ''}/>} {active === 'help' && <HelpSection/>}</section>
     </div>
+    <CmsManagedSections pageKey="profile" slot="page_end"/>
   </main></>;
 }
 

@@ -5,6 +5,7 @@ import { Header } from '@/components/header';
 import { createClient } from '@/lib/supabase/server';
 import { requestWithdrawal } from './actions';
 import { SimpleCaptcha } from '@/components/simple-captcha';
+import { CmsManagedSections } from '@/components/cms-managed-sections';
 import './wallet.css';
 import './preview.css';
 
@@ -62,6 +63,7 @@ export default async function WalletPage({ searchParams }: Props) {
   return <><Header/><main className="wallet-page">
     <nav className="wallet-crumb"><Link href="/">Home</Link><span>›</span><Link href="/account?section=profile">Profile</Link><span>›</span><b>Wallet &amp; Payouts</b></nav>
     <header className="wallet-heading"><p>GLONNI REWARDS</p><h1>Wallet &amp; Payouts</h1><span>See cashback progress, request a payout when eligible, and keep every reward record in one place.</span></header>
+    <CmsManagedSections pageKey="wallet" slot="after_heading"/>
     {params.error && <p className="auth-notice error" role="alert">{params.error}</p>}{params.success && <p className="auth-notice success" role="status">{params.success}</p>}
     <section className="wallet-summary">
       <article className="withdrawable-card"><WalletCards/><div><small>Available to withdraw</small><b>{money(available)}</b><span>Confirmed cashback after payout holds</span></div><a href="#request-payout">Request payout <ArrowUpRight size={15}/></a></article>
@@ -77,6 +79,7 @@ export default async function WalletPage({ searchParams }: Props) {
       {tab === 'withdrawals' && <Withdrawals withdrawals={withdrawals}/>}
     </section>
     <section id="request-payout" className="payout-request"><div><p>REQUEST A PAYOUT</p><h2>Withdraw confirmed cashback</h2><span>{showPreview ? 'This is a preview account. A payout can be requested only after real confirmed cashback is available.' : 'KYC and a verified payout method are required before a payout can be processed.'}</span></div><form action={requestWithdrawal}><label>Amount<input name="amount" type="number" min="100" max={available} step="0.01" required disabled={showPreview || available < 100} placeholder="Minimum ₹100"/></label><label>UPI ID<input name="upiId" required maxLength={100} disabled={showPreview || available < 100} placeholder="name@bank"/></label>{!showPreview && available >= 100 && <SimpleCaptcha/>}<button type="submit" className="primary" disabled={showPreview || available < 100}>{showPreview ? 'Preview only' : available < 100 ? 'Minimum ₹100 required' : 'Request payout'}</button></form></section>
+    <CmsManagedSections pageKey="wallet" slot="page_end"/>
   </main></>;
 }
 

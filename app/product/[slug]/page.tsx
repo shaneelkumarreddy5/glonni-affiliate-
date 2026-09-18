@@ -12,6 +12,7 @@ import { rewardLabel } from "@/lib/rewards";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ContextualFaqs } from "@/components/contextual-faqs";
+import { CmsManagedSections } from "@/components/cms-managed-sections";
 import { safeReturnPath } from "@/lib/navigation";
 import {
   Battery,
@@ -443,6 +444,8 @@ export default async function ProductPage({
             </a>
           </div>
         </section>
+        <CmsManagedSections pageKey="product" slot="after_summary"/>
+        <CmsManagedSections pageKey="product" slot="before_comparison"/>
         <section id="offers" className="pdp-card pdp-comparison">
           <header>
             <div>
@@ -687,6 +690,7 @@ export default async function ProductPage({
           Glonni Cashback applies only to marked offers after successful
           tracking and merchant confirmation.
         </p>
+        <CmsManagedSections pageKey="product" slot="page_end"/>
       </main>
     </>
   );

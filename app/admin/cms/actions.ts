@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { systemPageDefinitions, systemPageSlug } from '@/lib/system-pages';
 
 const allowedBlocks = ['hero', 'banner', 'text', 'cta', 'faq', 'product_rail', 'store_rail', 'category_grid', 'trust_strip'] as const;
 const toSlug = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -91,16 +92,31 @@ export async function deleteBuilderPage(formData: FormData) {
 
 export async function addBuilderBlock(formData: FormData) {
   const { supabase, user } = await contentAdmin();
-  const pageId = cleanText(formData.get('pageId'), 80);
+  let pageId = cleanText(formData.get('pageId'), 80);
+  const systemKey = cleanText(formData.get('systemKey'), 40);
   const type = cleanText(formData.get('type'), 40) as typeof allowedBlocks[number];
-  if (!pageId || !allowedBlocks.includes(type)) throw new Error('Choose a page and an approved section type.');
+  if (!allowedBlocks.includes(type)) throw new Error('Choose an approved section type.');
+  if (!pageId && systemKey) {
+    const definition = systemPageDefinitions.find((item) => item.key === systemKey);
+    if (!definition) throw new Error('That system page is unavailable.');
+    const slug = systemPageSlug(definition.key);
+    const { data: existingPage } = await supabase.from('site_pages').select('id').eq('slug', slug).maybeSingle();
+    if (existingPage) pageId = existingPage.id;
+    else {
+      const { data: createdPage, error: pageError } = await supabase.from('site_pages').insert({ title: definition.title, slug, description: definition.description, status: 'draft', device_visibility: 'all', created_by: user.id }).select('id').single();
+      if (pageError || !createdPage) throw new Error(pageError?.message || 'Could not prepare the system page.');
+      pageId = createdPage.id;
+    }
+  }
+  if (!pageId) throw new Error('Choose a page before adding a section.');
   const { data: existing } = await supabase.from('site_page_blocks').select('display_order').eq('page_id', pageId).order('display_order', { ascending: false }).limit(1).maybeSingle();
-  const config = { accent: '#1454d9', background: type === 'hero' ? '#fff4cf' : '#ffffff', buttonStyle: 'solid', layout: 'standard' };
+  const config = { accent: '#1454d9', background: type === 'hero' ? '#fff4cf' : '#ffffff', buttonStyle: 'solid', layout: 'standard', slot: cleanText(formData.get('slot'), 40) || 'page_end' };
   const { data, error } = await supabase.from('site_page_blocks').insert({ page_id: pageId, block_type: type, title: cleanText(formData.get('title'), 120) || `${type.replace('_', ' ')} section`, body: cleanText(formData.get('body'), 320) || null, cta_label: cleanText(formData.get('ctaLabel'), 60) || null, cta_href: safeHref(formData.get('ctaHref')), image_url: cleanText(formData.get('imageUrl'), 1000) || null, display_order: (existing?.display_order ?? 0) + 10, device_visibility: cleanText(formData.get('device'), 20) || 'all', config }).select('id').single();
   if (error || !data) throw new Error(error?.message || 'Could not add the section.');
   await snapshotPage(pageId, `Added ${type} section`, user.id);
   await supabase.from('audit_events').insert({ actor_id: user.id, event_type: 'site_block_added', entity_type: 'site_page_block', entity_id: data.id, source: 'admin', metadata: { page_id: pageId, type } });
   revalidatePath('/admin/cms');
+  revalidatePath('/', 'layout');
 }
 
 export async function updateBuilderBlock(formData: FormData) {
@@ -110,12 +126,13 @@ export async function updateBuilderBlock(formData: FormData) {
   if (!id || !pageId) throw new Error('Section not found.');
   const color = cleanText(formData.get('accent'), 12);
   const background = cleanText(formData.get('background'), 12);
-  const config = { accent: /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#1454d9', background: /^#[0-9a-fA-F]{6}$/.test(background) ? background : '#ffffff', buttonStyle: ['solid', 'outline', 'soft'].includes(cleanText(formData.get('buttonStyle'), 12)) ? cleanText(formData.get('buttonStyle'), 12) : 'solid', layout: ['standard', 'split', 'centered'].includes(cleanText(formData.get('layout'), 12)) ? cleanText(formData.get('layout'), 12) : 'standard' };
+  const config = { accent: /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#1454d9', background: /^#[0-9a-fA-F]{6}$/.test(background) ? background : '#ffffff', buttonStyle: ['solid', 'outline', 'soft'].includes(cleanText(formData.get('buttonStyle'), 12)) ? cleanText(formData.get('buttonStyle'), 12) : 'solid', layout: ['standard', 'split', 'centered'].includes(cleanText(formData.get('layout'), 12)) ? cleanText(formData.get('layout'), 12) : 'standard', slot: cleanText(formData.get('slot'), 40) || 'page_end' };
   const { error } = await supabase.from('site_page_blocks').update({ title: cleanText(formData.get('title'), 120) || null, body: cleanText(formData.get('body'), 320) || null, cta_label: cleanText(formData.get('ctaLabel'), 60) || null, cta_href: safeHref(formData.get('ctaHref')), image_url: cleanText(formData.get('imageUrl'), 1000) || null, device_visibility: cleanText(formData.get('device'), 20) || 'all', config, updated_at: new Date().toISOString() }).eq('id', id).eq('page_id', pageId);
   if (error) throw new Error(error.message);
   await snapshotPage(pageId, 'Edited section settings', user.id);
   await supabase.from('audit_events').insert({ actor_id: user.id, event_type: 'site_block_updated', entity_type: 'site_page_block', entity_id: id, source: 'admin', metadata: { page_id: pageId } });
   revalidatePath('/admin/cms');
+  revalidatePath('/', 'layout');
 }
 
 export async function reorderBuilderBlocks(formData: FormData) {
@@ -130,6 +147,7 @@ export async function reorderBuilderBlocks(formData: FormData) {
   await snapshotPage(pageId, 'Reordered page sections', user.id);
   await supabase.from('audit_events').insert({ actor_id: user.id, event_type: 'site_blocks_reordered', entity_type: 'site_page', entity_id: pageId, source: 'admin', metadata: { count: blockIds.length } });
   revalidatePath('/admin/cms');
+  revalidatePath('/', 'layout');
 }
 
 export async function setBuilderPageStatus(formData: FormData) {
@@ -145,4 +163,5 @@ export async function setBuilderPageStatus(formData: FormData) {
   await supabase.from('audit_events').insert({ actor_id: user.id, event_type: `site_page_${status}`, entity_type: 'site_page', entity_id: id, source: 'admin', metadata: { slug: data.slug } });
   revalidatePath('/admin/cms');
   revalidatePath(`/pages/${data.slug}`);
+  revalidatePath('/', 'layout');
 }

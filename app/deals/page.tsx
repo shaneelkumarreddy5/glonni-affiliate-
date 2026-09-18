@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Search, SlidersHorizontal, X } from 'lucide-
 import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
 import { OfferGrid } from '@/components/offer-grid';
+import { CmsManagedSections } from '@/components/cms-managed-sections';
 import { categoryBranchIds, orderCategoryTree } from '@/lib/category-tree';
 import { CatalogOffer, getCatalogOffers, getCategories, getStores } from '@/lib/catalog';
 import { hasCashback } from '@/lib/rewards';
@@ -95,9 +96,11 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   return <><Header/><main className="deals-page">
     <BrowseNav items={[{ label: 'Deals' }]}/>
     <section className="catalog-head deals-head"><p className="eyebrow">PRODUCT-FIRST DEAL DISCOVERY</p><h1>{title}</h1><p>Every product appears once with its best matching offer. Open it to compare prices, rewards and terms across all connected stores.</p></section>
+    <CmsManagedSections pageKey="deals" slot="after_heading"/>
 
     <form className="deals-search" action="/deals"><Search size={20}/><input name="q" defaultValue={filters.q} aria-label="Search products, brands, stores and categories" placeholder="Search products, brands, stores and categories"/>{filters.category && <input type="hidden" name="category" value={filters.category}/>}<button type="submit">Search deals</button></form>
 
+    <CmsManagedSections pageKey="deals" slot="before_results"/>
     <div className="deals-layout">
       <aside className="deals-filter-panel"><header><SlidersHorizontal size={18}/><div><b>Filter deals</b><small>Narrow the products shown</small></div>{activeFilters.length > 0 && <Link href="/deals">Clear all</Link>}</header>
         <form action="/deals" className="deals-filter-form">
@@ -118,5 +121,6 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         {products.length > PAGE_SIZE && <nav className="deals-pagination" aria-label="Deals pages">{page > 1 ? <Link href={dealsLink(filters, { page: String(page - 1) })}><ChevronLeft size={15}/>Previous</Link> : <span><ChevronLeft size={15}/>Previous</span>}<b>Page {page} of {totalPages}</b>{page < totalPages ? <Link href={dealsLink(filters, { page: String(page + 1) })}>Next<ChevronRight size={15}/></Link> : <span>Next<ChevronRight size={15}/></span>}</nav>}
       </section>
     </div>
+    <CmsManagedSections pageKey="deals" slot="page_end"/>
   </main></>;
 }

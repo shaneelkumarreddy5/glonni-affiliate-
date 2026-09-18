@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Search, Store } from 'lucide-react';
 import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
+import { CmsManagedSections } from '@/components/cms-managed-sections';
 import { categoryBranchIds } from '@/lib/category-tree';
 import { getCatalogOffers, getCategories, getStores } from '@/lib/catalog';
 
@@ -23,6 +24,7 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
   return <><Header/><main className="vertical-page stores-browse-page">
     <BrowseNav items={[{ label: 'Stores' }]} fallback="/"/>
     <section className="vertical-hero"><div><p className="eyebrow">SHOP BY STORE</p><h1>Stores on Glonni</h1><p>Choose a connected store to browse its products, compare available offers, and see cashback only where the exact offer is eligible.</p></div><aside><span><b>{stores.length}</b><small>active stores</small></span><span><b>{offers.length}</b><small>offers</small></span></aside></section>
+    <CmsManagedSections pageKey="stores" slot="after_heading"/>
 
     <section className="vertical-section">
       <div className="section-title"><div><p className="eyebrow">FIND A STORE</p><h2>Choose where to shop</h2></div>{hasFilters && <Link href="/stores">Clear filters</Link>}</div>
@@ -35,5 +37,6 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
         return <Link href={`/store/${store.slug}?from=${encodeURIComponent('/stores')}`} key={store.id}>{store.logo_url ? <span className="directory-store-logo"><img src={store.logo_url} alt=""/></span> : <span>{store.name.slice(0, 1)}</span>}<div><b>{store.name}</b><small>{productCount} {productCount === 1 ? 'product' : 'products'} · {storeOffers.length} {storeOffers.length === 1 ? 'offer' : 'offers'}</small></div><Store size={17}/></Link>;
       })}</div></> : <div className="empty-state store-directory-empty"><Store size={30}/><h2>No stores match your filters</h2><p>Try another name or browse all store categories.</p><Link href="/stores" className="primary">Show all stores</Link></div>}
     </section>
+    <CmsManagedSections pageKey="stores" slot="page_end"/>
   </main></>;
 }
