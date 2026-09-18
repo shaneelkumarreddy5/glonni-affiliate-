@@ -364,6 +364,21 @@ export async function updateStorePolicies(f: FormData) {
   revalidatePath(`/store/${slugValue}`);
   redirect(`/admin/stores/${slugValue}?tab=policies&success=Store%20policies%20saved`);
 }
+export async function connectStoreCategories(f: FormData) {
+  const { s, user } = await storeOperator();
+  const id = String(f.get("id") ?? ""), slugValue = String(f.get("slug") ?? ""), requested = f.getAll("categoryId").map(String).filter(Boolean);
+  if (!id || !slugValue) throw new Error("Store information is missing.");
+  const [{ data: current }, { data: valid }] = await Promise.all([s.from("merchants").select("review_notes").eq("id", id).single(), requested.length ? s.from("categories").select("id").in("id", requested).eq("is_active", true) : Promise.resolve({ data: [] as { id: string }[] })]);
+  let notes: Record<string, unknown> = {};
+  try { notes = JSON.parse(current?.review_notes || "{}"); } catch { notes = { internalNote: current?.review_notes || "" }; }
+  const existing = Array.isArray(notes.storeCategoryIds) ? notes.storeCategoryIds.map(String) : [];
+  const storeCategoryIds = [...new Set([...existing, ...(valid ?? []).map(x => x.id)])];
+  const { error } = await s.from("merchants").update({ review_notes: JSON.stringify({ ...notes, storeCategoryIds }), updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw new Error(error.message);
+  await audit(s, "store_categories_connected", "merchant", id, { category_ids: (valid ?? []).map(x => x.id), actor_id: user.id });
+  storeRefresh(slugValue);
+  redirect(`/admin/stores/${slugValue}?tab=catalogue&success=Categories%20connected`);
+}
 export async function changeStoreStatus(f: FormData) {
   const action = String(f.get("action") ?? "");
   const { s, user } = await storeOperator(
