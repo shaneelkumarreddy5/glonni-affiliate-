@@ -1290,6 +1290,7 @@
 .ai-product-result summary { color:#175bd7; cursor:pointer; font-weight:800; }
 .ai-product-result details a { display:flex; align-items:center; gap:4px; margin-top:5px; color:#52627c; }
 .ai-product-result details a svg { width:10px; }
+.ai-store-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px}.ai-store-results>div{display:grid;gap:3px;padding:9px;border:1px solid #dce7f5;border-radius:9px;background:#fff}.ai-store-results b{color:#17243d;font-size:9px}.ai-store-results>div>span{width:max-content;padding:3px 6px;border-radius:999px;background:#edf4ff;color:#175bd7!important;font-size:7px!important;text-transform:capitalize}.ai-store-results strong{color:#17243d;font-size:10px}.ai-store-results small{display:block}.ai-store-results a{color:#175bd7!important;font-weight:800}
 .apply-ai-product { height:38px; padding:0 14px; }
 .spin { animation:ai-spin 1s linear infinite; }
 @keyframes ai-spin { to { transform:rotate(360deg); } }

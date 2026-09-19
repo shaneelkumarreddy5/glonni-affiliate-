@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ExternalLink, LoaderCircle, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ExternalLink, LoaderCircle, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { applyAiProductProposal } from "@/app/admin/products/actions";
 
@@ -34,11 +34,12 @@ export function AiProductAutofill({ productId, initialTitle }: { productId?: str
   async function fetchProduct() {
     if (title.trim().length < 3) { setError("Enter a clear product name first."); return; }
     setFetching(true); setError(""); setProposal(null);
-    const { data, error: invokeError } = await createClient().functions.invoke("ai-product-enrichment", { body: { query: title.trim() } });
+    const { data, error: invokeError } = await createClient().functions.invoke("ai-product-enrichment", { body: { query: title.trim(), productId } });
     if (invokeError || data?.error) setError(data?.error ?? await functionErrorMessage(invokeError));
     else setProposal(data.proposal);
     setFetching(false);
   }
+  const verified = proposal?.verification_status === "verified";
   function applyProposal() {
     startApplying(async () => {
       try {
@@ -58,21 +59,22 @@ export function AiProductAutofill({ productId, initialTitle }: { productId?: str
           {fetching ? <LoaderCircle className="spin" /> : <Sparkles />} {fetching ? "Researching…" : "Fetch with AI"}
         </button>
       </div>
-      <small>AI researches the exact product and prepares editable details. Nothing is published automatically.</small>
+      <small>Enter only the product name. AI checks connected stores and brands, reuses saved product details, and prepares verified store offers for review.</small>
       {error && <p className="ai-product-error">{error}</p>}
       {proposal && (
         <article className="ai-product-result enriched">
-          <div className="ai-product-result-icon">{proposal.primary_image_url ? <img src={proposal.primary_image_url} alt="" /> : <Sparkles />}</div>
+          <div className="ai-product-result-icon">{proposal.primary_image_url ? <img src={proposal.primary_image_url} alt="" /> : verified ? <Sparkles /> : <AlertTriangle />}</div>
           <div>
-            <span><CheckCircle2 /> Research complete · {Math.round(proposal.confidence ?? 0)}% confidence</span>
+            <span>{verified ? <CheckCircle2 /> : <AlertTriangle />} {verified ? "Verified on connected sources" : "Not verified"} · {Math.round(proposal.confidence ?? 0)}% confidence</span>
             <h3>{proposal.title}</h3>
             <p>{proposal.brand || "Brand needs review"}{proposal.model_code ? ` · ${proposal.model_code}` : ""}</p>
-            <small>Prepared information across {sectionCount} sections. Missing details remain editable and optional details do not block your draft.</small>
+            <small>{proposal.verification_message || (proposal.fetch_mode === "offers_only" ? "Saved product details were reused; only connected-store offers were checked." : `Prepared verified information across ${sectionCount} sections.`)}</small>
             <div className="ai-quality-grid">{Object.entries(proposal.section_confidence??{}).map(([key,value])=><span key={key}><small>{key.replaceAll('_',' ')}</small><b>{Math.round(Number(value)||0)}%</b></span>)}</div>
             {(proposal.missing_fields?.length>0||proposal.conflicts?.length>0||proposal.duplicate_candidates?.length>0)&&<div className="ai-enrichment-warnings">{proposal.missing_fields?.length>0&&<p><b>Missing:</b> {proposal.missing_fields.join(', ')}</p>}{proposal.conflicts?.length>0&&<p><b>Conflicts:</b> {proposal.conflicts.length} source disagreement{proposal.conflicts.length===1?'':'s'} require review.</p>}{proposal.duplicate_candidates?.length>0&&<p><b>Possible duplicates:</b> {proposal.duplicate_candidates.map((item:any)=>`${item.title} (${item.similarity}%)`).join(', ')}</p>}</div>}
-            {proposal.sources?.length > 0 && <details><summary>View {proposal.sources.length} research sources</summary>{proposal.sources.map((source: any) => <a href={source.url} target="_blank" rel="noreferrer" key={source.url}>{source.title}<ExternalLink /></a>)}</details>}
+            {proposal.offer_candidates?.length > 0 && <details open><summary>Connected store results</summary><div className="ai-store-results">{proposal.offer_candidates.map((offer:any)=><div key={offer.store_name}><b>{offer.store_name}</b><span>{String(offer.match_status||"unable_to_verify").replaceAll("_"," ")}</span>{offer.variant&&<small>{offer.variant}</small>}{offer.current_price!=null&&<strong>₹{Number(offer.current_price).toLocaleString("en-IN")}</strong>}{offer.bank_offer&&<small>{offer.bank_offer}</small>}{offer.coupon_code&&<small>Coupon: {offer.coupon_code}</small>}{offer.product_url&&<a href={offer.product_url} target="_blank" rel="noreferrer">Open listing <ExternalLink /></a>}</div>)}</div></details>}
+            {proposal.sources?.length > 0 && <details><summary>View {proposal.sources.length} connected sources checked</summary>{proposal.sources.map((source: any) => <a href={source.url} target="_blank" rel="noreferrer" key={source.url}>{source.title}<ExternalLink /></a>)}</details>}
           </div>
-          <button type="button" className="apply-ai-product" onClick={applyProposal} disabled={applying}>{applying ? <LoaderCircle className="spin" /> : <Sparkles />}{applying ? "Applying…" : "Apply AI details"}</button>
+          {verified ? <button type="button" className="apply-ai-product" onClick={applyProposal} disabled={applying}>{applying ? <LoaderCircle className="spin" /> : <Sparkles />}{applying ? "Applying…" : proposal.fetch_mode === "offers_only" ? "Apply store offers" : "Apply AI details"}</button> : <p className="ai-product-error">Nothing can be applied because the exact product was not found on a connected source.</p>}
         </article>
       )}
     </div>
