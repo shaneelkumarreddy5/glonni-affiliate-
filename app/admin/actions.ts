@@ -379,6 +379,30 @@ export async function connectStoreCategories(f: FormData) {
   storeRefresh(slugValue);
   redirect(`/admin/stores/${slugValue}?tab=catalogue&success=Categories%20connected`);
 }
+export async function disconnectStoreCategory(f: FormData) {
+  const { s, user } = await storeOperator();
+  const id = String(f.get("id") ?? ""), slugValue = String(f.get("slug") ?? ""), categoryId = String(f.get("categoryId") ?? "");
+  if (!id || !slugValue || !categoryId) throw new Error("Store category information is missing.");
+  const [{ data: current }, { data: categories }] = await Promise.all([
+    s.from("merchants").select("review_notes").eq("id", id).single(),
+    s.from("categories").select("id,parent_id"),
+  ]);
+  let notes: Record<string, unknown> = {};
+  try { notes = JSON.parse(current?.review_notes || "{}"); } catch { notes = { internalNote: current?.review_notes || "" }; }
+  const removed = new Set([categoryId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const category of categories ?? []) if (category.parent_id && removed.has(category.parent_id) && !removed.has(category.id)) { removed.add(category.id); changed = true; }
+  }
+  const existing = Array.isArray(notes.storeCategoryIds) ? notes.storeCategoryIds.map(String) : [];
+  const storeCategoryIds = existing.filter(category => !removed.has(category));
+  const { error } = await s.from("merchants").update({ review_notes: JSON.stringify({ ...notes, storeCategoryIds }), updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw new Error(error.message);
+  await audit(s, "store_category_disconnected", "merchant", id, { category_id: categoryId, removed_category_ids: [...removed], actor_id: user.id });
+  storeRefresh(slugValue);
+  redirect(`/admin/stores/${slugValue}?tab=catalogue&success=Category%20removed`);
+}
 export async function changeStoreStatus(f: FormData) {
   const action = String(f.get("action") ?? "");
   const { s, user } = await storeOperator(
