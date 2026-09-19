@@ -351,11 +351,9 @@ export async function updateStorePolicies(f: FormData) {
   let notes: Record<string, unknown> = {};
   try { notes = JSON.parse(current?.review_notes || "{}"); } catch { notes = { internalNote: current?.review_notes || "" }; }
   const policies = {
-    cashbackRules: String(f.get("cashbackRules") ?? "").trim(),
-    termsConditions: String(f.get("termsConditions") ?? "").trim(),
-    privacyPolicy: String(f.get("privacyPolicy") ?? "").trim(),
-    returnsPolicy: String(f.get("returnsPolicy") ?? "").trim(),
-    customerNotice: String(f.get("customerNotice") ?? "").trim(),
+    glonniTerms: String(f.get("glonniTerms") ?? "").trim(),
+    storeTerms: String(f.get("storeTerms") ?? "").trim(),
+    cashbackTerms: String(f.get("cashbackTerms") ?? "").trim(),
   };
   const { error } = await s.from("merchants").update({ review_notes: JSON.stringify({ ...notes, policies }), updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message);

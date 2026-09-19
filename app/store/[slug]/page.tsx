@@ -5,6 +5,7 @@ import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
 import { OfferGrid } from '@/components/offer-grid';
 import { ContextualFaqs } from '@/components/contextual-faqs';
+import { CustomerPolicyAccordions, parseCustomerPolicy } from '@/components/customer-policy-accordions';
 import { categoryBranchIds, orderCategoryTree } from '@/lib/category-tree';
 import { getCatalogOffers, getCategories, getStores } from '@/lib/catalog';
 import { safeReturnPath } from '@/lib/navigation';
@@ -59,9 +60,7 @@ export default async function StorePage({ params, searchParams }: { params: Prom
   }
   const storeCategories = orderCategoryTree(categories).filter((category) => relevantIds.has(category.id));
   const rewards = allOffers.filter(hasCashback).length;
-  const activeTerms = [...new Set(allOffers.map((offer) => offer.reward_terms).filter((term): term is string => Boolean(term)))].slice(0, 4);
-  let policyData: Record<string,string> = {};
-  try { policyData = JSON.parse(store.review_notes || '{}').policies || {}; } catch { policyData = {}; }
+  const policyData = parseCustomerPolicy(store.review_notes);
   const hasFilters = Boolean(filters.q || filters.category || filters.cashback || filters.price);
 
   return <><Header/><main className="store-detail-page">
@@ -81,8 +80,7 @@ export default async function StorePage({ params, searchParams }: { params: Prom
       {products.length ? <OfferGrid offers={products} contextHref={storeLink(store.slug, filters, {})}/> : <div className="empty-state store-products-empty"><Store size={30}/><h2>{hasFilters ? 'No products match these filters' : `No offers from ${store.name} yet`}</h2><p>{hasFilters ? 'Clear the filters or try a broader search.' : 'Approved products will appear here when they become available.'}</p>{hasFilters ? <Link href={`/store/${store.slug}?from=${encodeURIComponent(returnPath)}`} className="primary">Clear all filters</Link> : <Link href="/stores" className="primary">Browse other stores</Link>}</div>}
     </section>
 
-    <section className="store-terms"><div><p className="eyebrow">IMPORTANT BEFORE SHOPPING</p><h2>{store.name} offer and cashback terms</h2><p>{policyData.customerNotice || `Price, availability, bank offers, coupons, delivery and returns are controlled by ${store.name}. Glonni cashback applies only when the exact selected offer is marked eligible and tracking completes successfully.`}</p></div>{activeTerms.length > 0 && <ul>{activeTerms.map((term) => <li key={term}>{term}</li>)}</ul>}</section>
-    {(policyData.cashbackRules||policyData.termsConditions||policyData.returnsPolicy||policyData.privacyPolicy)&&<section className="store-policy-content"><p className="eyebrow">STORE POLICIES</p><h2>Shopping with {store.name}</h2><div>{policyData.cashbackRules&&<details open><summary>Cashback rules</summary><p>{policyData.cashbackRules}</p></details>}{policyData.termsConditions&&<details><summary>Terms &amp; conditions</summary><p>{policyData.termsConditions}</p></details>}{policyData.returnsPolicy&&<details><summary>Returns, cancellations &amp; exclusions</summary><p>{policyData.returnsPolicy}</p></details>}{policyData.privacyPolicy&&<details><summary>Privacy policy</summary><p>{policyData.privacyPolicy}</p></details>}</div></section>}
+    <CustomerPolicyAccordions storeName={store.name} policy={policyData}/>
     <ContextualFaqs title={`${store.name} cashback rules & FAQs`} faqs={(faqs ?? []) as { id: string; question: string; answer: string; scope: string }[]}/>
   </main></>;
 }

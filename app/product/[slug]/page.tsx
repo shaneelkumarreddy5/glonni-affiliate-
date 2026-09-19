@@ -12,6 +12,7 @@ import { rewardLabel } from "@/lib/rewards";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ContextualFaqs } from "@/components/contextual-faqs";
+import { CustomerPolicyAccordions, parseCustomerPolicy } from "@/components/customer-policy-accordions";
 import { CmsManagedSections } from "@/components/cms-managed-sections";
 import { safeReturnPath } from "@/lib/navigation";
 import {
@@ -361,6 +362,15 @@ export default async function ProductPage({
     lastHistoryDate=historyRows.at(-1)?.recordedAt?new Date(historyRows.at(-1)!.recordedAt).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'';
   const gallery=[product.image_url,...(product.gallery_images??[])].filter((url,index,list):url is string=>Boolean(url)&&list.indexOf(url)===index).slice(0,5);
   const informationEntries: [string,string][] = Object.entries(product.product_information??{}).filter((entry):entry is [string,string]=>typeof entry[1]==='string'&&Boolean(entry[1].trim()));
+  const seenPolicyStores = new Set<string>();
+  const merchantPolicies = sortedOffers.flatMap((offer) => {
+    const merchant = offer.merchants;
+    if (!merchant || seenPolicyStores.has(merchant.slug)) return [];
+    seenPolicyStores.add(merchant.slug);
+    const policy = parseCustomerPolicy(merchant.review_notes);
+    if (!policy.glonniTerms?.trim() && !policy.storeTerms?.trim() && !policy.cashbackTerms?.trim()) return [];
+    return [{ merchant, policy }];
+  });
   return (
     <>
       <Header />
@@ -641,6 +651,7 @@ export default async function ProductPage({
             )) : <div className="pdp-section-empty"><b>Complete information is not available</b><span>{product.description || 'Verified product details will appear here after they are added.'}</span></div>}
           </article>
         </section>
+        {merchantPolicies.length > 0 && <section className="pdp-merchant-policies"><header><p className="eyebrow">PURCHASE TERMS</p><h2>Terms for stores selling this product</h2><p>Select the store you plan to buy from and review the applicable Glonni, store and cashback terms.</p></header>{merchantPolicies.map(({merchant,policy})=><CustomerPolicyAccordions key={merchant.slug} storeName={merchant.name} policy={policy}/>)}</section>}
         <ContextualFaqs
           faqs={
             (offerFaqs ?? []) as {
