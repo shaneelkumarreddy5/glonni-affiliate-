@@ -729,3 +729,48 @@ export async function publishManualProduct(form: FormData) {
     `/admin/products/${productId}?section=preview&success=Product%20published`,
   );
 }
+
+export async function reviewProductCandidate(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const productId = String(form.get("productId") ?? "");
+  const decision = String(form.get("decision") ?? "");
+  const note = String(form.get("note") ?? "").trim();
+  if (!productId || !["approve", "changes_requested", "reject"].includes(decision))
+    throw new Error("A product and valid review decision are required.");
+
+  const { data: product } = await supabase
+    .from("products")
+    .select("slug,title,category_id,image_url,manual_metadata,offers(id,current_price,destination_url)")
+    .eq("id", productId)
+    .single();
+  if (!product) throw new Error("Product was not found.");
+
+  if (decision === "approve") {
+    const missing = [
+      !product.title && "product name",
+      !product.category_id && "category",
+      !product.image_url && "primary image",
+      !(product.offers ?? []).some((offer) => offer.current_price && offer.destination_url) && "complete store offer",
+    ].filter(Boolean) as string[];
+    if (missing.length)
+      redirect(`/admin/products?view=approval&error=${encodeURIComponent(`Complete ${missing.join(", ")} before approval.`)}`);
+    await supabase.from("offers").update({ status: "active" }).eq("product_id", productId);
+    const { error } = await supabase.from("products").update({ is_active: true, updated_at: new Date().toISOString() }).eq("id", productId);
+    if (error) throw new Error(error.message);
+  } else if (!note) {
+    redirect(`/admin/products?view=approval&error=${encodeURIComponent("Add a review note before requesting changes or rejecting a product.")}`);
+  }
+
+  await mergeManualMetadata(supabase, productId, {
+    workflow_step: decision === "approve" ? "complete" : "review",
+    review_status: decision === "approve" ? "approved" : decision,
+    review_note: note || null,
+    reviewed_at: new Date().toISOString(),
+    reviewed_by: user.id,
+    ...(decision === "approve" ? { published_at: new Date().toISOString() } : {}),
+  });
+  await audit(supabase, user.id, `product_${decision}`, productId, { note });
+  refresh(productId, product.slug);
+  const message = decision === "approve" ? "Product approved and published" : decision === "reject" ? "Product rejected" : "Changes requested";
+  redirect(`/admin/products?view=approval&success=${encodeURIComponent(message)}`);
+}

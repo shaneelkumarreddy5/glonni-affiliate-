@@ -28,6 +28,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { ManualEntryWizard, type ManualStep } from "./manual-entry-wizard";
 import { AiDiscoveryWorkspace } from "@/components/ai-discovery-workspace";
+import { reviewProductCandidate } from "./actions";
 
 export const dynamic = "force-dynamic";
 type View =
@@ -49,6 +50,7 @@ type Merchant = {
 type Offer = {
   id: string;
   current_price: number | string | null;
+  destination_url?: string | null;
   cashback_amount: number | string | null;
   cashback_percent: number | string | null;
   status: string;
@@ -66,6 +68,12 @@ type Product = {
   category_id: string | null;
   categories: { id: string; name?: string } | null;
   offers: Offer[] | null;
+  description?: string | null;
+  gallery_images?: string[] | null;
+  variants?: unknown[] | null;
+  specifications?: unknown[] | null;
+  product_information?: Record<string, unknown> | null;
+  manual_metadata?: Record<string, unknown> | null;
 };
 const tabs: [View, string, typeof Boxes][] = [
   ["catalogue", "Catalogue", Boxes],
@@ -706,6 +714,29 @@ function Workflow({
     </FocusedHeader>
   );
 }
+
+function ProductApprovalQueue({ products, success, error }: { products: Product[]; success?: string; error?: string }) {
+  return <FocusedHeader icon={CopyCheck} eyebrow="APPROVAL QUEUE" title="Review product candidates" text="Approve validated manual, AI and imported products before publication.">
+    {success && <p className="product-queue-message success"><CheckCircle2 />{success}</p>}
+    {error && <p className="product-queue-message error"><AlertTriangle />{error}</p>}
+    <article className="product-approval-queue">
+      <header><div><h3>Products requiring approval</h3><p>The badge and this list now use the same product records.</p></div><b>{products.length} waiting</b></header>
+      {products.length ? products.map((product) => {
+        const completeOffer = (product.offers ?? []).some((offer: any) => Number(offer.current_price) > 0 && offer.destination_url);
+        const checks = [Boolean(product.title), Boolean(product.category_id), Boolean(product.image_url), completeOffer];
+        const readiness = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+        const missing = [!product.category_id && "category", !product.image_url && "primary image", !completeOffer && "complete store offer"].filter(Boolean);
+        const reviewStatus = String(product.manual_metadata?.review_status ?? "pending_review");
+        return <section className="product-approval-row" key={product.id}>
+          <div className="product-approval-identity">{product.image_url ? <img src={product.image_url} alt="" /> : <ImageIcon />}<span><strong>{product.title}</strong><small>{product.brand || "Brand not set"} · {product.categories?.name || "Category not assigned"}</small></span></div>
+          <div className="product-approval-readiness"><span><b>{readiness}% ready</b><small>{missing.length ? `Missing: ${missing.join(", ")}` : "Required publishing information complete"}</small></span><i><em style={{ width: `${readiness}%` }} /></i></div>
+          <em className={`product-review-status ${reviewStatus}`}>{reviewStatus.replaceAll("_", " ")}</em>
+          <div className="product-approval-actions"><Link href={`/admin/products/${product.id}`}>Review product</Link><details><summary>Decision</summary><form action={reviewProductCandidate}><input type="hidden" name="productId" value={product.id}/><textarea name="note" placeholder="Review note required for changes or rejection"/><div><button className="approve" name="decision" value="approve" disabled={missing.length > 0}>Approve & publish</button><button name="decision" value="changes_requested">Request changes</button><button className="reject" name="decision" value="reject">Reject</button></div></form></details></div>
+        </section>;
+      }) : <div className="workflow-empty"><CheckCircle2/><span><b>Nothing requires approval</b><small>New inactive product drafts will appear here automatically.</small></span></div>}
+    </article>
+  </FocusedHeader>;
+}
 export default async function ProductsPage({
   searchParams,
 }: {
@@ -735,7 +766,7 @@ export default async function ProductsPage({
     s
       .from("products")
       .select(
-        "id,title,slug,brand,image_url,category_id,is_active,updated_at,categories(id,name),offers(id,current_price,cashback_amount,cashback_percent,status,merchants(id,name,slug,logo_url),affiliate_providers(name))",
+        "id,title,slug,brand,description,image_url,gallery_images,variants,specifications,product_information,manual_metadata,category_id,is_active,updated_at,categories(id,name),offers(id,current_price,destination_url,cashback_amount,cashback_percent,status,merchants(id,name,slug,logo_url),affiliate_providers(name))",
       )
       .order("updated_at", { ascending: false }),
     s
@@ -798,9 +829,8 @@ export default async function ProductsPage({
     manualStep = (
       manualSteps.includes(query.step as ManualStep) ? query.step : "basic"
     ) as ManualStep,
-    badge =
-      (batches ?? []).filter((b) => b.status === "approval_required").length +
-      products.filter((p) => !p.is_active).length;
+    approvalProducts = products.filter((product) => !product.is_active && product.manual_metadata?.review_status !== "rejected"),
+    badge = approvalProducts.length;
   return (
     <main className="admin-v2">
       <AdminSidebar />
@@ -848,6 +878,8 @@ export default async function ProductsPage({
             />
           ) : view === "ai" ? (
             <AiDiscoveryWorkspace merchants={(merchants??[]).filter(merchant=>merchant.is_active)} categories={categoryTree} jobs={discoveryJobs??[]} candidates={discoveryCandidates??[]} activeJobId={query.job} success={query.success} error={query.error}/>
+          ) : view === "approval" ? (
+            <ProductApprovalQueue products={approvalProducts} success={query.success} error={query.error}/>
           ) : (
             <Workflow
               view={view}
