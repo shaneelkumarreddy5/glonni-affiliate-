@@ -28,7 +28,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { ManualEntryWizard, type ManualStep } from "./manual-entry-wizard";
 import { AiDiscoveryWorkspace } from "@/components/ai-discovery-workspace";
-import { reviewProductCandidate } from "./actions";
+import { importProductSpreadsheet, reviewProductCandidate } from "./actions";
 
 export const dynamic = "force-dynamic";
 type View =
@@ -715,6 +715,124 @@ function Workflow({
   );
 }
 
+type ImportBatch = {
+  id: string;
+  source_label: string;
+  source_type: string;
+  status: string;
+  total_rows: number;
+  valid_rows: number;
+  invalid_rows: number;
+  created_at: string;
+  affiliate_providers: { name: string } | null;
+};
+type ImportRow = {
+  id: string;
+  row_number: number;
+  status: string;
+  raw_data: Record<string, unknown> | null;
+  normalized_data: Record<string, unknown> | null;
+  validation_errors: string[] | null;
+  product_id: string | null;
+};
+function BulkUploadWorkspace({
+  batches,
+  providers,
+  activeBatchId,
+  rows,
+  success,
+  error,
+}: {
+  batches: ImportBatch[];
+  providers: { id: string; name: string; is_active: boolean }[];
+  activeBatchId?: string;
+  rows: ImportRow[];
+  success?: string;
+  error?: string;
+}) {
+  const activeBatch = batches.find((batch) => batch.id === activeBatchId);
+  return (
+    <FocusedHeader
+      icon={FileSpreadsheet}
+      eyebrow="BULK UPLOADS"
+      title="Upload and validate product files"
+      text="Create reviewable product drafts from CSV or XLSX. Nothing is published automatically."
+    >
+      {success && <p className="product-queue-message success"><CheckCircle2 />{success}</p>}
+      {error && <p className="product-queue-message error"><AlertTriangle />{error}</p>}
+      <section className="bulk-upload-layout">
+        <article className="bulk-upload-card">
+          <header>
+            <span><UploadCloud /></span>
+            <div><h3>Upload product file</h3><p>Up to 1,000 products in one file · maximum 8 MB</p></div>
+          </header>
+          <form action={importProductSpreadsheet} className="bulk-upload-form">
+            <label>
+              Default affiliate provider <small>Optional</small>
+              <select name="providerId" defaultValue="">
+                <option value="">Direct / manual source</option>
+                {providers.filter((provider) => provider.is_active).map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}
+              </select>
+            </label>
+            <label className="bulk-file-drop">
+              <FileSpreadsheet />
+              <span><b>Choose CSV or XLSX file</b><small>The file is validated before drafts are created.</small></span>
+              <input name="file" type="file" accept=".csv,.xlsx" required />
+            </label>
+            <div className="bulk-upload-submit">
+              <Link href="/admin/products/bulk-template">Download CSV template</Link>
+              <button type="submit"><UploadCloud />Validate & create drafts</button>
+            </div>
+          </form>
+          <div className="bulk-column-guide">
+            <div><b>Required columns</b><span>title</span><span>category</span><span>store</span><span>product_url</span><span>price</span></div>
+            <div><b>Optional columns</b><span>brand</span><span>description</span><span>image_url</span><span>list_price</span><span>provider</span></div>
+          </div>
+        </article>
+        <article className="bulk-batch-card">
+          <header><div><h3>Upload history</h3><p>Open a batch to inspect every accepted or rejected row.</p></div><b>{batches.length} batches</b></header>
+          <div className="bulk-batch-list">
+            {batches.length ? batches.map((batch) => (
+              <Link className={batch.id === activeBatchId ? "current" : ""} href={`?view=bulk&batch=${batch.id}`} key={batch.id}>
+                <FileSpreadsheet />
+                <span><strong>{batch.source_label}</strong><small>{batch.affiliate_providers?.name || "Direct / manual"} · {new Date(batch.created_at).toLocaleDateString("en-IN")}</small></span>
+                <span><b>{batch.valid_rows}/{batch.total_rows}</b><small>valid rows</small></span>
+                <em>{batch.status.replaceAll("_", " ")}</em>
+                <ChevronRight />
+              </Link>
+            )) : <div className="workflow-empty"><FileSpreadsheet /><span><b>No uploads yet</b><small>Your validated batches will appear here.</small></span></div>}
+          </div>
+        </article>
+      </section>
+      {activeBatch && (
+        <article className="bulk-results-card">
+          <header>
+            <div><p>VALIDATION RESULTS</p><h3>{activeBatch.source_label}</h3><span>{activeBatch.valid_rows} accepted · {activeBatch.invalid_rows} rejected or duplicate · {activeBatch.total_rows} total</span></div>
+            {activeBatch.valid_rows > 0 && <Link href="?view=approval">Open approval queue <ArrowRight /></Link>}
+          </header>
+          <div className="bulk-results-scroll">
+            <table>
+              <thead><tr><th>ROW</th><th>PRODUCT</th><th>CATEGORY / STORE</th><th>PRICE</th><th>RESULT</th><th>ACTION</th></tr></thead>
+              <tbody>{rows.map((row) => {
+                const raw = row.raw_data ?? {}, normalized = row.normalized_data ?? {};
+                return <tr key={row.id}>
+                  <td>{row.row_number}</td>
+                  <td><b>{String(normalized.title || raw.title || "Untitled row")}</b><small>{String(normalized.brand || raw.brand || "Brand not supplied")}</small></td>
+                  <td><b>{String(raw.category || "—")}</b><small>{String(raw.store || "—")}</small></td>
+                  <td>{normalized.current_price ? money(Number(normalized.current_price)) : "—"}</td>
+                  <td><span className={`bulk-row-status ${row.status}`}>{row.status}</span>{Boolean(row.validation_errors?.length) && <small className="bulk-row-errors">{row.validation_errors!.join(" · ")}</small>}</td>
+                  <td>{row.product_id ? <Link href={`/admin/products/${row.product_id}`}>Open draft <ArrowRight /></Link> : "—"}</td>
+                </tr>;
+              })}</tbody>
+            </table>
+          </div>
+          {!rows.length && <div className="workflow-empty"><AlertTriangle /><span><b>No row evidence available</b><small>This batch may have been created before row-level validation was added.</small></span></div>}
+        </article>
+      )}
+    </FocusedHeader>
+  );
+}
+
 function ProductApprovalQueue({ products, success, error }: { products: Product[]; success?: string; error?: string }) {
   return <FocusedHeader icon={CopyCheck} eyebrow="APPROVAL QUEUE" title="Review product candidates" text="Approve validated manual, AI and imported products before publication.">
     {success && <p className="product-queue-message success"><CheckCircle2 />{success}</p>}
@@ -748,6 +866,7 @@ export default async function ProductsPage({
       success?: string;
       error?: string;
       job?: string;
+      batch?: string;
     }
   >;
 }) {
@@ -777,7 +896,7 @@ export default async function ProductsPage({
     s
       .from("import_batches")
       .select(
-        "id,source_label,source_type,status,total_rows,valid_rows,invalid_rows,created_at",
+        "id,source_label,source_type,status,total_rows,valid_rows,invalid_rows,created_at,affiliate_providers(name)",
       )
       .order("created_at", { ascending: false })
       .limit(50),
@@ -806,6 +925,9 @@ export default async function ProductsPage({
     s.from('ai_jobs').select('id,status,review_status,input,created_at,completed_at,latest_error').eq('job_type','product_discovery').order('created_at',{ascending:false}).limit(30),
     query.job?s.from('ai_discovery_candidates').select('*').eq('job_id',query.job).order('position'):Promise.resolve({data:[]}),
   ]):[{data:[]},{data:[]}];
+  const { data: batchRows } = view === "bulk" && query.batch
+    ? await s.from("import_batch_rows").select("id,row_number,status,raw_data,normalized_data,validation_errors,product_id").eq("batch_id", query.batch).order("row_number")
+    : { data: [] };
   const products = (pd ?? []) as unknown as Product[],
     categoryTree = orderCategoryTree(categories ?? []),
     brandOptions = [
@@ -878,6 +1000,8 @@ export default async function ProductsPage({
             />
           ) : view === "ai" ? (
             <AiDiscoveryWorkspace merchants={(merchants??[]).filter(merchant=>merchant.is_active)} categories={categoryTree} jobs={discoveryJobs??[]} candidates={discoveryCandidates??[]} activeJobId={query.job} success={query.success} error={query.error}/>
+          ) : view === "bulk" ? (
+            <BulkUploadWorkspace batches={(batches ?? []) as unknown as ImportBatch[]} providers={providers ?? []} activeBatchId={query.batch} rows={(batchRows ?? []) as ImportRow[]} success={query.success} error={query.error}/>
           ) : view === "approval" ? (
             <ProductApprovalQueue products={approvalProducts} success={query.success} error={query.error}/>
           ) : (

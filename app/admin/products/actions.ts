@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { readSheet } from "read-excel-file/node";
 
 const slugify = (value: string) =>
   value
@@ -773,4 +774,106 @@ export async function reviewProductCandidate(form: FormData) {
   refresh(productId, product.slug);
   const message = decision === "approve" ? "Product approved and published" : decision === "reject" ? "Product rejected" : "Changes requested";
   redirect(`/admin/products?view=approval&success=${encodeURIComponent(message)}`);
+}
+
+function parseCsv(text: string) {
+  const rows: string[][] = [];
+  let row: string[] = [], value = "", quoted = false;
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index];
+    if (character === '"') {
+      if (quoted && text[index + 1] === '"') { value += '"'; index++; }
+      else quoted = !quoted;
+    } else if (character === "," && !quoted) { row.push(value); value = ""; }
+    else if ((character === "\n" || character === "\r") && !quoted) {
+      if (character === "\r" && text[index + 1] === "\n") index++;
+      row.push(value); if (row.some((cell) => cell.trim())) rows.push(row); row = []; value = "";
+    } else value += character;
+  }
+  row.push(value); if (row.some((cell) => cell.trim())) rows.push(row);
+  return rows;
+}
+
+const bulkHeader = (value: unknown) => String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+const bulkText = (value: unknown) => String(value ?? "").trim();
+
+export async function importProductSpreadsheet(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const file = form.get("file");
+  const selectedProviderId = String(form.get("providerId") ?? "") || null;
+  if (!(file instanceof File) || !file.size) throw new Error("Choose a CSV or XLSX file.");
+  if (file.size > 8 * 1024 * 1024) throw new Error("The upload must be 8 MB or smaller.");
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  if (!extension || !["csv", "xlsx"].includes(extension)) throw new Error("Only CSV and XLSX files are accepted.");
+
+  const matrix = extension === "xlsx"
+    ? (await readSheet(Buffer.from(await file.arrayBuffer()))).map((row) => row.map((cell) => cell ?? ""))
+    : parseCsv(await file.text());
+  if (matrix.length < 2) throw new Error("The file must contain a header and at least one product row.");
+  if (matrix.length > 1001) throw new Error("Upload no more than 1,000 product rows per batch.");
+  const headers = matrix[0].map(bulkHeader);
+  const required = ["title", "category", "store", "product_url", "price"];
+  const missingHeaders = required.filter((header) => !headers.includes(header));
+  if (missingHeaders.length) throw new Error(`Missing required columns: ${missingHeaders.join(", ")}.`);
+
+  const [{ data: categories }, { data: merchants }, { data: providers }, { data: existing }] = await Promise.all([
+    supabase.from("categories").select("id,name,slug").eq("is_active", true).is("archived_at", null),
+    supabase.from("merchants").select("id,name,slug").eq("is_active", true),
+    supabase.from("affiliate_providers").select("id,name,is_active"),
+    supabase.from("products").select("id,title,brand"),
+  ]);
+  const categoryMap = new Map((categories ?? []).flatMap((item) => [[item.name.toLowerCase(), item], [item.slug.toLowerCase(), item]]));
+  const merchantMap = new Map((merchants ?? []).flatMap((item) => [[item.name.toLowerCase(), item], [item.slug.toLowerCase(), item]]));
+  const providerMap = new Map((providers ?? []).flatMap((item) => [[item.name.toLowerCase(), item], [item.id, item]]));
+  const duplicateKeys = new Set((existing ?? []).map((item) => `${item.title.trim().toLowerCase()}|${String(item.brand ?? "").trim().toLowerCase()}`));
+
+  const { data: batch, error: batchError } = await supabase.from("import_batches").insert({
+    provider_id: selectedProviderId,
+    source_type: "csv_feed",
+    status: "draft",
+    source_label: file.name.slice(0, 240),
+    total_rows: matrix.length - 1,
+    submitted_by: user.id,
+    notes: `Uploaded ${extension.toUpperCase()} file`,
+  }).select("id").single();
+  if (batchError || !batch) throw new Error(batchError?.message ?? "Unable to create import batch.");
+
+  let validRows = 0, invalidRows = 0;
+  const seen = new Set<string>();
+  for (let index = 1; index < matrix.length; index++) {
+    const raw = Object.fromEntries(headers.map((header, column) => [header || `column_${column + 1}`, bulkText(matrix[index][column])]));
+    const title = bulkText(raw.title), brand = bulkText(raw.brand), categoryValue = bulkText(raw.category).toLowerCase(), storeValue = bulkText(raw.store).toLowerCase();
+    const category = categoryMap.get(categoryValue), merchant = merchantMap.get(storeValue);
+    const price = Number(raw.price), listPrice = raw.list_price ? Number(raw.list_price) : null;
+    const url = bulkText(raw.product_url), imageUrl = bulkText(raw.image_url);
+    const provider = providerMap.get(bulkText(raw.provider).toLowerCase()) ?? (selectedProviderId ? providerMap.get(selectedProviderId) : null);
+    const errors: string[] = [];
+    if (!title) errors.push("Product title is required");
+    if (!category) errors.push("Category does not match the active catalogue");
+    if (!merchant) errors.push("Store does not match an active store");
+    if (!Number.isFinite(price) || price <= 0) errors.push("Price must be greater than zero");
+    try { const parsed = new URL(url); if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(); } catch { errors.push("Product URL must be a valid HTTP or HTTPS URL"); }
+    if (imageUrl) try { const parsed = new URL(imageUrl); if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error(); } catch { errors.push("Image URL is invalid"); }
+    if ((raw.provider || selectedProviderId) && (!provider || !provider.is_active)) errors.push("Affiliate provider is unknown or inactive");
+    const key = `${title.toLowerCase()}|${brand.toLowerCase()}`;
+    const duplicate = Boolean(title && (duplicateKeys.has(key) || seen.has(key)));
+    const normalized = { title, brand: brand || null, description: bulkText(raw.description) || null, category_id: category?.id ?? null, merchant_id: merchant?.id ?? null, provider_id: provider?.id ?? null, product_url: url, current_price: Number.isFinite(price) ? price : null, list_price: listPrice !== null && Number.isFinite(listPrice) ? listPrice : null, image_url: imageUrl || null };
+    let productId: string | null = null;
+    let status = errors.length ? "invalid" : duplicate ? "duplicate" : "valid";
+    if (status === "valid") {
+      const { data: product, error: productError } = await supabase.from("products").insert({ title, slug: `${slugify(title) || "imported-product"}-${crypto.randomUUID().slice(0, 8)}`, brand: brand || null, description: normalized.description, category_id: category!.id, image_url: imageUrl || null, is_active: false, manual_metadata: { source: "bulk_upload", import_batch_id: batch.id, import_row: index + 1, workflow_step: "review", review_status: "pending_review" } }).select("id").single();
+      if (productError || !product) { errors.push(productError?.message ?? "Product draft could not be created"); status = "invalid"; }
+      else {
+        productId = product.id;
+        const { error: offerError } = await supabase.from("offers").insert({ product_id: product.id, merchant_id: merchant!.id, provider_id: provider?.id ?? null, destination_url: url, current_price: price, list_price: normalized.list_price, status: "draft" });
+        if (offerError) { await supabase.from("products").delete().eq("id", product.id); productId = null; errors.push(offerError.message); status = "invalid"; }
+      }
+    }
+    if (status === "valid") { validRows++; seen.add(key); duplicateKeys.add(key); } else invalidRows++;
+    await supabase.from("import_batch_rows").insert({ batch_id: batch.id, row_number: index + 1, status, raw_data: raw, normalized_data: normalized, validation_errors: errors, product_id: productId });
+  }
+  await supabase.from("import_batches").update({ status: validRows ? "approval_required" : "validated", valid_rows: validRows, invalid_rows: invalidRows, updated_at: new Date().toISOString() }).eq("id", batch.id);
+  await audit(supabase, user.id, "product_bulk_upload_validated", batch.id, { file_name: file.name, valid_rows: validRows, invalid_rows: invalidRows });
+  revalidatePath("/admin/products");
+  redirect(`/admin/products?view=bulk&batch=${batch.id}&success=${encodeURIComponent(`${validRows} product drafts sent to approval; ${invalidRows} rows need attention.`)}`);
 }
