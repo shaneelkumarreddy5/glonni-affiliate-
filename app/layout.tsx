@@ -13,6 +13,7 @@ import './product-page.css';
 import './admin-products.css';
 import './admin-products-cleanup.css';
 import './admin-product-detail.css';
+import './admin-interactions.css';
 import './customer-states.css';
 import './customer-accessibility.css';
 export const metadata: Metadata = { title: 'Glonni | Discover better deals', description: 'Provider-neutral product discovery and deals.' };
