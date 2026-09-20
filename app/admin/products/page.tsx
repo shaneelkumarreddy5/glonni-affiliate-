@@ -28,7 +28,15 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { ManualEntryWizard, type ManualStep } from "./manual-entry-wizard";
 import { AiDiscoveryWorkspace } from "@/components/ai-discovery-workspace";
-import { importProductSpreadsheet, reviewProductCandidate } from "./actions";
+import {
+  createProductFeed,
+  importProductSpreadsheet,
+  requestFeedRunReview,
+  reviewProductCandidate,
+  reviewProductFeed,
+  reviewProductFeedRun,
+  toggleProductFeed,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 type View =
@@ -833,6 +841,66 @@ function BulkUploadWorkspace({
   );
 }
 
+type ProductFeed = {
+  id: string;
+  name: string;
+  feed_url: string;
+  file_format: string;
+  frequency: string;
+  status: string;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  review_note: string | null;
+  affiliate_providers: { name: string } | null;
+};
+type ProductFeedRun = {
+  id: string;
+  feed_id: string;
+  status: string;
+  total_rows: number;
+  valid_rows: number;
+  invalid_rows: number;
+  review_note: string | null;
+  started_at: string;
+  product_feeds: { name: string } | null;
+};
+function ScheduledFeedsWorkspace({ feeds, runs, providers, success, error }: { feeds: ProductFeed[]; runs: ProductFeedRun[]; providers: { id: string; name: string; is_active: boolean }[]; success?: string; error?: string }) {
+  return <FocusedHeader icon={Clock3} eyebrow="SCHEDULED FEEDS" title="Manage recurring product feeds" text="Approve every feed configuration and review every feed run before catalogue changes are accepted.">
+    {success && <p className="product-queue-message success"><CheckCircle2 />{success}</p>}
+    {error && <p className="product-queue-message error"><AlertTriangle />{error}</p>}
+    <section className="feed-management-grid">
+      <article className="feed-create-card">
+        <header><Clock3/><div><h3>Add scheduled feed</h3><p>The feed remains inactive until an administrator approves it.</p></div></header>
+        <form action={createProductFeed}>
+          <label>Feed name<input name="name" required placeholder="e.g. Cuelinks daily catalogue" /></label>
+          <label>Affiliate provider<select name="providerId" required defaultValue=""><option value="" disabled>Choose provider</option>{providers.filter((provider) => provider.is_active).map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}</select></label>
+          <label className="feed-url-field">Secure feed URL<input name="feedUrl" type="url" required placeholder="https://provider.example/products.csv" /></label>
+          <label>File format<select name="fileFormat" defaultValue="csv"><option value="csv">CSV</option><option value="xlsx">XLSX</option><option value="json">JSON</option><option value="xml">XML</option></select></label>
+          <label>Frequency<select name="frequency" defaultValue="daily"><option value="manual">Manual only</option><option value="6_hours">Every 6 hours</option><option value="12_hours">Every 12 hours</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
+          <button type="submit">Submit for approval <ArrowRight /></button>
+        </form>
+      </article>
+      <article className="feed-list-card">
+        <header><div><h3>Configured feeds</h3><p>Approval, schedule and feed health are controlled here.</p></div><b>{feeds.length} feeds</b></header>
+        <div className="feed-list">
+          {feeds.length ? feeds.map((feed) => <section key={feed.id}>
+            <div className="feed-list-main"><FileSpreadsheet/><span><strong>{feed.name}</strong><small>{feed.affiliate_providers?.name || "Provider unavailable"} · {feed.file_format.toUpperCase()} · {feed.frequency.replaceAll("_", " ")}</small></span><em className={feed.status}>{feed.status.replaceAll("_", " ")}</em></div>
+            <div className="feed-list-meta"><span><b>Last run</b>{feed.last_run_at ? new Date(feed.last_run_at).toLocaleString("en-IN") : "Not run yet"}</span><span><b>Source</b>{new URL(feed.feed_url).hostname}</span></div>
+            {feed.review_note && <p className="feed-review-note">Review note: {feed.review_note}</p>}
+            <div className="feed-actions">
+              {feed.status === "pending_approval" ? <details><summary>Review feed</summary><form action={reviewProductFeed}><input type="hidden" name="feedId" value={feed.id}/><textarea name="note" placeholder="Reason required when rejecting"/><div><button name="decision" value="approve" className="approve">Approve & activate</button><button name="decision" value="reject" className="reject">Reject</button></div></form></details> : feed.status === "active" ? <><form action={requestFeedRunReview}><input type="hidden" name="feedId" value={feed.id}/><button>Run & review now</button></form><form action={toggleProductFeed}><input type="hidden" name="feedId" value={feed.id}/><input type="hidden" name="status" value="paused"/><button>Pause</button></form></> : feed.status === "paused" ? <form action={toggleProductFeed}><input type="hidden" name="feedId" value={feed.id}/><input type="hidden" name="status" value="active"/><button>Resume</button></form> : null}
+            </div>
+          </section>) : <div className="workflow-empty"><Clock3/><span><b>No scheduled feeds</b><small>Add the first provider feed using the form.</small></span></div>}
+        </div>
+      </article>
+    </section>
+    <article className="feed-run-card">
+      <header><div><h3>Feed run approval</h3><p>Approve or reject each completed run. Rejected runs never update the catalogue.</p></div><b>{runs.filter((run) => run.status === "pending_review").length} waiting</b></header>
+      {runs.length ? <div className="feed-run-table"><table><thead><tr><th>FEED / STARTED</th><th>ROWS</th><th>RESULT</th><th>REVIEW</th></tr></thead><tbody>{runs.map((run) => <tr key={run.id}><td><b>{run.product_feeds?.name || "Deleted feed"}</b><small>{new Date(run.started_at).toLocaleString("en-IN")}</small></td><td><b>{run.valid_rows}/{run.total_rows} valid</b><small>{run.invalid_rows} rejected</small></td><td><span className={`feed-run-status ${run.status}`}>{run.status.replaceAll("_", " ")}</span>{run.review_note && <small>{run.review_note}</small>}</td><td>{run.status === "pending_review" ? <details><summary>Approve or reject</summary><form action={reviewProductFeedRun}><input type="hidden" name="runId" value={run.id}/><textarea name="note" placeholder="Reason required when rejecting"/><div><button name="decision" value="approve" className="approve">Approve run</button><button name="decision" value="reject" className="reject">Reject run</button></div></form></details> : "Reviewed"}</td></tr>)}</tbody></table></div> : <div className="workflow-empty"><CheckCircle2/><span><b>No feed runs yet</b><small>Approved feeds can be run and reviewed here.</small></span></div>}
+    </article>
+  </FocusedHeader>;
+}
+
 function ProductApprovalQueue({ products, success, error }: { products: Product[]; success?: string; error?: string }) {
   return <FocusedHeader icon={CopyCheck} eyebrow="APPROVAL QUEUE" title="Review product candidates" text="Approve validated manual, AI and imported products before publication.">
     {success && <p className="product-queue-message success"><CheckCircle2 />{success}</p>}
@@ -928,6 +996,10 @@ export default async function ProductsPage({
   const { data: batchRows } = view === "bulk" && query.batch
     ? await s.from("import_batch_rows").select("id,row_number,status,raw_data,normalized_data,validation_errors,product_id").eq("batch_id", query.batch).order("row_number")
     : { data: [] };
+  const [{ data: productFeeds }, { data: productFeedRuns }] = view === "feeds" ? await Promise.all([
+    s.from("product_feeds").select("id,name,feed_url,file_format,frequency,status,last_run_at,next_run_at,review_note,affiliate_providers(name)").order("created_at", { ascending: false }),
+    s.from("product_feed_runs").select("id,feed_id,status,total_rows,valid_rows,invalid_rows,review_note,started_at,product_feeds(name)").order("started_at", { ascending: false }).limit(50),
+  ]) : [{ data: [] }, { data: [] }];
   const products = (pd ?? []) as unknown as Product[],
     categoryTree = orderCategoryTree(categories ?? []),
     brandOptions = [
@@ -1002,6 +1074,8 @@ export default async function ProductsPage({
             <AiDiscoveryWorkspace merchants={(merchants??[]).filter(merchant=>merchant.is_active)} categories={categoryTree} jobs={discoveryJobs??[]} candidates={discoveryCandidates??[]} activeJobId={query.job} success={query.success} error={query.error}/>
           ) : view === "bulk" ? (
             <BulkUploadWorkspace batches={(batches ?? []) as unknown as ImportBatch[]} providers={providers ?? []} activeBatchId={query.batch} rows={(batchRows ?? []) as ImportRow[]} success={query.success} error={query.error}/>
+          ) : view === "feeds" ? (
+            <ScheduledFeedsWorkspace feeds={(productFeeds ?? []) as unknown as ProductFeed[]} runs={(productFeedRuns ?? []) as unknown as ProductFeedRun[]} providers={providers ?? []} success={query.success} error={query.error}/>
           ) : view === "approval" ? (
             <ProductApprovalQueue products={approvalProducts} success={query.success} error={query.error}/>
           ) : (

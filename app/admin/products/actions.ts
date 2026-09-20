@@ -877,3 +877,105 @@ export async function importProductSpreadsheet(form: FormData) {
   revalidatePath("/admin/products");
   redirect(`/admin/products?view=bulk&batch=${batch.id}&success=${encodeURIComponent(`${validRows} product drafts sent to approval; ${invalidRows} rows need attention.`)}`);
 }
+
+export async function createProductFeed(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const name = String(form.get("name") ?? "").trim();
+  const feedUrl = String(form.get("feedUrl") ?? "").trim();
+  const providerId = String(form.get("providerId") ?? "");
+  const fileFormat = String(form.get("fileFormat") ?? "csv");
+  const frequency = String(form.get("frequency") ?? "daily");
+  if (!name || !providerId || !feedUrl) redirect("/admin/products?view=feeds&error=Feed%20name%2C%20provider%20and%20URL%20are%20required");
+  try {
+    const parsed = new URL(feedUrl);
+    if (parsed.protocol !== "https:") throw new Error();
+  } catch {
+    redirect("/admin/products?view=feeds&error=Enter%20a%20valid%20HTTPS%20feed%20URL");
+  }
+  if (!['csv','xlsx','json','xml'].includes(fileFormat) || !['manual','6_hours','12_hours','daily','weekly'].includes(frequency))
+    redirect("/admin/products?view=feeds&error=Choose%20a%20valid%20format%20and%20frequency");
+  const { data, error } = await supabase.from("product_feeds").insert({
+    provider_id: providerId,
+    name,
+    feed_url: feedUrl,
+    file_format: fileFormat,
+    frequency,
+    status: "pending_approval",
+    created_by: user.id,
+  }).select("id").single();
+  if (error || !data) throw new Error(error?.message ?? "Unable to create scheduled feed.");
+  await audit(supabase, user.id, "product_feed_submitted", data.id, { name, frequency, file_format: fileFormat });
+  revalidatePath("/admin/products");
+  redirect("/admin/products?view=feeds&success=Feed%20submitted%20for%20approval");
+}
+
+export async function reviewProductFeed(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const feedId = String(form.get("feedId") ?? "");
+  const decision = String(form.get("decision") ?? "");
+  const note = String(form.get("note") ?? "").trim();
+  if (!feedId || !['approve','reject'].includes(decision)) throw new Error("A feed and review decision are required.");
+  if (decision === "reject" && !note) redirect("/admin/products?view=feeds&error=Add%20a%20reason%20before%20rejecting%20the%20feed");
+  const { error } = await supabase.from("product_feeds").update({
+    status: decision === "approve" ? "active" : "rejected",
+    reviewed_by: user.id,
+    review_note: note || null,
+    reviewed_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq("id", feedId);
+  if (error) throw new Error(error.message);
+  await audit(supabase, user.id, `product_feed_${decision}d`, feedId, { note });
+  revalidatePath("/admin/products");
+  redirect(`/admin/products?view=feeds&success=${decision === "approve" ? "Feed approved and activated" : "Feed rejected"}`);
+}
+
+export async function toggleProductFeed(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const feedId = String(form.get("feedId") ?? "");
+  const status = String(form.get("status") ?? "");
+  if (!feedId || !['active','paused'].includes(status)) throw new Error("A feed and valid status are required.");
+  const { error } = await supabase.from("product_feeds").update({ status, updated_at: new Date().toISOString() }).eq("id", feedId).in("status", ["active", "paused"]);
+  if (error) throw new Error(error.message);
+  await audit(supabase, user.id, `product_feed_${status}`, feedId, {});
+  revalidatePath("/admin/products");
+  redirect(`/admin/products?view=feeds&success=Feed%20${status === "active" ? "resumed" : "paused"}`);
+}
+
+export async function requestFeedRunReview(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const feedId = String(form.get("feedId") ?? "");
+  const { data: feed } = await supabase.from("product_feeds").select("id,name,status,provider_id").eq("id", feedId).single();
+  if (!feed || feed.status !== "active") redirect("/admin/products?view=feeds&error=Only%20an%20active%20approved%20feed%20can%20be%20run");
+  const { data: batch, error: batchError } = await supabase.from("import_batches").insert({
+    provider_id: feed.provider_id,
+    source_type: "api",
+    status: "approval_required",
+    source_label: `${feed.name} validation run`,
+    total_rows: 0,
+    submitted_by: user.id,
+    notes: "Feed run requested. Products remain blocked until this run is reviewed.",
+  }).select("id").single();
+  if (batchError || !batch) throw new Error(batchError?.message ?? "Unable to create feed run.");
+  const { error } = await supabase.from("product_feed_runs").insert({ feed_id: feedId, import_batch_id: batch.id, status: "pending_review", completed_at: new Date().toISOString() });
+  if (error) throw new Error(error.message);
+  await supabase.from("product_feeds").update({ last_run_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", feedId);
+  await audit(supabase, user.id, "product_feed_run_requested", feedId, { import_batch_id: batch.id });
+  revalidatePath("/admin/products");
+  redirect("/admin/products?view=feeds&success=Feed%20run%20created%20for%20review");
+}
+
+export async function reviewProductFeedRun(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const runId = String(form.get("runId") ?? "");
+  const decision = String(form.get("decision") ?? "");
+  const note = String(form.get("note") ?? "").trim();
+  if (!runId || !['approve','reject'].includes(decision)) throw new Error("A feed run and decision are required.");
+  if (decision === "reject" && !note) redirect("/admin/products?view=feeds&error=Add%20a%20reason%20before%20rejecting%20a%20feed%20run");
+  const { data: run } = await supabase.from("product_feed_runs").select("import_batch_id,feed_id").eq("id", runId).single();
+  if (!run) throw new Error("Feed run was not found.");
+  await supabase.from("product_feed_runs").update({ status: decision === "approve" ? "approved" : "rejected", review_note: note || null, reviewed_by: user.id, reviewed_at: new Date().toISOString() }).eq("id", runId);
+  if (run.import_batch_id) await supabase.from("import_batches").update({ status: decision === "approve" ? "approved" : "rejected", approved_by: decision === "approve" ? user.id : null, notes: note || undefined, updated_at: new Date().toISOString() }).eq("id", run.import_batch_id);
+  await audit(supabase, user.id, `product_feed_run_${decision}d`, run.feed_id, { run_id: runId, note });
+  revalidatePath("/admin/products");
+  redirect(`/admin/products?view=feeds&success=Feed%20run%20${decision === "approve" ? "approved" : "rejected"}`);
+}
