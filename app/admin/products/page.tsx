@@ -732,6 +732,10 @@ type ImportBatch = {
   valid_rows: number;
   invalid_rows: number;
   created_at: string;
+  updated_at: string;
+  submitted_by: string | null;
+  approved_by: string | null;
+  notes: string | null;
   affiliate_providers: { name: string } | null;
 };
 type ImportRow = {
@@ -901,6 +905,34 @@ function ScheduledFeedsWorkspace({ feeds, runs, providers, success, error }: { f
   </FocusedHeader>;
 }
 
+type HistoryAiJob = { id: string; job_type: string; status: string; review_status: string; input: Record<string, unknown> | null; created_at: string; completed_at: string | null; latest_error: string | null; reviewed_by: string | null; review_note: string | null };
+function ImportHistoryWorkspace({ batches, rows, aiJobs, activeBatchId, people, success, error }: { batches: ImportBatch[]; rows: ImportRow[]; aiJobs: HistoryAiJob[]; activeBatchId?: string; people: Map<string, string>; success?: string; error?: string }) {
+  const activeBatch = batches.find((batch) => batch.id === activeBatchId);
+  const sourceLabel = (batch: ImportBatch) => batch.source_type === "csv_feed" ? "Bulk upload" : batch.source_type === "api" ? "Scheduled feed" : batch.source_type.replaceAll("_", " ");
+  return <FocusedHeader icon={FileClock} eyebrow="IMPORT HISTORY" title="Product import audit history" text="Inspect the immutable result of every product import, its source, review decision and row-level evidence.">
+    {success && <p className="product-queue-message success"><CheckCircle2 />{success}</p>}
+    {error && <p className="product-queue-message error"><AlertTriangle />{error}</p>}
+    <section className="import-history-summary">
+      <div><FileSpreadsheet/><span><b>{batches.length}</b><small>file and feed imports</small></span></div>
+      <div><Sparkles/><span><b>{aiJobs.length}</b><small>AI discovery jobs</small></span></div>
+      <div><CheckCircle2/><span><b>{batches.filter((batch) => ['approved','published'].includes(batch.status)).length}</b><small>approved imports</small></span></div>
+      <div><AlertTriangle/><span><b>{batches.reduce((total, batch) => total + batch.invalid_rows, 0)}</b><small>rows needing correction</small></span></div>
+    </section>
+    <article className="import-history-card">
+      <header><div><h3>File and scheduled-feed imports</h3><p>Bulk uploads and scheduled feed runs use the same evidence trail.</p></div><span>Read-only audit record</span></header>
+      <div className="import-history-table"><table><thead><tr><th>IMPORT</th><th>SOURCE / PROVIDER</th><th>ROWS</th><th>REVIEW</th><th>DATE</th><th>ACTION</th></tr></thead><tbody>{batches.map((batch) => <tr key={batch.id} className={batch.id === activeBatchId ? "current" : ""}><td><b>{batch.source_label}</b><small>{batch.id.slice(0, 8).toUpperCase()}</small></td><td><b>{sourceLabel(batch)}</b><small>{batch.affiliate_providers?.name || "Direct / manual"}</small></td><td><b>{batch.valid_rows}/{batch.total_rows} accepted</b><small>{batch.invalid_rows} rejected or duplicate</small></td><td><span className={`import-history-status ${batch.status}`}>{batch.status.replaceAll("_", " ")}</span><small>{batch.approved_by ? `Reviewed by ${people.get(batch.approved_by) || "Administrator"}` : "Not reviewed"}</small></td><td>{new Date(batch.created_at).toLocaleString("en-IN")}</td><td><Link href={`?view=history&batch=${batch.id}`}>Inspect <ArrowRight/></Link></td></tr>)}</tbody></table></div>
+      {!batches.length && <div className="workflow-empty"><FileClock/><span><b>No import records</b><small>Completed bulk uploads and feed runs will appear here.</small></span></div>}
+    </article>
+    {activeBatch && <article className="import-history-detail">
+      <header><div><p>BATCH DETAILS</p><h3>{activeBatch.source_label}</h3><span>{activeBatch.notes || "No batch notes"}</span></div><div>{activeBatch.invalid_rows > 0 && <Link href={`/admin/products/import-history/${activeBatch.id}/errors`}>Download error report</Link>}<Link href="?view=bulk">Correct & retry</Link></div></header>
+      <dl><div><dt>Submitted by</dt><dd>{activeBatch.submitted_by ? people.get(activeBatch.submitted_by) || "Administrator" : "System"}</dd></div><div><dt>Reviewed by</dt><dd>{activeBatch.approved_by ? people.get(activeBatch.approved_by) || "Administrator" : "Awaiting review"}</dd></div><div><dt>Created</dt><dd>{new Date(activeBatch.created_at).toLocaleString("en-IN")}</dd></div><div><dt>Last updated</dt><dd>{new Date(activeBatch.updated_at).toLocaleString("en-IN")}</dd></div></dl>
+      <div className="import-history-rows"><table><thead><tr><th>ROW</th><th>PRODUCT</th><th>CATEGORY / STORE</th><th>RESULT</th><th>PRODUCT RECORD</th></tr></thead><tbody>{rows.map((row) => { const raw = row.raw_data ?? {}, normalized = row.normalized_data ?? {}; return <tr key={row.id}><td>{row.row_number}</td><td><b>{String(normalized.title || raw.title || "Untitled row")}</b><small>{String(normalized.brand || raw.brand || "Brand not supplied")}</small></td><td><b>{String(raw.category || "—")}</b><small>{String(raw.store || "—")}</small></td><td><span className={`bulk-row-status ${row.status}`}>{row.status}</span>{Boolean(row.validation_errors?.length) && <small className="bulk-row-errors">{row.validation_errors!.join(" · ")}</small>}</td><td>{row.product_id ? <Link href={`/admin/products/${row.product_id}`}>Open product <ArrowRight/></Link> : "—"}</td></tr>; })}</tbody></table></div>
+      {!rows.length && <div className="workflow-empty"><FileClock/><span><b>No row-level evidence</b><small>This record was created before row evidence was available or represents a feed validation run.</small></span></div>}
+    </article>}
+    <article className="import-history-card ai-history"><header><div><h3>AI Discovery history</h3><p>AI jobs remain separate from provider-file imports but share this audit view.</p></div></header><div className="import-history-table"><table><thead><tr><th>REQUEST</th><th>JOB TYPE</th><th>EXECUTION</th><th>REVIEW</th><th>DATE</th><th>ACTION</th></tr></thead><tbody>{aiJobs.map((job) => <tr key={job.id}><td><b>{String(job.input?.prompt || job.input?.query || "AI product task")}</b><small>{job.id.slice(0, 8).toUpperCase()}</small></td><td>{job.job_type.replaceAll("_", " ")}</td><td><span className={`import-history-status ${job.status}`}>{job.status}</span>{job.latest_error && <small>{job.latest_error}</small>}</td><td><span className={`import-history-status ${job.review_status}`}>{job.review_status.replaceAll("_", " ")}</span><small>{job.reviewed_by ? `Reviewed by ${people.get(job.reviewed_by) || "Administrator"}` : "Not reviewed"}</small></td><td>{new Date(job.created_at).toLocaleString("en-IN")}</td><td><Link href={`?view=ai&job=${job.id}`}>Open job <ArrowRight/></Link></td></tr>)}</tbody></table></div>{!aiJobs.length && <div className="workflow-empty"><Sparkles/><span><b>No AI history</b><small>AI Discovery jobs will appear here.</small></span></div>}</article>
+  </FocusedHeader>;
+}
+
 function ProductApprovalQueue({ products, success, error }: { products: Product[]; success?: string; error?: string }) {
   return <FocusedHeader icon={CopyCheck} eyebrow="APPROVAL QUEUE" title="Review product candidates" text="Approve validated manual, AI and imported products before publication.">
     {success && <p className="product-queue-message success"><CheckCircle2 />{success}</p>}
@@ -964,7 +996,7 @@ export default async function ProductsPage({
     s
       .from("import_batches")
       .select(
-        "id,source_label,source_type,status,total_rows,valid_rows,invalid_rows,created_at,affiliate_providers(name)",
+        "id,source_label,source_type,status,total_rows,valid_rows,invalid_rows,submitted_by,approved_by,notes,created_at,updated_at,affiliate_providers(name)",
       )
       .order("created_at", { ascending: false })
       .limit(50),
@@ -993,13 +1025,17 @@ export default async function ProductsPage({
     s.from('ai_jobs').select('id,status,review_status,input,created_at,completed_at,latest_error').eq('job_type','product_discovery').order('created_at',{ascending:false}).limit(30),
     query.job?s.from('ai_discovery_candidates').select('*').eq('job_id',query.job).order('position'):Promise.resolve({data:[]}),
   ]):[{data:[]},{data:[]}];
-  const { data: batchRows } = view === "bulk" && query.batch
+  const { data: batchRows } = ["bulk", "history"].includes(view) && query.batch
     ? await s.from("import_batch_rows").select("id,row_number,status,raw_data,normalized_data,validation_errors,product_id").eq("batch_id", query.batch).order("row_number")
     : { data: [] };
   const [{ data: productFeeds }, { data: productFeedRuns }] = view === "feeds" ? await Promise.all([
     s.from("product_feeds").select("id,name,feed_url,file_format,frequency,status,last_run_at,next_run_at,review_note,affiliate_providers(name)").order("created_at", { ascending: false }),
     s.from("product_feed_runs").select("id,feed_id,status,total_rows,valid_rows,invalid_rows,review_note,started_at,product_feeds(name)").order("started_at", { ascending: false }).limit(50),
   ]) : [{ data: [] }, { data: [] }];
+  const { data: historyAiJobs } = view === "history" ? await s.from("ai_jobs").select("id,job_type,status,review_status,input,created_at,completed_at,latest_error,reviewed_by,review_note").in("job_type", ["product_discovery", "product_enrichment"]).order("created_at", { ascending: false }).limit(100) : { data: [] };
+  const actorIds = view === "history" ? [...new Set([...(batches ?? []).flatMap((batch) => [batch.submitted_by, batch.approved_by]), ...(historyAiJobs ?? []).map((job) => job.reviewed_by)].filter((id): id is string => Boolean(id)))] : [];
+  const { data: actorProfiles } = actorIds.length ? await s.from("profiles").select("id,display_name").in("id", actorIds) : { data: [] };
+  const people = new Map((actorProfiles ?? []).map((profile) => [profile.id, profile.display_name || "Administrator"]));
   const products = (pd ?? []) as unknown as Product[],
     categoryTree = orderCategoryTree(categories ?? []),
     brandOptions = [
@@ -1076,6 +1112,8 @@ export default async function ProductsPage({
             <BulkUploadWorkspace batches={(batches ?? []) as unknown as ImportBatch[]} providers={providers ?? []} activeBatchId={query.batch} rows={(batchRows ?? []) as ImportRow[]} success={query.success} error={query.error}/>
           ) : view === "feeds" ? (
             <ScheduledFeedsWorkspace feeds={(productFeeds ?? []) as unknown as ProductFeed[]} runs={(productFeedRuns ?? []) as unknown as ProductFeedRun[]} providers={providers ?? []} success={query.success} error={query.error}/>
+          ) : view === "history" ? (
+            <ImportHistoryWorkspace batches={(batches ?? []) as unknown as ImportBatch[]} rows={(batchRows ?? []) as ImportRow[]} aiJobs={(historyAiJobs ?? []) as HistoryAiJob[]} activeBatchId={query.batch} people={people} success={query.success} error={query.error}/>
           ) : view === "approval" ? (
             <ProductApprovalQueue products={approvalProducts} success={query.success} error={query.error}/>
           ) : (
