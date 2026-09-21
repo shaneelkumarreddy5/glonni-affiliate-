@@ -33,6 +33,7 @@ import {
   importProductSpreadsheet,
   requestFeedRunReview,
   reviewProductCandidate,
+  reviewDuplicateProducts,
   reviewProductFeed,
   reviewProductFeedRun,
   toggleProductFeed,
@@ -933,6 +934,46 @@ function ImportHistoryWorkspace({ batches, rows, aiJobs, activeBatchId, people, 
   </FocusedHeader>;
 }
 
+type DuplicatePair = { a: Product; b: Product; confidence: number; reasons: string[]; level: "exact" | "likely" | "possible" };
+const comparable = (value: string | null | undefined) => String(value ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+const words = (value: string) => new Set(value.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 1));
+function duplicatePairs(products: Product[], ignored: Set<string>) {
+  const pairs: DuplicatePair[] = [];
+  for (let left = 0; left < products.length; left++) for (let right = left + 1; right < products.length; right++) {
+    const a = products[left], b = products[right], key = [a.id, b.id].sort().join(":");
+    if (ignored.has(key)) continue;
+    const titleA = comparable(a.title), titleB = comparable(b.title), brandA = comparable(a.brand), brandB = comparable(b.brand);
+    const modelA = comparable(String(a.product_information?.model_number || a.product_information?.model || ""));
+    const modelB = comparable(String(b.product_information?.model_number || b.product_information?.model || ""));
+    const aWords = words(a.title), bWords = words(b.title), union = new Set([...aWords, ...bWords]);
+    const overlap = [...aWords].filter((word) => bWords.has(word)).length / Math.max(1, union.size);
+    const sameBrand = Boolean(brandA && brandA === brandB), sameTitle = titleA === titleB, sameModel = Boolean(modelA && modelA === modelB);
+    let confidence = sameTitle && sameBrand ? 98 : sameModel && sameBrand ? 96 : sameBrand && overlap >= .75 ? 88 : overlap >= .68 ? 76 : 0;
+    if (!confidence) continue;
+    const reasons = [sameBrand && "Same brand", sameTitle && "Same normalized title", sameModel && "Same model number", overlap >= .68 && `${Math.round(overlap * 100)}% title-word match`, a.category_id && a.category_id === b.category_id && "Same category"].filter((reason): reason is string => Boolean(reason));
+    if (a.category_id && a.category_id === b.category_id) confidence = Math.min(99, confidence + 2);
+    pairs.push({ a, b, confidence, reasons, level: confidence >= 95 ? "exact" : confidence >= 85 ? "likely" : "possible" });
+  }
+  return pairs.sort((one, two) => two.confidence - one.confidence).slice(0, 100);
+}
+function DuplicateReviewWorkspace({ pairs, resolved, success, error }: { pairs: DuplicatePair[]; resolved: number; success?: string; error?: string }) {
+  return <FocusedHeader icon={CopyCheck} eyebrow="DUPLICATE REVIEW" title="Resolve duplicate products" text="Keep one canonical product while preserving every connected store offer and price-history record.">
+    {success && <p className="product-queue-message success"><CheckCircle2 />{success}</p>}
+    {error && <p className="product-queue-message error"><AlertTriangle />{error}</p>}
+    <section className="duplicate-summary"><div><CopyCheck/><span><b>{pairs.length}</b><small>open comparisons</small></span></div><div><AlertTriangle/><span><b>{pairs.filter((pair) => pair.level === "exact").length}</b><small>exact matches</small></span></div><div><CheckCircle2/><span><b>{resolved}</b><small>reviewed decisions</small></span></div></section>
+    <section className="duplicate-review-list">
+      {pairs.map((pair) => <article key={`${pair.a.id}:${pair.b.id}`} className="duplicate-case">
+        <header><span className={`duplicate-confidence ${pair.level}`}>{pair.confidence}% · {pair.level} match</span><div>{pair.reasons.map((reason) => <small key={reason}>{reason}</small>)}</div></header>
+        <div className="duplicate-products">
+          {[pair.a, pair.b].map((product, index) => <section key={product.id}><div className="duplicate-product-heading">{product.image_url ? <img src={product.image_url} alt=""/> : <ImageIcon/>}<span><small>PRODUCT {index === 0 ? "A" : "B"}</small><Link href={`/admin/products/${product.id}`}><strong>{product.title}</strong></Link><em>{product.brand || "Brand not set"}</em></span></div><dl><div><dt>Category</dt><dd>{product.categories?.name || "Not assigned"}</dd></div><div><dt>Store offers</dt><dd>{product.offers?.length || 0}</dd></div><div><dt>Variants</dt><dd>{product.variants?.length || 0}</dd></div><div><dt>Specifications</dt><dd>{product.specifications?.length || 0}</dd></div><div><dt>Status</dt><dd>{product.is_active ? "Published" : "Draft"}</dd></div><div><dt>Updated</dt><dd>{new Date(product.updated_at).toLocaleDateString("en-IN")}</dd></div></dl></section>)}
+        </div>
+        <form action={reviewDuplicateProducts} className="duplicate-decision-form"><input type="hidden" name="productAId" value={pair.a.id}/><input type="hidden" name="productBId" value={pair.b.id}/><input type="hidden" name="confidence" value={pair.confidence}/><input type="hidden" name="matchReasons" value={pair.reasons.join("|")}/><label>Canonical product<select name="canonicalId" defaultValue={pair.a.id}><option value={pair.a.id}>Product A · {pair.a.title}</option><option value={pair.b.id}>Product B · {pair.b.title}</option></select></label><label>Review note<textarea name="note" placeholder="Required when keeping separate or rejecting a duplicate"/></label><div><button name="decision" value="merge" className="merge">Merge into canonical</button><button name="decision" value="keep_separate">Keep separate</button><button name="decision" value="reject_duplicate" className="reject">Reject duplicate</button></div></form>
+      </article>)}
+      {!pairs.length && <div className="duplicate-empty"><CheckCircle2/><h3>No unresolved duplicates</h3><p>New matching products from AI, bulk uploads, and feeds will appear here automatically.</p></div>}
+    </section>
+  </FocusedHeader>;
+}
+
 function ProductApprovalQueue({ products, success, error }: { products: Product[]; success?: string; error?: string }) {
   return <FocusedHeader icon={CopyCheck} eyebrow="APPROVAL QUEUE" title="Review product candidates" text="Approve validated manual, AI and imported products before publication.">
     {success && <p className="product-queue-message success"><CheckCircle2 />{success}</p>}
@@ -1036,8 +1077,11 @@ export default async function ProductsPage({
   const actorIds = view === "history" ? [...new Set([...(batches ?? []).flatMap((batch) => [batch.submitted_by, batch.approved_by]), ...(historyAiJobs ?? []).map((job) => job.reviewed_by)].filter((id): id is string => Boolean(id)))] : [];
   const { data: actorProfiles } = actorIds.length ? await s.from("profiles").select("id,display_name").in("id", actorIds) : { data: [] };
   const people = new Map((actorProfiles ?? []).map((profile) => [profile.id, profile.display_name || "Administrator"]));
-  const products = (pd ?? []) as unknown as Product[],
-    categoryTree = orderCategoryTree(categories ?? []),
+  const products = (pd ?? []) as unknown as Product[];
+  const { data: duplicateDecisions } = view === "duplicates" ? await s.from("product_duplicate_decisions").select("product_a_id,product_b_id").order("reviewed_at", { ascending: false }).limit(500) : { data: [] };
+  const ignoredDuplicatePairs = new Set((duplicateDecisions ?? []).filter((decision) => decision.product_a_id && decision.product_b_id).map((decision) => [decision.product_a_id!, decision.product_b_id!].sort().join(":")));
+  const duplicates = view === "duplicates" ? duplicatePairs(products, ignoredDuplicatePairs) : [];
+  const categoryTree = orderCategoryTree(categories ?? []),
     brandOptions = [
       ...new Set(
         products
@@ -1114,6 +1158,8 @@ export default async function ProductsPage({
             <ScheduledFeedsWorkspace feeds={(productFeeds ?? []) as unknown as ProductFeed[]} runs={(productFeedRuns ?? []) as unknown as ProductFeedRun[]} providers={providers ?? []} success={query.success} error={query.error}/>
           ) : view === "history" ? (
             <ImportHistoryWorkspace batches={(batches ?? []) as unknown as ImportBatch[]} rows={(batchRows ?? []) as ImportRow[]} aiJobs={(historyAiJobs ?? []) as HistoryAiJob[]} activeBatchId={query.batch} people={people} success={query.success} error={query.error}/>
+          ) : view === "duplicates" ? (
+            <DuplicateReviewWorkspace pairs={duplicates} resolved={(duplicateDecisions ?? []).length} success={query.success} error={query.error}/>
           ) : view === "approval" ? (
             <ProductApprovalQueue products={approvalProducts} success={query.success} error={query.error}/>
           ) : (

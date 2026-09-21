@@ -979,3 +979,53 @@ export async function reviewProductFeedRun(form: FormData) {
   revalidatePath("/admin/products");
   redirect(`/admin/products?view=feeds&success=Feed%20run%20${decision === "approve" ? "approved" : "rejected"}`);
 }
+
+export async function reviewDuplicateProducts(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const productAId = String(form.get("productAId") ?? "");
+  const productBId = String(form.get("productBId") ?? "");
+  const canonicalId = String(form.get("canonicalId") ?? productAId);
+  const duplicateId = canonicalId === productAId ? productBId : productAId;
+  const decision = String(form.get("decision") ?? "");
+  const note = String(form.get("note") ?? "").trim();
+  const confidence = Math.max(0, Math.min(100, Number(form.get("confidence") ?? 0)));
+  const matchReasons = String(form.get("matchReasons") ?? "").split("|").filter(Boolean);
+  if (!productAId || !productBId || productAId === productBId || !["merge", "keep_separate", "reject_duplicate"].includes(decision))
+    throw new Error("Two different products and a valid decision are required.");
+  if (decision !== "merge" && !note) redirect("/admin/products?view=duplicates&error=Add%20a%20review%20note%20before%20keeping%20separate%20or%20rejecting");
+  const { data: products } = await supabase.from("products").select("id,title,slug,brand,image_url,category_id,is_active,manual_metadata").in("id", [productAId, productBId]);
+  if (!products || products.length !== 2) throw new Error("One of the duplicate products was not found.");
+  const productA = products.find((product) => product.id === productAId)!;
+  const productB = products.find((product) => product.id === productBId)!;
+
+  if (decision === "merge") {
+    const { error } = await supabase.rpc("merge_duplicate_products", { canonical_id: canonicalId, duplicate_id: duplicateId });
+    if (error) throw new Error(error.message);
+  } else if (decision === "reject_duplicate") {
+    const rejected = products.find((product) => product.id === duplicateId)!;
+    await supabase.from("products").update({
+      is_active: false,
+      manual_metadata: { ...(rejected.manual_metadata as Record<string, unknown> ?? {}), review_status: "rejected", duplicate_of: canonicalId, duplicate_review_note: note },
+      updated_at: new Date().toISOString(),
+    }).eq("id", duplicateId);
+    await supabase.from("offers").update({ status: "inactive" }).eq("product_id", duplicateId);
+  }
+
+  const { error: decisionError } = await supabase.from("product_duplicate_decisions").insert({
+    product_a_id: decision === "merge" && duplicateId === productAId ? null : productAId,
+    product_b_id: decision === "merge" && duplicateId === productBId ? null : productBId,
+    product_a_snapshot: productA,
+    product_b_snapshot: productB,
+    confidence,
+    match_reasons: matchReasons,
+    decision: decision === "merge" ? "merged" : decision,
+    canonical_product_id: canonicalId,
+    review_note: note || null,
+    reviewed_by: user.id,
+  });
+  if (decisionError) throw new Error(decisionError.message);
+  await audit(supabase, user.id, `product_duplicate_${decision}`, canonicalId, { duplicate_id: duplicateId, confidence, note });
+  revalidatePath("/admin/products");
+  revalidatePath(`/admin/products/${canonicalId}`);
+  redirect(`/admin/products?view=duplicates&success=${decision === "merge" ? "Products merged into one canonical record" : decision === "keep_separate" ? "Products marked as separate" : "Duplicate product rejected"}`);
+}
