@@ -7,6 +7,14 @@ export const dynamic = 'force-dynamic';
 
 export default async function AiProvidersPage({ searchParams }: { searchParams: Promise<{ error?: string; success?: string }> }) {
   const supabase = await createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/ai-provider-health`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}`, apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' },
+      cache: 'no-store',
+    }).catch(() => null);
+  }
   const [{ data: assignments }, { data: connections }] = await Promise.all([
     supabase.from('ai_provider_assignments').select('workflow_key,provider_key'),
     supabase.from('ai_provider_connections').select('provider_key,display_name,connection_status'),
