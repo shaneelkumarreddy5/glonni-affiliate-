@@ -127,6 +127,10 @@
   font-size: 12px;
 }
 .admin-v2 .topbar-period svg { color: var(--admin-accent); }
+.admin-v2 .topbar-period-wrap { position: relative; }
+.admin-v2 .topbar-period-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; min-width: 150px; padding: 6px; border: 1px solid #dce5f2; border-radius: 10px; background: #fff; box-shadow: 0 14px 30px rgba(18,39,76,.16); }
+.admin-v2 .topbar-period-menu button { display: block; width: 100%; padding: 9px 11px; border: 0; border-radius: 7px; background: transparent; color: #31415f; text-align: left; font: 700 12px 'DM Sans',sans-serif; cursor: pointer; }
+.admin-v2 .topbar-period-menu button:hover { background: #eef4ff; color: #1554ca; }
 .admin-v2 .topbar-mode {
   height: 32px;
   border-color: #d6e2ff;

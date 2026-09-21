@@ -9,6 +9,7 @@ import {
   Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote, FlaskConical,
 } from 'lucide-react';
 import { AdminTabRepair } from '@/components/admin-tab-repair';
+import { AdminActionRepair } from '@/components/admin-action-repair';
 
 const sections = [
   { title: 'AI COMPANY', icon: Bot, links: [{ label: 'AI Agents', href: '/admin/ai-agents', icon: Bot }, { label: 'AI Quality Control', href: '/admin/ai-quality', icon: FlaskConical }, { label: 'Product Freshness', href: '/admin/product-freshness', icon: Clock3 }, { label: 'Change Approvals', href: '/admin/product-changes', icon: GitCompareArrows }, { label: 'Approval Inbox', href: '/admin/approvals', icon: ClipboardCheck }] },
@@ -51,9 +52,12 @@ export function AdminSidebar() {
   const sidebarRef = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [periodOpen, setPeriodOpen] = useState(false);
+  const [period, setPeriod] = useState('This month');
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem('glonni-admin-sidebar') === 'collapsed');
+    setPeriod(window.localStorage.getItem('glonni-admin-period') || 'This month');
   }, []);
 
   useEffect(() => {
@@ -74,6 +78,12 @@ export function AdminSidebar() {
 
   const sectionOpen = (title: string, links: readonly { href: string }[]) => !collapsed && (expanded === title || (expanded === null && links.some((link) => active(link.href))));
 
+  function choosePeriod(value: string) {
+    setPeriod(value);
+    setPeriodOpen(false);
+    window.localStorage.setItem('glonni-admin-period', value);
+  }
+
   return <><aside ref={sidebarRef} className="admin-side" aria-label="Admin navigation">
     <div className="sidebar-brand-row">
       <a className="admin-brand" href="/admin/dashboard" aria-label="Glonni admin dashboard">
@@ -83,11 +93,11 @@ export function AdminSidebar() {
       <button className="sidebar-toggle" type="button" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggle}><ChevronLeft/></button>
     </div>
     <nav>{sections.map((section) => { const SectionIcon = section.icon; const isOpen = sectionOpen(section.title, section.links); return <section key={section.title} className={isOpen ? 'open' : ''}><button className="nav-group" type="button" title={section.title} onClick={() => setExpanded(isOpen ? null : section.title)}><span><SectionIcon size={16}/><b>{section.title}</b></span><ChevronDown size={15}/></button><div className="nav-links">{section.links.map((link) => { const Icon = link.icon; const isActive = active(link.href); return <a key={link.href} className={isActive ? 'selected' : ''} href={link.href} title={link.label} aria-current={isActive ? 'page' : undefined}><span className="nav-icon"><Icon className="nav-symbol" size={17}/></span><span className="nav-label">{link.label}</span></a>; })}</div></section>; })}</nav>
-  </aside><AdminTabRepair/><header className="admin-global-topbar" aria-label="Admin workspace controls">
+  </aside><AdminTabRepair/><AdminActionRepair/><header className="admin-global-topbar" aria-label="Admin workspace controls">
     <form action="/admin/search" role="search"><Search size={18}/><input name="q" placeholder="Search users, offers, partners, or activity…" aria-label="Search admin workspace"/></form>
-    <button className="topbar-period" type="button" aria-label="Dashboard reporting period"><Clock3 size={17}/>This month</button>
+    <div className="topbar-period-wrap"><button className="topbar-period" type="button" aria-label="Dashboard reporting period" aria-expanded={periodOpen} onClick={() => setPeriodOpen(value => !value)}><Clock3 size={17}/>{period}<ChevronDown size={14}/></button>{periodOpen&&<div className="topbar-period-menu" role="menu"><button type="button" onClick={() => choosePeriod('Today')}>Today</button><button type="button" onClick={() => choosePeriod('Last 7 days')}>Last 7 days</button><button type="button" onClick={() => choosePeriod('This month')}>This month</button><button type="button" onClick={() => choosePeriod('This quarter')}>This quarter</button></div>}</div>
     <span className="topbar-mode">MOCK MODE · TEST DATA</span>
-    <button className="topbar-bell" type="button" aria-label="Notifications"><Bell size={23}/><i/></button>
+    <a className="topbar-bell" href="/admin/notifications" aria-label="Open notifications"><Bell size={23}/><i/></a>
     <span className="topbar-avatar">SR</span>
     <span className="topbar-owner"><b>Shaneel</b><small>Owner</small></span>
   </header></>;

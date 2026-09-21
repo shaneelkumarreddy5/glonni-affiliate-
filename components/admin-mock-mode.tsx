@@ -14,9 +14,8 @@ export function AdminMockMode({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.querySelectorAll<HTMLButtonElement>('.admin-v2 .admin-content button[disabled]').forEach((button) => {
       if (button.closest('.owner-chat, .emergency-bar') || button.dataset.liveControl === 'true') return;
-      button.disabled = false;
-      button.dataset.mockControl = 'true';
-      button.setAttribute('aria-label', `${button.textContent?.trim() || 'Control'} — mock preview`);
+      button.setAttribute('aria-label', `${button.textContent?.trim() || 'Control'} — unavailable in preview`);
+      button.setAttribute('title', 'Unavailable in preview mode');
     });
   }, []);
 
@@ -30,11 +29,6 @@ export function AdminMockMode({ children }: { children: ReactNode }) {
       tab.parentElement?.querySelectorAll('a').forEach((item) => item.classList.remove('current'));
       tab.classList.add('current');
       show(`${tab.textContent?.trim()} view is active with mock data.`);
-      return;
-    }
-    const button = target.closest<HTMLButtonElement>('button[data-mock-control="true"]');
-    if (button) {
-      show(`${button.textContent?.replace('MOCK', '').trim() || 'This action'} was simulated. No live change was made.`);
       return;
     }
     const link = target.closest<HTMLAnchorElement>('a[href="#"]');
