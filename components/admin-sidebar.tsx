@@ -8,6 +8,7 @@ import {
   LogOut, Megaphone, Package, PlugZap, ReceiptText, Search, Settings, Share2, ShieldCheck, Store, FileClock, Scale, GitCompareArrows,
   Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote, FlaskConical,
 } from 'lucide-react';
+import { AdminTabRepair } from '@/components/admin-tab-repair';
 
 const sections = [
   { title: 'AI COMPANY', icon: Bot, links: [{ label: 'AI Agents', href: '/admin/ai-agents', icon: Bot }, { label: 'AI Quality Control', href: '/admin/ai-quality', icon: FlaskConical }, { label: 'Product Freshness', href: '/admin/product-freshness', icon: Clock3 }, { label: 'Change Approvals', href: '/admin/product-changes', icon: GitCompareArrows }, { label: 'Approval Inbox', href: '/admin/approvals', icon: ClipboardCheck }] },
@@ -82,7 +83,7 @@ export function AdminSidebar() {
       <button className="sidebar-toggle" type="button" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggle}><ChevronLeft/></button>
     </div>
     <nav>{sections.map((section) => { const SectionIcon = section.icon; const isOpen = sectionOpen(section.title, section.links); return <section key={section.title} className={isOpen ? 'open' : ''}><button className="nav-group" type="button" title={section.title} onClick={() => setExpanded(isOpen ? null : section.title)}><span><SectionIcon size={16}/><b>{section.title}</b></span><ChevronDown size={15}/></button><div className="nav-links">{section.links.map((link) => { const Icon = link.icon; const isActive = active(link.href); return <a key={link.href} className={isActive ? 'selected' : ''} href={link.href} title={link.label} aria-current={isActive ? 'page' : undefined}><span className="nav-icon"><Icon className="nav-symbol" size={17}/></span><span className="nav-label">{link.label}</span></a>; })}</div></section>; })}</nav>
-  </aside><header className="admin-global-topbar" aria-label="Admin workspace controls">
+  </aside><AdminTabRepair/><header className="admin-global-topbar" aria-label="Admin workspace controls">
     <form action="/admin/search" role="search"><Search size={18}/><input name="q" placeholder="Search users, offers, partners, or activity…" aria-label="Search admin workspace"/></form>
     <button className="topbar-period" type="button" aria-label="Dashboard reporting period"><Clock3 size={17}/>This month</button>
     <span className="topbar-mode">MOCK MODE · TEST DATA</span>
