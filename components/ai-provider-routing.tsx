@@ -1,0 +1,18 @@
+import { Building2, LockKeyhole, PenTool, Search, ShieldCheck, UsersRound, type LucideIcon } from 'lucide-react';
+import { saveAiProviderAssignments } from '@/app/admin/ai-provider-actions';
+
+const providerOptions = [{ key: 'openai', name: 'OpenAI' }, { key: 'gemini', name: 'Google Gemini' }, { key: 'deepseek', name: 'DeepSeek' }, { key: 'jiao', name: 'Jiao' }];
+const assignmentRows: Array<[string, string, string, LucideIcon]> = [
+  ['decision', 'Decision AI', 'Recommendations, risk checks and approval suggestions.', Building2],
+  ['generative', 'Generative AI', 'Product copy, banners, campaigns and social posts.', PenTool],
+  ['research', 'Research & Product Fetching', 'Products, images, prices, variants and specifications.', Search],
+  ['support', 'Support AI', 'Customer and admin support answers.', UsersRound],
+  ['execution', 'Execution & Publishing', 'Approved catalogue, social and advertising workflows.', LockKeyhole],
+];
+
+type Assignment = { workflow_key: string; provider_key: string };
+type Connection = { provider_key: string; display_name: string; connection_status: string };
+
+export function AiProviderRouting({ assignments, connections }: { assignments: Assignment[]; connections: Connection[] }) {
+  return <section className="ai-provider-panel"><header><div><p>PROVIDER ROUTING</p><h2>Assign one AI provider to each workflow</h2><span>Only the selected provider is used for new jobs. Provider keys are never shown here.</span></div><ShieldCheck/></header><div className="ai-provider-notice"><ShieldCheck/><span><b>Controlled provider selection</b><small>Changes apply to new jobs. Publishing, ads and social posts still require admin approval.</small></span></div><form action={saveAiProviderAssignments}><div className="ai-provider-layout"><div className="ai-provider-choices">{assignmentRows.map(([key, title, description, Icon]) => { const current = assignments.find(row => row.workflow_key === key)?.provider_key ?? 'openai'; return <article className="ai-provider-row" key={key}><div className="ai-provider-workflow"><Icon/><span><b>{title}</b><small>{description}</small></span></div><div className="ai-provider-options">{providerOptions.map(provider => { const connection = connections.find(row => row.provider_key === provider.key); const connected = connection?.connection_status === 'connected'; return <label className={`${current === provider.key ? 'selected' : ''} ${connected ? '' : 'unavailable'}`} key={provider.key}><input type="radio" name={key} value={provider.key} defaultChecked={current === provider.key} disabled={!connected}/><span><b>{provider.name}</b>{current === provider.key && connected && <em>Active</em>}{!connected && <small>Not configured</small>}</span></label>; })}</div>{key === 'execution' && <p className="ai-provider-lock"><LockKeyhole/> Publishing always requires admin approval.</p>}</article>; })}</div><aside className="ai-provider-summary"><h3>Current assignments</h3><p>One provider per workflow.</p>{assignmentRows.map(([key, title]) => { const provider = providerOptions.find(item => item.key === (assignments.find(row => row.workflow_key === key)?.provider_key ?? 'openai')); const connection = connections.find(row => row.provider_key === provider?.key); return <div key={key}><span><b>{title}</b><small>{provider?.name}</small></span><em className={connection?.connection_status === 'connected' ? 'connected' : ''}>{connection?.connection_status === 'connected' ? 'Connected' : 'Not configured'}</em></div>; })}<small className="ai-provider-secret"><LockKeyhole/> API keys are stored securely and never shown.</small></aside></div><footer><button type="submit">Save provider assignments</button></footer></form></section>;
+}

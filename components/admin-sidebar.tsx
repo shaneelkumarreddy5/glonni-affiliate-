@@ -13,7 +13,7 @@ import { AdminActionRepair } from '@/components/admin-action-repair';
 import { CampaignUiRepair } from '@/components/campaign-ui-repair';
 
 const sections = [
-  { title: 'AI COMPANY', icon: Bot, links: [{ label: 'AI Agents', href: '/admin/ai-agents', icon: Bot }, { label: 'AI Quality Control', href: '/admin/ai-quality', icon: FlaskConical }, { label: 'Product Freshness', href: '/admin/product-freshness', icon: Clock3 }, { label: 'Change Approvals', href: '/admin/product-changes', icon: GitCompareArrows }, { label: 'Approval Inbox', href: '/admin/approvals', icon: ClipboardCheck }] },
+  { title: 'AI COMPANY', icon: Bot, links: [{ label: 'AI Agents', href: '/admin/ai-agents', icon: Bot }, { label: 'AI Providers', href: '/admin/ai-providers', icon: Cable }, { label: 'AI Quality Control', href: '/admin/ai-quality', icon: FlaskConical }, { label: 'Product Freshness', href: '/admin/product-freshness', icon: Clock3 }, { label: 'Change Approvals', href: '/admin/product-changes', icon: GitCompareArrows }, { label: 'Approval Inbox', href: '/admin/approvals', icon: ClipboardCheck }] },
   { title: 'OPERATIONS', icon: ChartNoAxesCombined, links: [
     { label: 'Dashboard', href: '/admin/dashboard', icon: ChartNoAxesCombined }, { label: 'Users', href: '/admin/users', icon: Users },
     { label: 'Wallet & Payouts', href: '/admin/wallet', icon: WalletCards }, { label: 'Payout Operations', href: '/admin/payout-operations', icon: Banknote }, { label: 'Offers & Rewards', href: '/admin/offers', icon: Gift },
