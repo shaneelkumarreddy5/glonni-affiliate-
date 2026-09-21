@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { applyPublicOfferFilters } from '@/lib/product-publication-rules';
 
 export async function GET(request: NextRequest,{params}:{params:Promise<{offerId:string}>}) {
   const { offerId } = await params; const supabase = await createClient();
   const [{ data: offer }, { data: { user } }, { data: publishedOffer }] = await Promise.all([
     supabase.rpc('get_safe_offer_redirect', { p_offer_id: offerId }).maybeSingle(),
     supabase.auth.getUser(),
-    supabase.from('offers').select('id,products!inner(id)').eq('id',offerId).eq('status','active').eq('products.is_active',true).gt('current_price',0).maybeSingle(),
+    applyPublicOfferFilters(supabase.from('offers').select('id,products!inner(id),merchants!inner(id)').eq('id',offerId)).maybeSingle(),
   ]);
   const safeOffer = offer as { destination_url:string;merchant_id:string;provider_id:string|null;click_reference_parameter:string|null;reward_type:string|null;cashback_amount:number|null;cashback_percent:number|null;cashback_cap:number|null;reward_funding_source:string|null;cashback_tracking_supported:boolean|null;commission_rate:number|null;commission_amount:number|null;reward_terms:string|null;cashback_confirmation_days:number|null } | null;
   if (!publishedOffer || !safeOffer?.destination_url || !safeOffer.merchant_id) return NextResponse.redirect(new URL('/deals?notice=This+offer+does+not+have+an+approved+merchant+destination.',request.url));

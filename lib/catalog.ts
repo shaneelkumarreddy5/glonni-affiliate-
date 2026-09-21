@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { applyPublicOfferFilters } from "@/lib/product-publication-rules";
 export type CatalogOffer = {
   id: string;
   updated_at: string | null;
@@ -50,15 +51,9 @@ const selection =
 export async function getCatalogOffers(filters: CatalogFilters = {}) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [] as CatalogOffer[];
   const supabase = await createClient();
-  let query = supabase
+  let query = applyPublicOfferFilters(supabase
     .from("offers")
-    .select(selection)
-    .eq("status", "active")
-    .eq("products.is_active", true)
-    .eq("merchants.is_active", true)
-    .gt("current_price", 0)
-    .not("destination_url", "is", null)
-    .neq("destination_url", "")
+    .select(selection))
     .order("current_price", { ascending: true });
   if (filters.store) query = query.eq("merchants.slug", filters.store);
   if (filters.category)

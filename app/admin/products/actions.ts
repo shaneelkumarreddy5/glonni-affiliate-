@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { missingPublicationRequirements } from "@/lib/product-publication-rules";
 import { readSheet } from "read-excel-file/node";
 
 const slugify = (value: string) =>
@@ -106,10 +107,7 @@ export async function updateProductIdentity(form: FormData) {
   const categoryId = String(form.get("categoryId") ?? "");
   const imageUrl = String(form.get("imageUrl") ?? "").trim();
   if (wantsPublished) {
-    const hasUsableOffer = (current.offers ?? []).some(
-      (offer) => offer.status === "active" && Number(offer.current_price) > 0 && Boolean(offer.destination_url?.trim()),
-    );
-    const missing = [!categoryId && "category", !imageUrl && "primary image", !hasUsableOffer && "active store offer with a price and destination URL"].filter(Boolean);
+    const missing = missingPublicationRequirements({ title, category_id: categoryId, image_url: imageUrl, offers: current.offers }, true);
     if (missing.length)
       redirect(`/admin/products/${id}?section=overview&error=${encodeURIComponent(`Complete ${missing.join(", ")} before publishing.`)}`);
   }
@@ -713,14 +711,7 @@ export async function publishManualProduct(form: FormData) {
     .eq("id", productId)
     .single();
   if (!product) throw new Error("Product was not found.");
-  const missing = [
-    !product.title && "product name",
-    !product.category_id && "category",
-    !product.image_url && "primary image",
-    !(product.offers ?? []).some(
-      (offer) => Number(offer.current_price) > 0 && Boolean(offer.destination_url?.trim()),
-    ) && "complete store offer",
-  ].filter(Boolean);
+  const missing = missingPublicationRequirements(product);
   if (missing.length)
     throw new Error(`Complete ${missing.join(", ")} before publishing.`);
   const { error: offerError } = await supabase
@@ -728,7 +719,8 @@ export async function publishManualProduct(form: FormData) {
     .update({ status: "active" })
     .eq("product_id", productId)
     .gt("current_price", 0)
-    .not("destination_url", "is", null);
+    .not("destination_url", "is", null)
+    .neq("destination_url", "");
   if (offerError) throw new Error(offerError.message);
   const { error } = await supabase
     .from("products")
@@ -762,15 +754,10 @@ export async function reviewProductCandidate(form: FormData) {
   if (!product) throw new Error("Product was not found.");
 
   if (decision === "approve") {
-    const missing = [
-      !product.title && "product name",
-      !product.category_id && "category",
-      !product.image_url && "primary image",
-      !(product.offers ?? []).some((offer) => Number(offer.current_price) > 0 && Boolean(offer.destination_url?.trim())) && "complete store offer",
-    ].filter(Boolean) as string[];
+    const missing = missingPublicationRequirements(product);
     if (missing.length)
       redirect(`/admin/products?view=approval&error=${encodeURIComponent(`Complete ${missing.join(", ")} before approval.`)}`);
-    const { error: offerError } = await supabase.from("offers").update({ status: "active" }).eq("product_id", productId).gt("current_price", 0).not("destination_url", "is", null);
+    const { error: offerError } = await supabase.from("offers").update({ status: "active" }).eq("product_id", productId).gt("current_price", 0).not("destination_url", "is", null).neq("destination_url", "");
     if (offerError) throw new Error(offerError.message);
     const { error } = await supabase.from("products").update({ is_active: true, updated_at: new Date().toISOString() }).eq("id", productId);
     if (error) throw new Error(error.message);

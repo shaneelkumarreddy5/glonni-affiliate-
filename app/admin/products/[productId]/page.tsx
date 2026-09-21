@@ -22,6 +22,7 @@ import { AdminSidebar } from "@/components/admin-sidebar";
 import { ProductMediaUploader } from "@/components/product-media-uploader";
 import { categoryOptionLabel, orderCategoryTree } from "@/lib/category-tree";
 import { getProductOffers } from "@/lib/catalog";
+import { hasCompleteStoreOffer } from "@/lib/product-publication-rules";
 import { createClient } from "@/lib/supabase/server";
 import {
   updateProductContent,
@@ -102,7 +103,7 @@ export default async function AdminProductDetail({
     }[],
     info = object(product.product_information),
     offers = (product.offers ?? []) as any[],
-    hasUsableOffer = offers.some((offer) => offer.status === "active" && Number(offer.current_price) > 0 && Boolean(offer.destination_url?.trim())),
+    hasUsableOffer = hasCompleteStoreOffer(offers, true),
     categoryTree = orderCategoryTree(categories ?? []);
   const checks = [
       ["Primary image", Boolean(product.image_url)],
