@@ -1,50 +1,32 @@
+import Link from 'next/link';
 import { AdminSidebar } from '@/components/admin-sidebar';
-import { Activity, Bell, CalendarDays, CircleDollarSign, Clock3, Copy, ExternalLink, Headphones, Mail, MapPin, Phone, Search, ShieldCheck, TicketCheck, Users, WalletCards, X } from 'lucide-react';
+import { Headphones, Search, Users, WalletCards } from 'lucide-react';
+import { customerAdminClient, money, readAll, when } from '@/lib/admin-customers';
 
-const people = [
-  ['Ananya Sharma', 'Hyderabad, Telangana', 'Active', '₹620', '2 alerts', 'ananya.demo@glonni.test'],
-  ['Rohan Mehta', 'Mumbai, Maharashtra', 'Active', '₹145', '1 alert', 'rohan.demo@glonni.test'],
-  ['Priya Nair', 'Bengaluru, Karnataka', 'Active', '₹0', '3 alerts', 'priya.demo@glonni.test'],
-  ['Arjun Kapoor', 'Delhi NCR', 'Paused', '₹85', '0 alerts', 'arjun.demo@glonni.test'],
-  ['Sneha Iyer', 'Chennai, Tamil Nadu', 'Active', '₹240', '2 alerts', 'sneha.demo@glonni.test'],
-];
-
-const registrations = [
-  ['Karan Malhotra', '2 minutes ago'], ['Isha Verma', '12 minutes ago'],
-  ['Aditya Rao', '28 minutes ago'], ['Neha Gupta', '1 hour ago'],
-];
-
-export default function AdminUsers() {
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main">
-    <header className="admin-top"><Users size={21}/><b>Users</b><span className="dashboard-date">Customer workspace · preview data</span><Bell size={19}/><span className="avatar">SR</span></header>
-    <main className="admin-content users-page">
-      <div className="admin-title"><div><p>CUSTOMER MANAGEMENT</p><h1>Users</h1><span>Understand customer engagement, cashback readiness and support context.</span></div></div>
-      <section className="admin-stats">
-        <article><Users/><div><small>Total shoppers</small><b>235,000+</b><em>Mock growth metric</em></div></article>
-        <article><ShieldCheck/><div><small>Active accounts</small><b>98.4%</b><em>Preview metric</em></div></article>
-        <article><CircleDollarSign/><div><small>Wallet activity</small><b>₹1,090</b><em>Demo customer balance</em></div></article>
-        <article><Bell/><div><small>Active alerts</small><b>8</b><em>Across preview users</em></div></article>
-        <article><TicketCheck/><div><small>Open tickets</small><b>1</b><em>Mock support queue</em></div></article>
-      </section>
-      <article className="store-table users-directory">
-        <div className="table-head"><div><a className="current">All users</a><a>Active</a><a>Paused</a><a>Wallet activity</a></div><form><Search size={15}/><input placeholder="Search name, email or city…"/></form></div>
-        <div className="table-scroll"><table><thead><tr><th>SHOPPER</th><th>LOCATION</th><th>WALLET</th><th>ALERTS</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody>{people.map((person) => <tr key={person[0]}><td><b className="store-initial">{person[0][0]}</b><span><strong>{person[0]}</strong><small>{person[5]}</small></span></td><td>{person[1]}</td><td>{person[3]}</td><td>{person[4]}</td><td><em className={person[2] === 'Active' ? 'status-active' : 'status-paused'}>{person[2]}</em></td><td><a href="#user-profile">View</a><a href="#user-profile">•••</a></td></tr>)}</tbody></table></div>
-        <footer>Showing 5 realistic preview shoppers <span>Personal data is mock only</span></footer>
-      </article>
-      <section className="users-below" aria-label="User insights">
-        <article id="customer-health"><header><div><h2>Customer health</h2><p>Verification and payout readiness</p></div><a href="#customer-health">Current overview</a></header><div className="health-row"><span><i className="dot active"/><small>Verified users</small><b>215,000</b></span><span><i className="dot active"/><small>KYC-ready users</small><b>152,000</b></span><span><i className="dot active"/><small>Payout-ready users</small><b>148,500</b></span><span><i className="dot pending"/><small>Support needed</small><b>12</b></span></div></article>
-        <article id="recent-registrations"><header><div><h2>Recent registrations</h2><p>Newest customer accounts</p></div><a href="#recent-registrations">View all registrations</a></header><div className="registration-row">{registrations.map(([name, time]) => <span key={name}><i>{name[0]}</i><b>{name}</b><small>{time}</small></span>)}</div></article>
-      </section>
-    </main>
-    <a className="user-drawer-backdrop" href="#" aria-label="Close user profile"/>
-    <aside id="user-profile" className="user-profile-drawer" aria-label="Customer profile">
-      <header><span className="profile-avatar">A</span><a href="#" aria-label="Close user profile"><X/></a><h2>Ananya Sharma <em>Active</em></h2><p>USR0015823 <button aria-label="Copy user ID"><Copy/></button></p><span><Mail/> ananya.demo@glonni.test</span><span><Phone/> +91 98765 43210</span><div><b><Mail/>Email verified</b><b><Phone/>Mobile verified</b></div></header>
-      <section className="profile-facts"><p><MapPin/><span><small>Location</small>Hyderabad, Telangana</span></p><p><CalendarDays/><span><small>Joined</small>12 Jan 2024</span></p><p><Clock3/><span><small>Last active</small>2 hours ago</span></p></section>
-      <section className="profile-status"><p><ShieldCheck/><span>KYC status</span><b>Verified</b></p><p><WalletCards/><span>Wallet status</span><b>Ready</b></p><p><Activity/><span>Risk level</span><b>Low</b></p></section>
-      <section><h3><WalletCards/>Wallet summary</h3><p className="profile-value"><span>Available balance</span><b>₹1,090</b></p><p className="profile-value"><span>Total earnings</span><b>₹12,430</b></p><p className="profile-value"><span>Total withdrawals</span><b>₹11,340</b></p></section>
-      <section><h3><Clock3/>Latest activity</h3><p className="profile-note">Viewed offer: Electronics<small>2 hours ago</small></p></section>
-      <section><h3><Headphones/>Support cases</h3><p className="profile-note">2 open cases<small>Last message 1 day ago</small></p></section>
-      <a className="open-profile" href="/admin/users/USR0015823"><ExternalLink/>Open full profile</a>
-    </aside>
-  </section></main>;
+export default async function AdminUsers({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const { q } = await searchParams;
+  const search = q?.trim().toLowerCase() || '';
+  const supabase = await customerAdminClient();
+  let peopleQuery = supabase.from('profiles').select('id,display_name,city,state,created_at', { count: 'exact' }).eq('role', 'customer');
+  if (search) peopleQuery = /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(search) ? peopleQuery.eq('id', search) : peopleQuery.ilike('display_name', `%${search.replace(/[%,()]/g, '')}%`);
+  const { data, count, error } = await peopleQuery.order('created_at', { ascending: false }).limit(100);
+  const people = data ?? [];
+  const ids = people.map(person => person.id);
+  const [{ data: entries, error: walletError }, { data: tickets, error: supportError }] = ids.length ? await Promise.all([
+    readAll<{ profile_id: string; amount: number }>((from, to) => supabase.from('wallet_entries').select('profile_id,amount').in('profile_id', ids).order('created_at', { ascending: false }).range(from, to)),
+    readAll<{ profile_id: string; status: string }>((from, to) => supabase.from('support_tickets').select('profile_id,status').in('profile_id', ids).order('updated_at', { ascending: false }).range(from, to)),
+  ]) : [{ data: [], error: null }, { data: [], error: null }];
+  const filtered = people;
+  const openCases = (tickets ?? []).filter(ticket => !['closed', 'resolved'].includes(ticket.status)).length;
+  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content users-page">
+    <div className="admin-title"><div><p>CUSTOMER MANAGEMENT</p><h1>Customers</h1><span>Customer profiles, wallet records and support cases from this workspace.</span></div></div>
+    <section className="admin-stats">
+      <article><Users/><div><small>Registered customers</small><b>{error ? 'Unavailable' : count ?? 0}</b><em>Customer profiles</em></div></article>
+      <article><WalletCards/><div><small>Wallet records</small><b>{walletError ? 'Unavailable' : entries?.length ?? 0}</b><em>For the displayed customers</em></div></article>
+      <article><Headphones/><div><small>Open support cases</small><b>{supportError ? 'Unavailable' : openCases}</b><em>For the displayed customers</em></div></article>
+    </section>
+    <article className="store-table users-directory"><div className="table-head"><div><span className="current">All customers</span></div><form action="/admin/users"><Search size={15}/><input name="q" defaultValue={q || ''} placeholder="Search name or customer ID"/><button type="submit">Search</button></form></div>
+      <div className="table-scroll"><table><thead><tr><th>CUSTOMER</th><th>LOCATION</th><th>JOINED</th><th>WALLET BALANCE</th><th>OPEN CASES</th><th>ACTION</th></tr></thead><tbody>{filtered.map(person => { const name = person.display_name?.trim() || 'Unnamed customer'; const balance = (entries ?? []).filter(entry => entry.profile_id === person.id).reduce((sum, entry) => sum + Number(entry.amount), 0); const cases = (tickets ?? []).filter(ticket => ticket.profile_id === person.id && !['closed', 'resolved'].includes(ticket.status)).length; return <tr key={person.id}><td><b className="store-initial">{name[0].toUpperCase()}</b><span><strong>{name}</strong><small>{person.id}</small></span></td><td>{[person.city, person.state].filter(Boolean).join(', ') || 'Not provided'}</td><td>{when(person.created_at)}</td><td>{walletError ? 'Unavailable' : money(Math.max(0, balance))}</td><td>{supportError ? 'Unavailable' : cases}</td><td><Link href={`/admin/users/${person.id}`}>View profile</Link></td></tr>; })}{!filtered.length && <tr><td colSpan={6}>{error ? 'Customer records could not be loaded.' : 'No customers match this search.'}</td></tr>}</tbody></table></div>
+      <footer>Showing {filtered.length} of {count ?? people.length} matching customer profiles (latest 100). Only recorded customer data is shown.</footer></article>
+  </main></section></main>;
 }

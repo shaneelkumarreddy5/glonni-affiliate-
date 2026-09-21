@@ -1,29 +1,30 @@
+import Link from 'next/link';
 import { AdminSidebar } from '@/components/admin-sidebar';
-import { Activity, ArrowLeft, CalendarDays, CircleDollarSign, Headphones, Mail, MapPin, Phone, ShieldCheck, ShoppingBag, UserRound, Users, WalletCards } from 'lucide-react';
+import { Activity, ArrowLeft, CircleDollarSign, Headphones, MapPin, ShieldCheck, UserRound, WalletCards } from 'lucide-react';
+import { customerRecord, money, when } from '@/lib/admin-customers';
 
 export default async function AdminUserProfile({ params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
+  const customer = await customerRecord(userId);
+  const { profile, wallet, activity, tickets } = customer;
+  const name = profile.display_name?.trim() || 'Unnamed customer';
+  const location = [profile.city, profile.state].filter(Boolean).join(', ') || 'Not provided';
   return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content admin-user-profile">
-    <a className="profile-back" href="/admin/users"><ArrowLeft/>Back to users</a>
-    <header className="profile-page-head"><span className="profile-page-avatar">A</span><div><p>CUSTOMER PROFILE</p><h1>Ananya Sharma <em>Active</em></h1><span>{userId} · Customer since 12 January 2024</span></div><div className="profile-head-actions"><button>Internal note</button><button>Review account</button></div></header>
+    <Link className="profile-back" href="/admin/users"><ArrowLeft/>Back to users</Link>
+    <header className="profile-page-head"><span className="profile-page-avatar">{name[0].toUpperCase()}</span><div><p>CUSTOMER PROFILE</p><h1>{name}</h1><span>{profile.id} · Joined {when(profile.created_at)}</span></div></header>
     <section className="profile-summary-grid">
-      <article><Mail/><span><small>Email</small><b>ananya.demo@glonni.test</b><em>Verified</em></span></article>
-      <article><Phone/><span><small>Mobile</small><b>+91 98765 43210</b><em>Verified</em></span></article>
-      <article><MapPin/><span><small>Location</small><b>Hyderabad, Telangana</b><em>Profile address</em></span></article>
-      <article><ShieldCheck/><span><small>Account risk</small><b>Low risk</b><em>No active restrictions</em></span></article>
+      <article><UserRound/><span><small>Customer</small><b>{name}</b><em>Profile record</em></span></article>
+      <article><MapPin/><span><small>Location</small><b>{location}</b><em>Customer-provided</em></span></article>
+      <article><Headphones/><span><small>Open support cases</small><b>{customer.supportUnavailable ? 'Unavailable' : customer.openTickets}</b><em>{customer.supportUnavailable ? 'Support records could not be loaded' : customer.lastTicket ? `Last update ${when(customer.lastTicket)}` : 'No cases recorded'}</em></span></article>
+      <article><ShieldCheck/><span><small>Verification</small><b>Not available</b><em>No verified KYC or payout record is connected here</em></span></article>
     </section>
-    <section className="profile-detail-grid">
-      <div className="profile-main-column">
-        <article className="profile-section-card"><header><div><UserRound/><span><h2>Identity and verification</h2><p>Customer identity and payout readiness</p></span></div></header><div className="profile-data-grid"><p><small>Full name</small><b>Ananya Sharma</b></p><p><small>Email verification</small><b className="verified-text">Verified</b></p><p><small>Mobile verification</small><b className="verified-text">Verified</b></p><p><small>KYC status</small><b className="verified-text">Verified</b></p><p><small>Bank / UPI</small><b>•••• 4321 · Verified</b></p><p><small>Payout eligibility</small><b className="verified-text">Ready</b></p></div></article>
-        <article className="profile-section-card"><header><div><WalletCards/><span><h2>Wallet and payouts</h2><p>Cashback balances and withdrawal history</p></span></div><a href={`/admin/users/${userId}/wallet`}>Open this user’s wallet →</a></header><div className="profile-money-grid"><p><small>Available</small><b>₹1,090</b></p><p><small>Pending cashback</small><b>₹385</b></p><p><small>Lifetime earnings</small><b>₹12,430</b></p><p><small>Total withdrawn</small><b>₹11,340</b></p></div></article>
-        <article className="profile-section-card"><header><div><Activity/><span><h2>Recent customer activity</h2><p>Actions recorded across Glonni</p></span></div><a href={`/admin/users/${userId}/activity`}>View complete activity →</a></header><div className="profile-timeline"><p><i/><span><b>Viewed Electronics offer</b><small>Today, 7:42 PM · Web session</small></span></p><p><i/><span><b>Saved a deal</b><small>Today, 7:39 PM · Product GLN-2491</small></span></p><p><i/><span><b>Signed in successfully</b><small>Today, 7:31 PM · Recognised device</small></span></p></div></article>
-      </div>
-      <aside className="profile-side-column">
-        <article className="profile-section-card"><header><div><CircleDollarSign/><span><h2>Account status</h2><p>Operational readiness</p></span></div></header><div className="profile-status-list"><p><span>Account</span><b>Active</b></p><p><span>KYC</span><b>Verified</b></p><p><span>Wallet</span><b>Ready</b></p><p><span>Risk</span><b>Low</b></p></div></article>
-        <article className="profile-section-card"><header><div><ShoppingBag/><span><h2>Shopping summary</h2><p>Customer engagement</p></span></div></header><div className="profile-status-list"><p><span>Saved deals</span><strong>3</strong></p><p><span>Price alerts</span><strong>2</strong></p><p><span>Tracked clicks</span><strong>7</strong></p><p><span>Referrals</span><strong>1</strong></p></div></article>
-        <article className="profile-section-card"><header><div><Headphones/><span><h2>Support</h2><p>Cases and assistance</p></span></div></header><div className="profile-status-list"><p><span>Open cases</span><strong>2</strong></p><p><span>Last message</span><strong>1 day ago</strong></p></div><a className="profile-card-link" href={`/admin/users/${userId}/support`}>Open this user’s support history →</a></article>
-        <article className="profile-section-card"><header><div><CalendarDays/><span><h2>Administrative actions</h2><p>Protected and audited</p></span></div></header><div className="profile-admin-actions"><button>Request KYC review</button><button>Restrict withdrawals</button><button className="danger-action">Suspend account</button></div></article>
-      </aside>
-    </section>
+    <section className="profile-detail-grid"><div className="profile-main-column">
+      <article className="profile-section-card"><header><div><UserRound/><span><h2>Customer details</h2><p>Information present in this customer’s profile</p></span></div></header><div className="profile-data-grid"><p><small>Full name</small><b>{name}</b></p><p><small>Location</small><b>{location}</b></p><p><small>Joined</small><b>{when(profile.created_at)}</b></p><p><small>Customer ID</small><b>{profile.id}</b></p><p><small>Email &amp; mobile</small><b>Not available in admin profile</b></p><p><small>KYC / payout verification</small><b>Not connected</b></p></div></article>
+      <article className="profile-section-card"><header><div><WalletCards/><span><h2>Wallet and payouts</h2><p>This customer’s recorded cashback and withdrawals</p></span></div><Link href={`/admin/users/${userId}/wallet`}>Open wallet →</Link></header>{customer.walletUnavailable ? <p>Wallet records could not be loaded.</p> : <div className="profile-money-grid"><p><small>Available</small><b>{money(wallet.available)}</b></p><p><small>Pending cashback</small><b>{money(wallet.pending)}</b></p><p><small>Lifetime confirmed</small><b>{money(wallet.lifetime)}</b></p><p><small>Total withdrawn</small><b>{money(wallet.withdrawn)}</b></p></div>}</article>
+      <article className="profile-section-card"><header><div><Activity/><span><h2>Recent customer activity</h2><p>Recorded actions by this customer</p></span></div><Link href={`/admin/users/${userId}/activity`}>View activity →</Link></header><div className="profile-timeline">{customer.activityUnavailable ? <p>Activity records could not be loaded.</p> : activity.slice(0, 3).map(row => <p key={row.id}><i/><span><b>{row.event_type.replaceAll('_', ' ')}</b><small>{when(row.occurred_at)} · {row.surface}</small></span></p>)}{!customer.activityUnavailable && !activity.length && <p>No customer activity recorded yet.</p>}</div></article>
+    </div><aside className="profile-side-column">
+      <article className="profile-section-card"><header><div><CircleDollarSign/><span><h2>Shopping summary</h2><p>Customer-linked records</p></span></div></header><div className="profile-status-list"><p><span>Saved offers</span><strong>{customer.savedCount ?? 'Unavailable'}</strong></p><p><span>Active price alerts</span><strong>{customer.alertCount ?? 'Unavailable'}</strong></p><p><span>Tracked clicks</span><strong>{customer.clickCount ?? 'Unavailable'}</strong></p></div></article>
+      <article className="profile-section-card"><header><div><Headphones/><span><h2>Support</h2><p>Cases and assistance for this customer</p></span></div></header><div className="profile-status-list"><p><span>Open cases</span><strong>{customer.supportUnavailable ? 'Unavailable' : customer.openTickets}</strong></p><p><span>Total cases</span><strong>{customer.supportUnavailable ? 'Unavailable' : tickets.length}</strong></p><p><span>Last update</span><strong>{customer.supportUnavailable ? 'Unavailable' : customer.lastTicket ? when(customer.lastTicket) : 'None'}</strong></p></div><Link className="profile-card-link" href={`/admin/users/${userId}/support`}>Open support history →</Link></article>
+    </aside></section>
   </main></section></main>;
 }
