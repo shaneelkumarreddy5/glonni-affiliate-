@@ -52,7 +52,7 @@ export default async function AdminProductDetail({
   searchParams,
 }: {
   params: Promise<{ productId: string }>;
-  searchParams: Promise<{ section?: string; success?: string }>;
+  searchParams: Promise<{ section?: string; success?: string; error?: string }>;
 }) {
   const { productId } = await params,
     query = await searchParams,
@@ -67,7 +67,7 @@ export default async function AdminProductDetail({
       s
         .from("products")
         .select(
-          "id,title,slug,brand,description,image_url,gallery_images,variants,specifications,product_information,category_id,is_active,updated_at,categories(id,name,slug),offers(id,current_price,list_price,cashback_amount,cashback_percent,reward_type,reward_terms,coupon_code,bank_offer,customer_rating,rating_count,stock_status,cashback_confirmation_days,variant_label,status,updated_at,merchants(id,name,slug,logo_url),affiliate_providers(name))",
+          "id,title,slug,brand,description,image_url,gallery_images,variants,specifications,product_information,category_id,is_active,updated_at,categories(id,name,slug),offers(id,current_price,destination_url,list_price,cashback_amount,cashback_percent,reward_type,reward_terms,coupon_code,bank_offer,customer_rating,rating_count,stock_status,cashback_confirmation_days,variant_label,status,updated_at,merchants(id,name,slug,logo_url),affiliate_providers(name))",
         )
         .eq("id", productId)
         .single(),
@@ -100,6 +100,7 @@ export default async function AdminProductDetail({
     }[],
     info = object(product.product_information),
     offers = (product.offers ?? []) as any[],
+    hasUsableOffer = offers.some((offer) => offer.status === "active" && Number(offer.current_price) > 0 && Boolean(offer.destination_url?.trim())),
     categoryTree = orderCategoryTree(categories ?? []);
   const checks = [
       ["Primary image", Boolean(product.image_url)],
@@ -107,7 +108,7 @@ export default async function AdminProductDetail({
       ["Variants", variants.length > 0],
       ["Specifications", specs.length >= 10],
       ["Complete information", Object.keys(info).length > 0],
-      ["Connected store offer", offers.length > 0],
+      ["Connected store offer", hasUsableOffer],
       ["Offer rating", offers.some((o) => o.customer_rating !== null)],
       ["Price history", (history ?? []).length > 1],
     ] as const,
@@ -162,6 +163,8 @@ export default async function AdminProductDetail({
               {query.success}
             </p>
           )}
+          {query.error && <p className="product-save-error"><AlertTriangle />{query.error}</p>}
+          {!hasUsableOffer && <p className="product-save-error"><AlertTriangle />Publishing is blocked until this product has an active store offer with a price and destination URL. <Link href={`/admin/products?view=manual&draft=${product.id}&step=offers`}>Complete store offer</Link></p>}
           <nav className="product-detail-tabs">
             {sections.map(([key, label, Icon]) => (
               <Link
@@ -235,12 +238,12 @@ export default async function AdminProductDetail({
                       name="isActive"
                       type="checkbox"
                       defaultChecked={product.is_active}
+                      disabled={!hasUsableOffer && !product.is_active}
                     />
                     <span>
                       <b>Published</b>
                       <small>
-                        Make this product available to customer pages when its
-                        offers are active.
+                        {hasUsableOffer ? "Make this product available to customer pages." : "First connect an active store offer with a price and destination URL."}
                       </small>
                     </span>
                   </label>

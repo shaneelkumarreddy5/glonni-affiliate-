@@ -147,6 +147,26 @@
 .product-save-success svg {
   width: 16px;
 }
+.product-save-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 13px;
+  border: 1px solid #f0b9b9;
+  border-radius: 9px;
+  background: #fff2f2;
+  color: #a32626;
+  font-size: 12px;
+}
+.product-save-error svg {
+  width: 16px;
+  flex: none;
+}
+.product-save-error a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+}
 .product-detail-tabs {
   display: flex;
   height: auto;

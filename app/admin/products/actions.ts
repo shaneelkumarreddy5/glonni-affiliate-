@@ -98,16 +98,28 @@ export async function updateProductIdentity(form: FormData) {
   if (!id || !title) throw new Error("Product and title are required.");
   const { data: current } = await supabase
     .from("products")
-    .select("slug")
+    .select("slug,is_active,offers(id,current_price,destination_url,status)")
     .eq("id", id)
     .single();
+  if (!current) throw new Error("Product was not found.");
+  const wantsPublished = form.get("isActive") === "on";
+  const categoryId = String(form.get("categoryId") ?? "");
+  const imageUrl = String(form.get("imageUrl") ?? "").trim();
+  if (wantsPublished) {
+    const hasUsableOffer = (current.offers ?? []).some(
+      (offer) => offer.status === "active" && Number(offer.current_price) > 0 && Boolean(offer.destination_url?.trim()),
+    );
+    const missing = [!categoryId && "category", !imageUrl && "primary image", !hasUsableOffer && "active store offer with a price and destination URL"].filter(Boolean);
+    if (missing.length)
+      redirect(`/admin/products/${id}?section=overview&error=${encodeURIComponent(`Complete ${missing.join(", ")} before publishing.`)}`);
+  }
   const values = {
     title,
     brand: String(form.get("brand") ?? "").trim() || null,
     description: String(form.get("description") ?? "").trim() || null,
-    category_id: String(form.get("categoryId") ?? "") || null,
-    image_url: String(form.get("imageUrl") ?? "").trim() || null,
-    is_active: form.get("isActive") === "on",
+    category_id: categoryId || null,
+    image_url: imageUrl || null,
+    is_active: wantsPublished,
     updated_at: new Date().toISOString(),
   };
   const { error } = await supabase.from("products").update(values).eq("id", id);
@@ -706,15 +718,18 @@ export async function publishManualProduct(form: FormData) {
     !product.category_id && "category",
     !product.image_url && "primary image",
     !(product.offers ?? []).some(
-      (offer) => offer.current_price && offer.destination_url,
+      (offer) => Number(offer.current_price) > 0 && Boolean(offer.destination_url?.trim()),
     ) && "complete store offer",
   ].filter(Boolean);
   if (missing.length)
     throw new Error(`Complete ${missing.join(", ")} before publishing.`);
-  await supabase
+  const { error: offerError } = await supabase
     .from("offers")
     .update({ status: "active" })
-    .eq("product_id", productId);
+    .eq("product_id", productId)
+    .gt("current_price", 0)
+    .not("destination_url", "is", null);
+  if (offerError) throw new Error(offerError.message);
   const { error } = await supabase
     .from("products")
     .update({ is_active: true, updated_at: new Date().toISOString() })
@@ -751,11 +766,12 @@ export async function reviewProductCandidate(form: FormData) {
       !product.title && "product name",
       !product.category_id && "category",
       !product.image_url && "primary image",
-      !(product.offers ?? []).some((offer) => offer.current_price && offer.destination_url) && "complete store offer",
+      !(product.offers ?? []).some((offer) => Number(offer.current_price) > 0 && Boolean(offer.destination_url?.trim())) && "complete store offer",
     ].filter(Boolean) as string[];
     if (missing.length)
       redirect(`/admin/products?view=approval&error=${encodeURIComponent(`Complete ${missing.join(", ")} before approval.`)}`);
-    await supabase.from("offers").update({ status: "active" }).eq("product_id", productId);
+    const { error: offerError } = await supabase.from("offers").update({ status: "active" }).eq("product_id", productId).gt("current_price", 0).not("destination_url", "is", null);
+    if (offerError) throw new Error(offerError.message);
     const { error } = await supabase.from("products").update({ is_active: true, updated_at: new Date().toISOString() }).eq("id", productId);
     if (error) throw new Error(error.message);
   } else if (!note) {
