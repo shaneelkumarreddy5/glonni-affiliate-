@@ -21,6 +21,7 @@ import {
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { ProductMediaUploader } from "@/components/product-media-uploader";
 import { categoryOptionLabel, orderCategoryTree } from "@/lib/category-tree";
+import { getProductOffers } from "@/lib/catalog";
 import { createClient } from "@/lib/supabase/server";
 import {
   updateProductContent,
@@ -29,13 +30,14 @@ import {
 } from "../actions";
 
 export const dynamic = "force-dynamic";
-type Section = "overview" | "content" | "offers" | "history" | "preview";
+type Section = "overview" | "content" | "offers" | "history" | "preview" | "publishing";
 const sections: [Section, string, typeof Boxes][] = [
   ["overview", "Overview", Boxes],
   ["content", "Images, variants & specifications", GalleryHorizontal],
   ["offers", "Store pricing & cashback", Store],
   ["history", "Price history", History],
   ["preview", "Customer-page preview", Eye],
+  ["publishing", "Publishing check", CheckCircle2],
 ];
 const money = (value: number | string | null) =>
   value === null
@@ -67,7 +69,7 @@ export default async function AdminProductDetail({
       s
         .from("products")
         .select(
-          "id,title,slug,brand,description,image_url,gallery_images,variants,specifications,product_information,category_id,is_active,updated_at,categories(id,name,slug),offers(id,current_price,destination_url,list_price,cashback_amount,cashback_percent,reward_type,reward_terms,coupon_code,bank_offer,customer_rating,rating_count,stock_status,cashback_confirmation_days,variant_label,status,updated_at,merchants(id,name,slug,logo_url),affiliate_providers(name))",
+          "id,title,slug,brand,description,image_url,gallery_images,variants,specifications,product_information,category_id,is_active,updated_at,categories(id,name,slug,is_active),offers(id,current_price,destination_url,list_price,cashback_amount,cashback_percent,reward_type,reward_terms,coupon_code,bank_offer,customer_rating,rating_count,stock_status,cashback_confirmation_days,variant_label,status,updated_at,merchants(id,name,slug,logo_url,is_active),affiliate_providers(name))",
         )
         .eq("id", productId)
         .single(),
@@ -88,7 +90,7 @@ export default async function AdminProductDetail({
     Array.isArray(product.categories)
       ? product.categories[0]
       : product.categories
-  ) as { id: string; name: string; slug: string } | null;
+  ) as { id: string; name: string; slug: string; is_active: boolean } | null;
   const gallery = values(product.gallery_images) as string[],
     variants = values(product.variants) as {
       label: string;
@@ -115,6 +117,22 @@ export default async function AdminProductDetail({
     complete = Math.round(
       (checks.filter(([, ok]) => ok).length / checks.length) * 100,
     );
+  const visibleOffers = active === "publishing" ? await getProductOffers(product.slug) : [];
+  const customerOfferIds = new Set(visibleOffers.map((offer) => offer.id));
+  const redirectChecks = active === "publishing" ? await Promise.all(
+    offers.filter((offer) => customerOfferIds.has(offer.id)).map(async (offer) => {
+      const { data, error } = await s.rpc("get_safe_offer_redirect", { p_offer_id: offer.id }).maybeSingle();
+      return { offer, approved: !error && Boolean((data as { destination_url?: string } | null)?.destination_url) };
+    }),
+  ) : [];
+  const approvedOfferIds = new Set(redirectChecks.filter((row) => row.approved).map((row) => row.offer.id));
+  const publishSteps = [
+    { label: "Product is approved and published", ready: product.is_active, fix: `/admin/products/${product.id}?section=overview`, action: "Review product status" },
+    { label: "Category and primary image are ready", ready: Boolean(productCategory?.is_active && product.image_url), fix: `/admin/products/${product.id}?section=${product.image_url ? "overview" : "content"}`, action: "Complete product details" },
+    { label: "At least one offer appears in the customer catalogue", ready: customerOfferIds.size > 0, fix: `/admin/products?view=manual&draft=${product.id}&step=offers`, action: "Complete store offer" },
+    { label: "At least one offer has an approved tracked destination", ready: approvedOfferIds.size > 0, fix: `/admin/products/${product.id}?section=offers`, action: "Review offer destination" },
+  ];
+  const readyToShop = publishSteps.every((step) => step.ready);
   return (
     <main className="admin-v2">
       <AdminSidebar />
@@ -508,6 +526,33 @@ export default async function AdminProductDetail({
                   </Link>
                 </div>
               )}
+            </section>
+          )}
+          {active === "publishing" && (
+            <section className="product-publishing-check">
+              <header>
+                <div><p>END-TO-END CHECK</p><h2>{readyToShop ? "Ready for shoppers" : "Needs attention before shoppers can use it"}</h2><span>Checked against the current customer catalogue and the approved redirect destination. Opening a preview does not create a tracked click.</span></div>
+                {readyToShop ? <CheckCircle2 className="check-ready" /> : <AlertTriangle className="check-warning" />}
+              </header>
+              <div className="publishing-steps">
+                {publishSteps.map((step) => <article key={step.label}>
+                  {step.ready ? <CheckCircle2 className="check-ready" /> : <AlertTriangle className="check-warning" />}
+                  <span><b>{step.label}</b><small>{step.ready ? "Passed" : "Needs attention"}</small></span>
+                  {!step.ready && <Link href={step.fix}>{step.action} <ArrowRight /></Link>}
+                </article>)}
+              </div>
+              <h3>Store-by-store offer check</h3>
+              {offers.length ? <div className="publishing-offers">{offers.map((offer) => {
+                const visible = customerOfferIds.has(offer.id);
+                const approved = approvedOfferIds.has(offer.id);
+                const issue = !product.is_active ? "Publish the product first" : offer.status !== "active" ? "Activate this offer" : !offer.merchants?.is_active ? "Activate the store" : !(Number(offer.current_price) > 0) ? "Add a positive price" : !offer.destination_url?.trim() ? "Add a destination URL" : !visible ? "Offer is not visible in the customer catalogue" : "Destination needs approval";
+                return <article key={offer.id}>
+                  <span><b>{offer.merchants?.name || "Unlinked store"}</b><small>{offer.status} · {money(offer.current_price)}</small></span>
+                  <em className={visible && approved ? "passed" : "failed"}>{visible && approved ? "Customer offer and tracked link ready" : issue}</em>
+                  {visible && approved ? <Link href={`/out/${offer.id}?source=admin-preview`}>Preview handoff <ArrowRight /></Link> : <Link href={`/admin/products/${product.id}?section=offers`}>Review offer <ArrowRight /></Link>}
+                </article>;
+              })}</div> : <p className="product-save-error">No store offers are connected yet.</p>}
+              {readyToShop && <footer><Link href={`/product/${product.slug}`}>Open customer product page <ArrowRight /></Link>{visibleOffers.filter((offer) => approvedOfferIds.has(offer.id)).map((offer) => <Link key={offer.id} href={`/store/${offer.merchants?.slug}`}>View in {offer.merchants?.name || "store"} <ArrowRight /></Link>)}</footer>}
             </section>
           )}
           {active === "history" && (

@@ -54,6 +54,11 @@ export async function getCatalogOffers(filters: CatalogFilters = {}) {
     .from("offers")
     .select(selection)
     .eq("status", "active")
+    .eq("products.is_active", true)
+    .eq("merchants.is_active", true)
+    .gt("current_price", 0)
+    .not("destination_url", "is", null)
+    .neq("destination_url", "")
     .order("current_price", { ascending: true });
   if (filters.store) query = query.eq("merchants.slug", filters.store);
   if (filters.category)

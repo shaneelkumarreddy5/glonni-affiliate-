@@ -196,6 +196,47 @@
 .product-detail-tabs svg {
   width: 15px;
 }
+.product-publishing-check {
+  border: 1px solid #dfe7f2;
+  border-radius: 14px;
+  background: #fff;
+  padding: 24px;
+  color: #1b2940;
+}
+.product-publishing-check > header,
+.publishing-steps article,
+.publishing-offers article,
+.product-publishing-check footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.product-publishing-check > header { padding-bottom: 22px; border-bottom: 1px solid #e4eaf4; }
+.product-publishing-check > header p { color: #5a6e91; font-size: 11px; font-weight: 800; letter-spacing: .1em; }
+.product-publishing-check h2 { font-size: 23px; margin: 4px 0 8px; }
+.product-publishing-check h3 { font-size: 17px; margin: 28px 0 10px; }
+.product-publishing-check > header span,
+.publishing-steps small,
+.publishing-offers small { color: #66758b; font-size: 13px; }
+.publishing-steps article,
+.publishing-offers article { padding: 16px 0; border-bottom: 1px solid #e9edf4; }
+.publishing-steps article > span,
+.publishing-offers article > span { flex: 1; display: grid; gap: 4px; }
+.product-publishing-check .check-ready { color: #168552; }
+.product-publishing-check .check-warning { color: #c98018; }
+.publishing-steps svg,
+.product-publishing-check > header > svg { width: 23px; height: 23px; flex: none; }
+.product-publishing-check a { color: #145ac6; font-size: 13px; font-weight: 750; display: inline-flex; gap: 5px; align-items: center; }
+.product-publishing-check a svg { width: 15px; height: 15px; }
+.publishing-offers em { font-size: 12px; font-style: normal; font-weight: 700; }
+.publishing-offers em.passed { color: #168552; }
+.publishing-offers em.failed { color: #ae6b0f; }
+.product-publishing-check footer { justify-content: flex-start; flex-wrap: wrap; padding-top: 22px; }
+@media (max-width: 760px) {
+  .publishing-steps article, .publishing-offers article { flex-wrap: wrap; }
+  .publishing-steps article a, .publishing-offers article a { margin-left: 39px; }
+}
 .product-admin-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
