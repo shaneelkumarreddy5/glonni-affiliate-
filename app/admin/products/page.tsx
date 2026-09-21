@@ -29,6 +29,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ManualEntryWizard, type ManualStep } from "./manual-entry-wizard";
 import { AiDiscoveryWorkspace } from "@/components/ai-discovery-workspace";
 import {
+  addMockFeedItem,
   createProductFeed,
   importProductSpreadsheet,
   requestFeedRunReview,
@@ -869,8 +870,8 @@ type ProductFeedRun = {
   started_at: string;
   product_feeds: { name: string } | null;
 };
-function ScheduledFeedsWorkspace({ feeds, runs, providers, success, error }: { feeds: ProductFeed[]; runs: ProductFeedRun[]; providers: { id: string; name: string; is_active: boolean }[]; success?: string; error?: string }) {
-  return <FocusedHeader icon={Clock3} eyebrow="SCHEDULED FEEDS" title="Manage recurring product feeds" text="Approve every feed configuration and review every feed run before catalogue changes are accepted.">
+function ScheduledFeedsWorkspace({ feeds, runs, providers, products, categories, merchants, mockItems, success, error }: { feeds: ProductFeed[]; runs: ProductFeedRun[]; providers: { id: string; name: string; is_active: boolean }[]; products: Product[]; categories: ProductCategory[]; merchants: Merchant[]; mockItems: { id: string; feed_id: string; title: string }[]; success?: string; error?: string }) {
+  return <FocusedHeader icon={Clock3} eyebrow="SCHEDULED FEEDS" title="Manage recurring product feeds" text="Mock feeds run on schedule; each staged change requires admin approval before it affects the catalogue. Live provider URLs remain inactive in mock mode.">
     {success && <p className="product-queue-message success"><CheckCircle2 />{success}</p>}
     {error && <p className="product-queue-message error"><AlertTriangle />{error}</p>}
     <section className="feed-management-grid">
@@ -878,8 +879,8 @@ function ScheduledFeedsWorkspace({ feeds, runs, providers, success, error }: { f
         <header><Clock3/><div><h3>Add scheduled feed</h3><p>The feed remains inactive until an administrator approves it.</p></div></header>
         <form action={createProductFeed}>
           <label>Feed name<input name="name" required placeholder="e.g. Cuelinks daily catalogue" /></label>
-          <label>Affiliate provider<select name="providerId" required defaultValue=""><option value="" disabled>Choose provider</option>{providers.filter((provider) => provider.is_active).map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}</select></label>
-          <label className="feed-url-field">Secure feed URL<input name="feedUrl" type="url" required placeholder="https://provider.example/products.csv" /></label>
+          <label>Affiliate provider<select name="providerId" defaultValue=""><option value="">None for mock test</option>{providers.filter((provider) => provider.is_active).map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}</select></label>
+          <label className="feed-url-field">Feed source<input name="feedUrl" type="text" defaultValue="mock://catalogue" required /><small>Use mock://catalogue for testing. HTTPS provider feeds are saved but not fetched until live integration.</small></label>
           <label>File format<select name="fileFormat" defaultValue="csv"><option value="csv">CSV</option><option value="xlsx">XLSX</option><option value="json">JSON</option><option value="xml">XML</option></select></label>
           <label>Frequency<select name="frequency" defaultValue="daily"><option value="manual">Manual only</option><option value="6_hours">Every 6 hours</option><option value="12_hours">Every 12 hours</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
           <button type="submit">Submit for approval <ArrowRight /></button>
@@ -890,10 +891,11 @@ function ScheduledFeedsWorkspace({ feeds, runs, providers, success, error }: { f
         <div className="feed-list">
           {feeds.length ? feeds.map((feed) => <section key={feed.id}>
             <div className="feed-list-main"><FileSpreadsheet/><span><strong>{feed.name}</strong><small>{feed.affiliate_providers?.name || "Provider unavailable"} · {feed.file_format.toUpperCase()} · {feed.frequency.replaceAll("_", " ")}</small></span><em className={feed.status}>{feed.status.replaceAll("_", " ")}</em></div>
-            <div className="feed-list-meta"><span><b>Last run</b>{feed.last_run_at ? new Date(feed.last_run_at).toLocaleString("en-IN") : "Not run yet"}</span><span><b>Source</b>{new URL(feed.feed_url).hostname}</span></div>
+            <div className="feed-list-meta"><span><b>Last run</b>{feed.last_run_at ? new Date(feed.last_run_at).toLocaleString("en-IN") : "Not run yet"}</span><span><b>Next run</b>{feed.next_run_at ? new Date(feed.next_run_at).toLocaleString("en-IN") : "Not scheduled"}</span><span><b>Source</b>{feed.feed_url.startsWith("mock://") ? "Mock feed" : new URL(feed.feed_url).hostname}</span></div>
             {feed.review_note && <p className="feed-review-note">Review note: {feed.review_note}</p>}
+            {feed.feed_url.startsWith("mock://") && <details className="feed-mock-items"><summary>Mock feed items ({mockItems.filter((item) => item.feed_id === feed.id).length})</summary><div>{mockItems.filter((item) => item.feed_id === feed.id).map((item) => <small key={item.id}>{item.title}</small>)}<form action={addMockFeedItem}><input type="hidden" name="feedId" value={feed.id}/><input name="title" required placeholder="Product name"/><input name="brand" placeholder="Brand (optional)"/><select name="categoryId" required defaultValue=""><option value="" disabled>Category</option>{categories.map((category) => <option value={category.id} key={category.id}>{categoryOptionLabel(category)}</option>)}</select><select name="merchantId" required defaultValue=""><option value="" disabled>Store</option>{merchants.filter((merchant) => merchant.is_active).map((merchant) => <option value={merchant.id} key={merchant.id}>{merchant.name}</option>)}</select><select name="matchProductId" defaultValue=""><option value="">New product draft</option>{products.slice(0,100).map((product) => <option value={product.id} key={product.id}>Update: {product.title}</option>)}</select><input name="price" type="number" min="0.01" step="0.01" required placeholder="Price in ₹"/><input name="destinationUrl" type="url" required placeholder="https://store.example/product"/><input name="imageUrl" type="url" placeholder="Image URL (optional)"/><button type="submit">Add mock item</button></form></div></details>}
             <div className="feed-actions">
-              {feed.status === "pending_approval" ? <details><summary>Review feed</summary><form action={reviewProductFeed}><input type="hidden" name="feedId" value={feed.id}/><textarea name="note" placeholder="Reason required when rejecting"/><div><button name="decision" value="approve" className="approve">Approve & activate</button><button name="decision" value="reject" className="reject">Reject</button></div></form></details> : feed.status === "active" ? <><form action={requestFeedRunReview}><input type="hidden" name="feedId" value={feed.id}/><button>Run & review now</button></form><form action={toggleProductFeed}><input type="hidden" name="feedId" value={feed.id}/><input type="hidden" name="status" value="paused"/><button>Pause</button></form></> : feed.status === "paused" ? <form action={toggleProductFeed}><input type="hidden" name="feedId" value={feed.id}/><input type="hidden" name="status" value="active"/><button>Resume</button></form> : null}
+              {feed.status === "pending_approval" ? <details><summary>Review feed</summary><form action={reviewProductFeed}><input type="hidden" name="feedId" value={feed.id}/><textarea name="note" placeholder="Reason required when rejecting"/><div><button name="decision" value="approve" className="approve">Approve & activate</button><button name="decision" value="reject" className="reject">Reject</button></div></form></details> : feed.status === "active" ? <>{feed.feed_url.startsWith("mock://") && <form action={requestFeedRunReview}><input type="hidden" name="feedId" value={feed.id}/><button>Stage mock run now</button></form>}<form action={toggleProductFeed}><input type="hidden" name="feedId" value={feed.id}/><input type="hidden" name="status" value="paused"/><button>Pause</button></form></> : feed.status === "paused" ? <form action={toggleProductFeed}><input type="hidden" name="feedId" value={feed.id}/><input type="hidden" name="status" value="active"/><button>Resume</button></form> : null}
             </div>
           </section>) : <div className="workflow-empty"><Clock3/><span><b>No scheduled feeds</b><small>Add the first provider feed using the form.</small></span></div>}
         </div>
@@ -1073,6 +1075,7 @@ export default async function ProductsPage({
     s.from("product_feeds").select("id,name,feed_url,file_format,frequency,status,last_run_at,next_run_at,review_note,affiliate_providers(name)").order("created_at", { ascending: false }),
     s.from("product_feed_runs").select("id,feed_id,status,total_rows,valid_rows,invalid_rows,review_note,started_at,product_feeds(name)").order("started_at", { ascending: false }).limit(50),
   ]) : [{ data: [] }, { data: [] }];
+  const { data: mockFeedItems } = view === "feeds" ? await s.from("product_feed_mock_items").select("id,feed_id,title").order("created_at") : { data: [] };
   const { data: historyAiJobs } = view === "history" ? await s.from("ai_jobs").select("id,job_type,status,review_status,input,created_at,completed_at,latest_error,reviewed_by,review_note").in("job_type", ["product_discovery", "product_enrichment"]).order("created_at", { ascending: false }).limit(100) : { data: [] };
   const actorIds = view === "history" ? [...new Set([...(batches ?? []).flatMap((batch) => [batch.submitted_by, batch.approved_by]), ...(historyAiJobs ?? []).map((job) => job.reviewed_by)].filter((id): id is string => Boolean(id)))] : [];
   const { data: actorProfiles } = actorIds.length ? await s.from("profiles").select("id,display_name").in("id", actorIds) : { data: [] };
@@ -1155,7 +1158,7 @@ export default async function ProductsPage({
           ) : view === "bulk" ? (
             <BulkUploadWorkspace batches={(batches ?? []) as unknown as ImportBatch[]} providers={providers ?? []} activeBatchId={query.batch} rows={(batchRows ?? []) as ImportRow[]} success={query.success} error={query.error}/>
           ) : view === "feeds" ? (
-            <ScheduledFeedsWorkspace feeds={(productFeeds ?? []) as unknown as ProductFeed[]} runs={(productFeedRuns ?? []) as unknown as ProductFeedRun[]} providers={providers ?? []} success={query.success} error={query.error}/>
+            <ScheduledFeedsWorkspace feeds={(productFeeds ?? []) as unknown as ProductFeed[]} runs={(productFeedRuns ?? []) as unknown as ProductFeedRun[]} providers={providers ?? []} products={products} categories={categoryTree} merchants={merchants ?? []} mockItems={mockFeedItems ?? []} success={query.success} error={query.error}/>
           ) : view === "history" ? (
             <ImportHistoryWorkspace batches={(batches ?? []) as unknown as ImportBatch[]} rows={(batchRows ?? []) as ImportRow[]} aiJobs={(historyAiJobs ?? []) as HistoryAiJob[]} activeBatchId={query.batch} people={people} success={query.success} error={query.error}/>
           ) : view === "duplicates" ? (

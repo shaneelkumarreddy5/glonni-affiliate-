@@ -885,17 +885,19 @@ export async function createProductFeed(form: FormData) {
   const providerId = String(form.get("providerId") ?? "");
   const fileFormat = String(form.get("fileFormat") ?? "csv");
   const frequency = String(form.get("frequency") ?? "daily");
-  if (!name || !providerId || !feedUrl) redirect("/admin/products?view=feeds&error=Feed%20name%2C%20provider%20and%20URL%20are%20required");
-  try {
-    const parsed = new URL(feedUrl);
-    if (parsed.protocol !== "https:") throw new Error();
-  } catch {
-    redirect("/admin/products?view=feeds&error=Enter%20a%20valid%20HTTPS%20feed%20URL");
+  if (!name || !feedUrl || (!feedUrl.startsWith("mock://") && !providerId)) redirect("/admin/products?view=feeds&error=Feed%20name%20and%20source%20are%20required%3B%20live%20feeds%20also%20need%20a%20provider");
+  if (!feedUrl.startsWith("mock://")) {
+    try {
+      const parsed = new URL(feedUrl);
+      if (parsed.protocol !== "https:") throw new Error();
+    } catch {
+      redirect("/admin/products?view=feeds&error=Enter%20a%20valid%20mock%20or%20HTTPS%20feed%20URL");
+    }
   }
   if (!['csv','xlsx','json','xml'].includes(fileFormat) || !['manual','6_hours','12_hours','daily','weekly'].includes(frequency))
     redirect("/admin/products?view=feeds&error=Choose%20a%20valid%20format%20and%20frequency");
   const { data, error } = await supabase.from("product_feeds").insert({
-    provider_id: providerId,
+    provider_id: providerId || null,
     name,
     feed_url: feedUrl,
     file_format: fileFormat,
@@ -916,11 +918,15 @@ export async function reviewProductFeed(form: FormData) {
   const note = String(form.get("note") ?? "").trim();
   if (!feedId || !['approve','reject'].includes(decision)) throw new Error("A feed and review decision are required.");
   if (decision === "reject" && !note) redirect("/admin/products?view=feeds&error=Add%20a%20reason%20before%20rejecting%20the%20feed");
+  const { data: feed } = await supabase.from("product_feeds").select("feed_url,frequency,status").eq("id",feedId).single();
+  if (!feed || feed.status !== "pending_approval") redirect("/admin/products?view=feeds&error=This%20feed%20is%20not%20awaiting%20approval");
+  const { count: mockItemCount } = feed.feed_url.startsWith("mock://") ? await supabase.from("product_feed_mock_items").select("id",{ count: "exact", head: true }).eq("feed_id",feedId) : { count: 0 };
   const { error } = await supabase.from("product_feeds").update({
     status: decision === "approve" ? "active" : "rejected",
     reviewed_by: user.id,
     review_note: note || null,
     reviewed_at: new Date().toISOString(),
+    next_run_at: decision === "approve" && feed.feed_url.startsWith("mock://") && feed.frequency !== "manual" && (mockItemCount ?? 0) > 0 ? new Date().toISOString() : null,
     updated_at: new Date().toISOString(),
   }).eq("id", feedId);
   if (error) throw new Error(error.message);
@@ -934,7 +940,9 @@ export async function toggleProductFeed(form: FormData) {
   const feedId = String(form.get("feedId") ?? "");
   const status = String(form.get("status") ?? "");
   if (!feedId || !['active','paused'].includes(status)) throw new Error("A feed and valid status are required.");
-  const { error } = await supabase.from("product_feeds").update({ status, updated_at: new Date().toISOString() }).eq("id", feedId).in("status", ["active", "paused"]);
+  const { data: feed } = await supabase.from("product_feeds").select("feed_url,frequency").eq("id",feedId).single();
+  if (!feed) throw new Error("Feed not found.");
+  const { error } = await supabase.from("product_feeds").update({ status, next_run_at: status === "active" && feed.feed_url.startsWith("mock://") && feed.frequency !== "manual" ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq("id", feedId).in("status", ["active", "paused"]);
   if (error) throw new Error(error.message);
   await audit(supabase, user.id, `product_feed_${status}`, feedId, {});
   revalidatePath("/admin/products");
@@ -944,19 +952,36 @@ export async function toggleProductFeed(form: FormData) {
 export async function requestFeedRunReview(form: FormData) {
   const { supabase, user } = await requireProductAdmin();
   const feedId = String(form.get("feedId") ?? "");
-  const { data: feed } = await supabase.from("product_feeds").select("id,name,status,provider_id").eq("id", feedId).single();
+  const { data: feed } = await supabase.from("product_feeds").select("id,name,status,provider_id,feed_url").eq("id", feedId).single();
   if (!feed || feed.status !== "active") redirect("/admin/products?view=feeds&error=Only%20an%20active%20approved%20feed%20can%20be%20run");
+  if (!feed.feed_url.startsWith("mock://")) redirect("/admin/products?view=feeds&error=Live%20provider%20feed%20fetching%20is%20not%20enabled%20in%20mock%20mode");
+  const { count: pendingRuns } = await supabase.from("product_feed_runs").select("id",{ count: "exact", head: true }).eq("feed_id",feedId).eq("status","pending_review");
+  if ((pendingRuns ?? 0) > 0) redirect("/admin/products?view=feeds&error=Review%20the%20previous%20feed%20run%20before%20staging%20another");
+  const { data: items, error: itemError } = await supabase.from("product_feed_mock_items").select("id,external_key,title,brand,category_id,merchant_id,destination_url,price,image_url,match_product_id").eq("feed_id",feedId).order("created_at");
+  if (itemError) throw new Error(itemError.message);
+  if (!items?.length) redirect("/admin/products?view=feeds&error=Add%20at%20least%20one%20mock%20feed%20item%20before%20running");
   const { data: batch, error: batchError } = await supabase.from("import_batches").insert({
     provider_id: feed.provider_id,
     source_type: "api",
     status: "approval_required",
     source_label: `${feed.name} validation run`,
-    total_rows: 0,
+    total_rows: items.length,
+    valid_rows: items.length,
     submitted_by: user.id,
     notes: "Feed run requested. Products remain blocked until this run is reviewed.",
   }).select("id").single();
   if (batchError || !batch) throw new Error(batchError?.message ?? "Unable to create feed run.");
-  const { error } = await supabase.from("product_feed_runs").insert({ feed_id: feedId, import_batch_id: batch.id, status: "pending_review", completed_at: new Date().toISOString() });
+  const { error: rowError } = await supabase.from("import_batch_rows").insert(items.map((item,index) => ({
+    batch_id: batch.id,
+    row_number: index + 1,
+    status: "valid",
+    raw_data: { source: "mock_feed", external_key: item.external_key },
+    normalized_data: { title: item.title, brand: item.brand, category_id: item.category_id, merchant_id: item.merchant_id, provider_id: feed.provider_id, product_url: item.destination_url, current_price: item.price, image_url: item.image_url, match_product_id: item.match_product_id },
+    validation_errors: [],
+    product_id: item.match_product_id,
+  })));
+  if (rowError) throw new Error(rowError.message);
+  const { error } = await supabase.from("product_feed_runs").insert({ feed_id: feedId, import_batch_id: batch.id, status: "pending_review", total_rows: items.length, valid_rows: items.length, completed_at: new Date().toISOString() });
   if (error) throw new Error(error.message);
   await supabase.from("product_feeds").update({ last_run_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", feedId);
   await audit(supabase, user.id, "product_feed_run_requested", feedId, { import_batch_id: batch.id });
@@ -971,13 +996,36 @@ export async function reviewProductFeedRun(form: FormData) {
   const note = String(form.get("note") ?? "").trim();
   if (!runId || !['approve','reject'].includes(decision)) throw new Error("A feed run and decision are required.");
   if (decision === "reject" && !note) redirect("/admin/products?view=feeds&error=Add%20a%20reason%20before%20rejecting%20a%20feed%20run");
-  const { data: run } = await supabase.from("product_feed_runs").select("import_batch_id,feed_id").eq("id", runId).single();
+  const { data: run } = await supabase.from("product_feed_runs").select("import_batch_id,feed_id,status").eq("id", runId).single();
   if (!run) throw new Error("Feed run was not found.");
-  await supabase.from("product_feed_runs").update({ status: decision === "approve" ? "approved" : "rejected", review_note: note || null, reviewed_by: user.id, reviewed_at: new Date().toISOString() }).eq("id", runId);
-  if (run.import_batch_id) await supabase.from("import_batches").update({ status: decision === "approve" ? "approved" : "rejected", approved_by: decision === "approve" ? user.id : null, notes: note || undefined, updated_at: new Date().toISOString() }).eq("id", run.import_batch_id);
+  if (run.status !== "pending_review") redirect("/admin/products?view=feeds&error=This%20feed%20run%20has%20already%20been%20reviewed");
+  const { error: applyError } = await supabase.rpc("review_mock_product_feed_run", { p_run_id: runId, p_approve: decision === "approve", p_note: note || null });
+  if (applyError) throw new Error(applyError.message);
   await audit(supabase, user.id, `product_feed_run_${decision}d`, run.feed_id, { run_id: runId, note });
   revalidatePath("/admin/products");
   redirect(`/admin/products?view=feeds&success=Feed%20run%20${decision === "approve" ? "approved" : "rejected"}`);
+}
+
+export async function addMockFeedItem(form: FormData) {
+  const { supabase, user } = await requireProductAdmin();
+  const feedId = String(form.get("feedId") ?? "");
+  const title = String(form.get("title") ?? "").trim();
+  const price = Number(form.get("price"));
+  const categoryId = String(form.get("categoryId") ?? "");
+  const merchantId = String(form.get("merchantId") ?? "");
+  const destinationUrl = String(form.get("destinationUrl") ?? "").trim();
+  const imageUrl = String(form.get("imageUrl") ?? "").trim();
+  const matchProductId = String(form.get("matchProductId") ?? "") || null;
+  const { data: feed } = await supabase.from("product_feeds").select("id,feed_url,status,frequency").eq("id", feedId).single();
+  if (!feed?.feed_url.startsWith("mock://")) redirect("/admin/products?view=feeds&error=Mock%20items%20can%20only%20be%20added%20to%20mock%20feeds");
+  if (!title || !categoryId || !merchantId || !Number.isFinite(price) || price <= 0 || !destinationUrl.startsWith("https://") || (imageUrl && !imageUrl.startsWith("https://")))
+    redirect("/admin/products?view=feeds&error=Complete%20the%20mock%20item%20with%20a%20positive%20price%20and%20HTTPS%20links");
+  const { error } = await supabase.from("product_feed_mock_items").insert({ feed_id: feedId, external_key: crypto.randomUUID(), title, brand: String(form.get("brand") ?? "").trim() || null, category_id: categoryId, merchant_id: merchantId, destination_url: destinationUrl, price, image_url: imageUrl || null, match_product_id: matchProductId });
+  if (error) throw new Error(error.message);
+  if (feed.status === "active" && feed.frequency !== "manual") await supabase.from("product_feeds").update({ next_run_at: new Date().toISOString() }).eq("id",feedId);
+  await audit(supabase,user.id,"mock_feed_item_added",feedId,{ title, match_product_id: matchProductId });
+  revalidatePath("/admin/products");
+  redirect("/admin/products?view=feeds&success=Mock%20feed%20item%20added");
 }
 
 export async function reviewDuplicateProducts(form: FormData) {
