@@ -8,6 +8,7 @@ declare
   v_feed_id uuid;
   first_run_id uuid;
   second_run_id uuid;
+  third_run_id uuid;
   v_batch_id uuid;
   v_product_id uuid;
   result_count integer;
@@ -41,12 +42,28 @@ begin
     or (select match_product_id from public.product_feed_mock_items where product_feed_mock_items.feed_id=v_feed_id) is distinct from v_product_id then
     raise exception 'Approval did not preserve draft, offer, price history and repeat-run match';
   end if;
+  if (select count(*) from public.products where id=v_product_id and is_active=false)<>1 then
+    raise exception 'Approved feed draft is missing from the global catalogue';
+  end if;
+  update public.product_feed_mock_items set price=79 where feed_id=v_feed_id;
   update public.product_feeds set next_run_at=now()-interval '1 minute' where id=v_feed_id;
   perform private.stage_due_mock_product_feeds();
   select id into second_run_id from public.product_feed_runs where product_feed_runs.feed_id=v_feed_id and status='pending_review' limit 1;
   if second_run_id is null then raise exception 'Second run was not staged'; end if;
-  perform public.review_mock_product_feed_run(second_run_id,false,'Smoke rejection');
-  if (select count(*) from public.product_price_history where product_price_history.product_id=v_product_id)<>1 then
+  select public.review_mock_product_feed_run(second_run_id,true,'Smoke price change') into result_count;
+  if result_count<>1
+    or (select current_price from public.offers where product_id=v_product_id limit 1)<>79
+    or (select count(*) from public.product_price_history where product_price_history.product_id=v_product_id)<>2 then
+    raise exception 'Approved price change was not reflected in offer and history';
+  end if;
+  update public.product_feed_mock_items set price=59 where feed_id=v_feed_id;
+  update public.product_feeds set next_run_at=now()-interval '1 minute' where id=v_feed_id;
+  perform private.stage_due_mock_product_feeds();
+  select id into third_run_id from public.product_feed_runs where product_feed_runs.feed_id=v_feed_id and status='pending_review' limit 1;
+  if third_run_id is null then raise exception 'Third run was not staged'; end if;
+  perform public.review_mock_product_feed_run(third_run_id,false,'Smoke rejection');
+  if (select current_price from public.offers where product_id=v_product_id limit 1)<>79
+    or (select count(*) from public.product_price_history where product_price_history.product_id=v_product_id)<>2 then
     raise exception 'Rejected run changed price history';
   end if;
 end;
