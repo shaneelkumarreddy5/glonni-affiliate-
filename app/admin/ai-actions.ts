@@ -31,8 +31,27 @@ export async function addOwnerInstruction(formData: FormData) {
   const { supabase, user } = await requireOwner();
   const instruction = String(formData.get('instruction') ?? '').trim();
   const scope = String(formData.get('scope') ?? 'all_agents');
+  const requestedRedirect = String(formData.get('redirectTo') ?? '/admin/ai-agents');
+  const redirectTo = requestedRedirect.startsWith('/admin/ai-agents') ? requestedRedirect : '/admin/ai-agents';
   if (instruction.length < 3) redirect('/admin/ai-agents?error=Enter+a+clear+instruction.');
   const { error } = await supabase.from('ai_owner_instructions').insert({ instruction, scope, issued_by: user.id });
-  if (error) redirect(`/admin/ai-agents?error=${enc(error.message)}`);
-  revalidatePath('/admin/ai-agents'); redirect('/admin/ai-agents?success=Owner+instruction+saved+for+future+AI+workflows.');
+  if (error) redirect(`${redirectTo}${redirectTo.includes('?') ? '&' : '?'}error=${enc(error.message)}`);
+  revalidatePath('/admin/ai-agents'); revalidatePath('/admin/ai-agents/ceo-operations');
+  redirect(`${redirectTo}${redirectTo.includes('?') ? '&' : '?'}success=Instruction+saved+for+future+AI+workflows.`);
+}
+
+export async function toggleAiAgent(formData: FormData) {
+  const { supabase } = await requireOwner();
+  const agentKey = String(formData.get('agentKey') ?? '');
+  const enabled = String(formData.get('enabled') ?? '') === 'true';
+  if (!agentKey) redirect('/admin/ai-agents/ceo-operations?error=Missing+agent.');
+  const { error } = await supabase.from('ai_agents').update({
+    is_enabled: enabled,
+    runtime_status: enabled ? 'idle' : 'disabled',
+    operating_mode: enabled ? 'approval_required' : 'not_connected',
+    updated_at: new Date().toISOString(),
+  }).eq('key', agentKey);
+  if (error) redirect(`/admin/ai-agents/ceo-operations?error=${enc(error.message)}`);
+  revalidatePath('/admin/ai-agents/ceo-operations'); revalidatePath('/admin/ai-agents');
+  redirect(`/admin/ai-agents/ceo-operations?success=Agent+${enabled ? 'started' : 'stopped'}.`);
 }

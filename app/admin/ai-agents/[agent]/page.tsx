@@ -1,4 +1,5 @@
 import { AdminSidebar } from '@/components/admin-sidebar';
+import { CeoOperationsPage } from '../ceo-page';
 import { createClient } from '@/lib/supabase/server';
 import { AlertTriangle, ArrowRight, Bell, Bot, CheckCircle2, CircleDollarSign, FileSearch, ListChecks, Megaphone, PackageSearch, ShieldCheck, Store, UsersRound } from 'lucide-react';
 
@@ -17,8 +18,9 @@ const agents = {
 const statusLabel = (status?: string | null) => status === 'not_connected' ? 'Not connected' : status === 'failed' ? 'Needs attention' : status === 'running' ? 'Running' : 'Idle';
 const formatTime = (value?: string | null) => value ? new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'Never run';
 
-export default async function AiAgentPage({ params }: { params: Promise<{ agent: string }> }) {
+export default async function AiAgentPage({ params, searchParams }: { params: Promise<{ agent: string }>; searchParams: Promise<{ tab?: string; agent?: string; success?: string; error?: string }> }) {
   const slug = (await params).agent as keyof typeof agents;
+  if (slug === 'ceo-operations') return <CeoOperationsPage searchParams={searchParams}/>;
   const config = agents[slug] ?? agents['ceo-operations'];
   const supabase = await createClient();
   const [{ data: agent }, { data: jobs }, { data: work }] = await Promise.all([
