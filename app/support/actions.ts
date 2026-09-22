@@ -8,16 +8,32 @@ export async function createSupportTicket(formData: FormData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login?next=/support/requests');
   const category = String(formData.get('category') ?? 'other');
+  const sourceChannel = String(formData.get('sourceChannel') ?? 'email');
   const subject = String(formData.get('subject') ?? '').trim();
   const message = String(formData.get('message') ?? '').trim();
-  if (!['cashback','withdrawal','order','deal','account','security','other'].includes(category) || subject.length < 4 || subject.length > 180 || message.length < 10 || message.length > 5000) redirect('/support/requests?error=Please+add+a+clear+subject+and+message.#new-request');
-  const { data: ticket, error } = await supabase.from('support_tickets').insert({ profile_id: user.id, category, subject, escalation_reason: 'customer_requested_human_support' }).select('id').single();
+  if (!['cashback','withdrawal','order','deal','account','security','other'].includes(category) || !['chatbot','email','voice'].includes(sourceChannel) || subject.length < 4 || subject.length > 180 || message.length < 10 || message.length > 5000) redirect('/support/requests?error=Please+add+a+clear+subject+and+message.#new-request');
+  const { data: ticket, error } = await supabase.from('support_tickets').insert({ profile_id: user.id, category, subject, source_channel: sourceChannel, support_state: 'needs_human_review', escalation_reason: 'customer_requested_human_support' }).select('id').single();
   if (error || !ticket) redirect('/support/requests?error=We+could+not+open+your+request.+Please+try+again.#new-request');
   const { error: messageError } = await supabase.from('support_messages').insert({ ticket_id: ticket.id, author_id: user.id, author_type: 'customer', body: message });
   if (messageError) redirect(`/support/requests/${ticket.id}?error=Your+request+was+opened,+but+the+message+could+not+be+saved.+Please+add+it+again.`);
   await supabase.from('activity_events').insert({ actor_id: user.id, surface: 'customer', event_type: 'support_ticket_opened', endpoint: '/support', http_method: 'POST', request_status: 201, entity_type: 'support_ticket', entity_id: ticket.id });
   revalidatePath('/support/requests'); revalidatePath('/account'); revalidatePath('/admin/support');
   redirect(`/support/requests/${ticket.id}?success=Your+support+request+is+open.+Our+team+will+reply+here.`);
+}
+
+export async function escalateAssistantQuestion(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login?next=/support');
+  const question = String(formData.get('question') ?? '').trim();
+  if (question.length < 4 || question.length > 5000) redirect('/support?error=Please+add+more+detail+so+our+team+can+help.');
+  const subject = question.length > 150 ? `${question.slice(0, 147)}...` : question;
+  const { data: ticket, error } = await supabase.from('support_tickets').insert({ profile_id: user.id, category: 'other', subject, source_channel: 'chatbot', support_state: 'needs_human_review', escalation_reason: 'Ask Glonni could not answer safely.' }).select('id').single();
+  if (error || !ticket) redirect('/support?error=We+could+not+open+human+review.+Please+try+again.');
+  const { error: messageError } = await supabase.from('support_messages').insert({ ticket_id: ticket.id, author_id: user.id, author_type: 'customer', body: question });
+  if (messageError) redirect(`/support/requests/${ticket.id}?error=Your+request+was+opened,+but+the+message+could+not+be+saved.`);
+  revalidatePath('/support'); revalidatePath('/support/requests'); revalidatePath('/admin/support');
+  redirect(`/support/requests/${ticket.id}?success=Human+review+has+been+opened+from+your+chat.`);
 }
 
 export async function replyToSupportTicket(formData: FormData) {
@@ -27,7 +43,7 @@ export async function replyToSupportTicket(formData: FormData) {
   if(!user)redirect(`/login?next=${encodeURIComponent(`/support/requests/${ticketId}`)}`);
   const body=String(formData.get('message')??'').trim();
   if(body.length<2||body.length>5000)redirect(`/support/requests/${ticketId}?error=Write+a+message+between+2+and+5,000+characters.`);
-  const{data:ticket}=await supabase.from('support_tickets').select('id,status').eq('id',ticketId).eq('profile_id',user.id).maybeSingle();
+  const{data:ticket}=await supabase.from('support_tickets').select('id,status,support_state').eq('id',ticketId).eq('profile_id',user.id).maybeSingle();
   if(!ticket)redirect('/support/requests?error=That+support+request+could+not+be+found.');
   if(['resolved','closed'].includes(ticket.status))redirect(`/support/requests/${ticketId}?error=This+request+is+closed.+Open+a+new+request+if+you+still+need+help.`);
   const{error}=await supabase.from('support_messages').insert({ticket_id:ticketId,author_id:user.id,author_type:'customer',body});
