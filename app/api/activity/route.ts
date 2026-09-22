@@ -21,3 +21,13 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: 'Activity could not be recorded' }, { status: 500 });
   return NextResponse.json({ ok: true }, { status: 202 });
 }
+
+export async function GET() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from('activity_events').select('occurred_at,actor_role,surface,event_type,endpoint,http_method,request_status,response_time_ms,error_details').order('occurred_at', { ascending: false }).limit(1000);
+  if (error) return NextResponse.json({ error: 'Activity export could not be prepared' }, { status: 500 });
+  const header = ['occurred_at', 'actor_role', 'surface', 'event_type', 'endpoint', 'http_method', 'request_status', 'response_time_ms', 'error_details'];
+  const escape = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+  const csv = [header.join(','), ...(data ?? []).map((row) => header.map((key) => escape((row as Record<string, unknown>)[key])).join(','))].join('\n');
+  return new NextResponse(csv, { status: 200, headers: { 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="glonni-activity-log.csv"', 'Cache-Control': 'no-store' } });
+}
