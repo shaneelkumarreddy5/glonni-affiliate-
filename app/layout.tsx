@@ -17,5 +17,6 @@ import './admin-interactions.css';
 import './customer-states.css';
 import './customer-accessibility.css';
 import './admin-dashstack-theme.css';
+import './admin-support.css';
 export const metadata: Metadata = { title: 'Glonni | Discover better deals', description: 'Provider-neutral product discovery and deals.' };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) { return <html lang="en"><body><ActivityTracker/><AdminMockMode>{children}</AdminMockMode><SiteFooter/></body></html>; }
