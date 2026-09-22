@@ -3,17 +3,29 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
-  BarChart3, Bell, Bot, Boxes, Building2, Cable, ChartNoAxesCombined, Clock3, Headphones,
+  BarChart3, Bell, Bot, Boxes, Building2, BriefcaseBusiness, Cable, ChartNoAxesCombined, Clock3, Headphones,
   ChevronDown, ChevronLeft, ClipboardCheck, FolderKanban, Gift, KeyRound,
   LogOut, Megaphone, Package, PlugZap, ReceiptText, Search, Settings, Share2, ShieldCheck, Store, FileClock, Scale, GitCompareArrows,
-  Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote, FlaskConical,
+  Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote, FlaskConical, FileSearch, ShoppingBag, PenTool,
 } from 'lucide-react';
 import { AdminTabRepair } from '@/components/admin-tab-repair';
 import { AdminActionRepair } from '@/components/admin-action-repair';
 import { CampaignUiRepair } from '@/components/campaign-ui-repair';
 
 const sections = [
-  { title: 'AI COMPANY', icon: Bot, links: [{ label: 'AI Agents', href: '/admin/ai-agents', icon: Bot }, { label: 'AI Providers', href: '/admin/ai-providers', icon: Cable }, { label: 'AI Quality Control', href: '/admin/ai-quality', icon: FlaskConical }, { label: 'Product Freshness', href: '/admin/product-freshness', icon: Clock3 }, { label: 'Change Approvals', href: '/admin/product-changes', icon: GitCompareArrows }, { label: 'Approval Inbox', href: '/admin/approvals', icon: ClipboardCheck }] },
+  { title: 'AI COMPANY', icon: Bot, links: [
+    { label: 'AI Agents', href: '/admin/ai-agents', icon: Bot },
+    { label: 'CEO & Operations Manager', href: '/admin/ai-agents/ceo-operations', icon: Building2 },
+    { label: 'Affiliate Partnerships', href: '/admin/ai-agents/affiliate-partnerships', icon: BriefcaseBusiness },
+    { label: 'Provider Policy & Compliance', href: '/admin/ai-agents/provider-compliance', icon: FileSearch },
+    { label: 'Catalogue & Merchandising', href: '/admin/ai-agents/catalogue-merchandising', icon: ShoppingBag },
+    { label: 'Content & Experience', href: '/admin/ai-agents/content-experience', icon: PenTool },
+    { label: 'Marketing Manager', href: '/admin/ai-agents/marketing', icon: Megaphone },
+    { label: 'Finance, Cashback & Risk', href: '/admin/ai-agents/finance-cashback-risk', icon: Banknote },
+    { label: 'Fraud & Security', href: '/admin/ai-agents/fraud-security', icon: ShieldCheck },
+    { label: 'Customer Operations & Trust', href: '/admin/ai-agents/customer-operations', icon: UsersRound },
+    { label: 'AI Providers', href: '/admin/ai-providers', icon: Cable },
+    { label: 'AI Quality Control', href: '/admin/ai-quality', icon: FlaskConical }, { label: 'Product Freshness', href: '/admin/product-freshness', icon: Clock3 }, { label: 'Change Approvals', href: '/admin/product-changes', icon: GitCompareArrows }, { label: 'Approval Inbox', href: '/admin/approvals', icon: ClipboardCheck }] },
   { title: 'OPERATIONS', icon: ChartNoAxesCombined, links: [
     { label: 'Dashboard', href: '/admin/dashboard', icon: ChartNoAxesCombined }, { label: 'Users', href: '/admin/users', icon: Users },
     { label: 'Wallet & Payouts', href: '/admin/wallet', icon: WalletCards }, { label: 'Payout Operations', href: '/admin/payout-operations', icon: Banknote }, { label: 'Offers & Rewards', href: '/admin/offers', icon: Gift },
