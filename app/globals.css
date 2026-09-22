@@ -34,15 +34,25 @@
 .header-saved>span{display:flex;align-items:center;gap:5px}
 .header-saved b{font:700 12px/14px 'DM Sans'}
 .header-saved small{display:grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:10px;background:var(--blue);color:#fff;font:800 9px 'DM Sans'}
+.header-notifications{position:relative;display:flex;align-items:center;gap:7px;min-height:38px;color:var(--ink)}
+.header-notifications>svg{width:21px;height:21px}
+.header-notifications>span{display:flex;align-items:center;gap:5px}
+.header-notifications b{font:700 12px/14px 'DM Sans'}
+.header-notifications small{display:grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:10px;background:var(--blue);color:#fff;font:800 9px 'DM Sans'}
 .mobile-saved{display:none;position:relative;color:var(--ink)}
 .mobile-saved svg{width:21px;height:21px}
 .mobile-saved small{position:absolute;right:-8px;top:-8px;display:grid;place-items:center;min-width:17px;height:17px;padding:0 4px;border:2px solid #fff;border-radius:10px;background:var(--blue);color:#fff;font:800 8px 'DM Sans'}
+.mobile-notifications{display:none;position:relative;color:var(--ink)}
+.mobile-notifications svg{width:21px;height:21px}
+.mobile-notifications small{position:absolute;right:-8px;top:-8px;display:grid;place-items:center;min-width:17px;height:17px;padding:0 4px;border:2px solid #fff;border-radius:10px;background:var(--blue);color:#fff;font:800 8px 'DM Sans'}
 .home-category-anchor{scroll-margin-top:18px}
 .customer-menu-layer{display:none}
 
 @media(max-width:900px){
   body.customer-menu-open{overflow:hidden}
   .mobile-saved{display:grid;place-items:center;margin-left:auto;margin-right:18px}
+  .mobile-notifications{display:grid;place-items:center;margin-right:18px}
+  .header-notifications{display:none}
   .mobile-profile{margin-left:0;margin-right:14px}
   .mobile-menu{padding:7px;margin:-7px;border-radius:8px;cursor:pointer}
   .mobile-menu:focus-visible,.customer-mobile-menu button:focus-visible,.customer-mobile-links a:focus-visible{outline:3px solid #9cbcff;outline-offset:2px}
