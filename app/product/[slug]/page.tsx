@@ -13,8 +13,9 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ContextualFaqs } from "@/components/contextual-faqs";
 import { CustomerPolicyAccordions, parseCustomerPolicy } from "@/components/customer-policy-accordions";
-import { CmsManagedSections } from "@/components/cms-managed-sections";
+import { CmsManagedSections, getPublishedWebsiteLayout } from "@/components/cms-managed-sections";
 import { safeReturnPath } from "@/lib/navigation";
+import { resolveWebsiteSectionOrder } from "@/lib/website-layout";
 import {
   Battery,
   Camera,
@@ -350,6 +351,9 @@ export default async function ProductPage({
           list.findIndex((x) => x.products?.slug === o.products?.slug) === i,
       )
       .slice(0, 5);
+  const layout = await getPublishedWebsiteLayout('product');
+  const sectionOrder = resolveWebsiteSectionOrder('product', layout.blocks, layout.section_order);
+  const sectionPositions = new Map(sectionOrder.map((token, index) => [token, index + 1]));
   const historyRows=(storedHistory??[]).map(row=>({price:Number(row.price),recordedAt:String(row.recorded_at)})).filter(row=>Number.isFinite(row.price)),
     storedPrices=historyRows.map(row=>row.price),
     historyLow=storedPrices.length?Math.min(...storedPrices):null,
@@ -374,14 +378,15 @@ export default async function ProductPage({
   return (
     <>
       <Header />
-      <main className={`pdp pdp-${view.kind}`}>
-        <BrowseNav
+      <main className={`pdp pdp-${view.kind}`} style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ order: 0 }}><BrowseNav
           items={[
             { label: parentLabel, href: parent },
             { label: product.title },
           ]}
           fallback={parent}
-        />
+        /></div>
+        <div style={{ order: sectionPositions.get('core:product_summary') ?? 1 }}>
         <section className="pdp-hero">
           <ProductGallery images={gallery} title={product.title}/>
           <div className="pdp-summary">
@@ -454,8 +459,8 @@ export default async function ProductPage({
             </a>
           </div>
         </section>
-        <CmsManagedSections pageKey="product" slot="after_summary" offers={allOffers}/>
-        <CmsManagedSections pageKey="product" slot="before_comparison" offers={allOffers}/>
+        </div>
+        <div style={{ order: sectionPositions.get('core:offer_comparison') ?? 2 }}>
         <section id="offers" className="pdp-card pdp-comparison">
           <header>
             <div>
@@ -536,6 +541,8 @@ export default async function ProductPage({
             })}
           </div>
         </section>
+        </div>
+        <div style={{ order: sectionPositions.get('core:price_history') ?? 3 }}>
         <section className="pdp-card pdp-history">
           <header>
             <div>
@@ -591,6 +598,8 @@ export default async function ProductPage({
           </small>
           </> : <div className="pdp-history-empty"><b>Price history is not available yet</b><span>Glonni will show a chart after verified price records have been collected.</span></div>}
         </section>
+        </div>
+        <div style={{ order: sectionPositions.get('core:specifications') ?? 4 }}>
         <section className="pdp-card pdp-specifications">
           <header>
             <div>
@@ -611,6 +620,8 @@ export default async function ProductPage({
             ))}
           </div> : <div className="pdp-section-empty"><b>Specifications have not been added</b><span>Confirm technical details on the selected store before purchasing.</span></div>}
         </section>
+        </div>
+        <div style={{ order: sectionPositions.get('core:product_information') ?? 5 }}>
         <section id="category-guide" className="pdp-information-grid">
           <article className="pdp-card">
             <h2>{view.guideTitle}</h2>
@@ -651,7 +662,11 @@ export default async function ProductPage({
             )) : <div className="pdp-section-empty"><b>Complete information is not available</b><span>{product.description || 'Verified product details will appear here after they are added.'}</span></div>}
           </article>
         </section>
+        </div>
+        <div style={{ order: sectionPositions.get('core:store_policies') ?? 6 }}>
         {merchantPolicies.length > 0 && <section className="pdp-merchant-policies"><header><p className="eyebrow">PURCHASE TERMS</p><h2>Terms for stores selling this product</h2><p>Select the store you plan to buy from and review the applicable Glonni, store and cashback terms.</p></header>{merchantPolicies.map(({merchant,policy})=><CustomerPolicyAccordions key={merchant.slug} storeName={merchant.name} policy={policy}/>)}</section>}
+        </div>
+        <div style={{ order: sectionPositions.get('core:product_faqs') ?? 7 }}>
         <ContextualFaqs
           faqs={
             (offerFaqs ?? []) as {
@@ -662,6 +677,8 @@ export default async function ProductPage({
             }[]
           }
         />
+        </div>
+        <div style={{ order: sectionPositions.get('core:related_products') ?? 8 }}>
         {related.length > 0 && (
           <section className="pdp-related">
             <header>
@@ -694,6 +711,8 @@ export default async function ProductPage({
             </div>
           </section>
         )}
+        </div>
+        <div style={{ order: sectionPositions.get('core:disclosure') ?? 9 }}>
         <p className="pdp-disclosure">
           Prices, ratings, history, availability and delivery notes may be
           preview data until live provider feeds are connected. Final price,
@@ -701,7 +720,8 @@ export default async function ProductPage({
           Glonni Cashback applies only to marked offers after successful
           tracking and merchant confirmation.
         </p>
-        <CmsManagedSections pageKey="product" slot="page_end" offers={allOffers}/>
+        </div>
+        {sectionOrder.filter((token) => token.startsWith('block:')).map((token) => <div key={token} style={{ order: sectionPositions.get(token) }}><CmsManagedSections pageKey="product" blockIds={[token.slice(6)]} offers={allOffers}/></div>)}
       </main>
     </>
   );

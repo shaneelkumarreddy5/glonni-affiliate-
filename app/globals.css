@@ -188,10 +188,10 @@ nav.deals-pagination{height:auto;min-height:52px;border:0;padding:0;margin-top:2
   .browse-nav>a,.browse-nav>.browse-crumb{display:none}
 }
 
-.admin-content.website-workspace-content{max-width:none;padding:19px 20px 36px}
+.admin-content.website-workspace-content{max-width:none;padding:8px 20px 24px}
 .website-workspace-main{min-width:0}
-.website-top .dashboard-mode{margin-left:auto;padding:6px 8px;border-radius:15px;background:#eef8f2;color:#21824e;font-size:8px;font-weight:800;letter-spacing:.4px}
-.website-page-title{align-items:center}
+.website-compact-header{min-height:36px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 5px}
+.website-compact-header h1{margin:0;color:#15213f;font:800 22px/1.15 'Plus Jakarta Sans',sans-serif;letter-spacing:-.6px}
 .website-open-link{display:inline-flex;align-items:center;justify-content:center;padding:10px 13px;border:1px solid #d9e2ef;border-radius:8px;background:#fff;color:#355276;font-size:11px;font-weight:800;white-space:nowrap}
 .website-access-note{margin-top:15px;padding:11px 13px;border:1px solid #f0d9a9;border-radius:9px;background:#fff9e9;color:#855c0e;font-size:11px}
-@media(max-width:700px){.admin-content.website-workspace-content{padding:13px 10px 28px}.website-page-title{align-items:flex-start}.website-open-link{justify-self:start}.website-top .dashboard-mode{display:none}}
+@media(max-width:700px){.admin-content.website-workspace-content{padding:6px 10px 20px}.website-compact-header{min-height:34px;align-items:center}.website-compact-header h1{font-size:20px}.website-open-link{padding:8px 10px;font-size:10px}}

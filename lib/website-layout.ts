@@ -6,6 +6,20 @@ export type WebsiteSlot =
   | 'store_after_intro' | 'store_before_products' | 'page_end'
   | 'after_summary' | 'before_comparison';
 
+export type WebsiteCoreSection = {
+  key: string;
+  title: string;
+  note: string;
+};
+
+export type WebsiteBannerSlide = {
+  title: string;
+  body: string;
+  image_url: string;
+  cta_label: string;
+  cta_href: string;
+};
+
 export type WebsiteBlockConfig = {
   slot?: WebsiteSlot;
   store_slug?: string;
@@ -20,6 +34,8 @@ export type WebsiteBlockConfig = {
   background?: string;
   starts_at?: string;
   ends_at?: string;
+  slide_count?: number;
+  slides?: WebsiteBannerSlide[];
 };
 
 export type WebsiteDraftBlock = {
@@ -35,7 +51,102 @@ export type WebsiteDraftBlock = {
   is_active: boolean;
 };
 
-export type WebsiteLayoutSnapshot = { blocks: WebsiteDraftBlock[] };
+export type WebsiteLayoutSnapshot = { blocks: WebsiteDraftBlock[]; section_order?: string[] };
+
+export const coreSectionsByPage: Record<WebsitePageKey, WebsiteCoreSection[]> = {
+  home: [
+    { key: 'hero', title: 'Main hero banners', note: 'Global hero content · movable, standard card styling' },
+    { key: 'categories', title: 'Categories', note: 'Live catalogue categories · standard card styling' },
+    { key: 'stores', title: 'Stores', note: 'Connected stores · standard card styling' },
+    { key: 'best_deals', title: 'Best deals', note: 'Active approved offers · standard product cards' },
+    { key: 'trending', title: 'Trending products', note: 'Active catalogue offers · standard product cards' },
+    { key: 'price_drops', title: 'Price drops', note: 'Active catalogue offers · standard product cards' },
+    { key: 'benefits', title: 'Glonni benefits', note: 'Shared site information' },
+  ],
+  stores: [
+    { key: 'store_intro', title: 'Store introduction', note: 'Connected store identity and live data' },
+    { key: 'store_products', title: 'Store products and filters', note: 'Approved offers · standard product cards' },
+    { key: 'store_policies', title: 'Store policies', note: 'Store and cashback terms' },
+    { key: 'store_faqs', title: 'Store FAQs', note: 'Active store-specific support answers' },
+  ],
+  product: [
+    { key: 'product_summary', title: 'Product summary', note: 'Canonical product details' },
+    { key: 'offer_comparison', title: 'Store offer comparison', note: 'Live offer and cashback details' },
+    { key: 'price_history', title: 'Price history', note: 'Recorded catalogue prices' },
+    { key: 'specifications', title: 'Specifications', note: 'Product data from the catalogue' },
+    { key: 'product_information', title: 'Product information', note: 'Description and buying guidance' },
+    { key: 'store_policies', title: 'Store policies', note: 'Store and cashback terms' },
+    { key: 'product_faqs', title: 'Product FAQs', note: 'Relevant customer support answers' },
+    { key: 'related_products', title: 'Related products', note: 'Related active catalogue products' },
+    { key: 'disclosure', title: 'Price and cashback disclosure', note: 'Customer-facing information' },
+  ],
+};
+
+const legacyPlacementByPage: Record<WebsitePageKey, Partial<Record<WebsiteSlot, { after?: string; before?: string }>>> = {
+  home: {
+    after_hero: { after: 'hero' }, after_categories: { after: 'categories' }, after_stores: { after: 'stores' },
+    after_best_deals: { after: 'best_deals' }, after_trending: { after: 'trending' }, after_price_drops: { after: 'price_drops' },
+    before_footer: { before: 'benefits' }, hero: { after: 'hero' },
+  },
+  stores: {
+    store_after_intro: { after: 'store_intro' }, store_before_products: { before: 'store_products' }, page_end: { after: 'store_products' },
+  },
+  product: {
+    after_summary: { after: 'product_summary' }, before_comparison: { before: 'offer_comparison' }, page_end: { after: 'disclosure' },
+  },
+};
+
+export function defaultWebsiteSectionOrder(page: WebsitePageKey, blocks: WebsiteDraftBlock[] = []) {
+  const core = coreSectionsByPage[page].map((section) => `core:${section.key}`);
+  const result = [...core];
+  const grouped = new Map<string, string[]>();
+  const before = new Map<string, string[]>();
+  for (const block of blocks) {
+    const placement = legacyPlacementByPage[page][block.config.slot ?? 'page_end'];
+    const anchor = placement?.after ?? placement?.before;
+    if (!anchor) continue;
+    const target = placement?.before ? before : grouped;
+    const entries = target.get(anchor) ?? [];
+    entries.push(`block:${block.id}`);
+    target.set(anchor, entries);
+  }
+  const order: string[] = [];
+  for (const key of result) {
+    const coreKey = key.slice(5);
+    order.push(...(before.get(coreKey) ?? []), key, ...(grouped.get(coreKey) ?? []));
+  }
+  const expected = new Set([...core, ...blocks.map((block) => `block:${block.id}`)]);
+  for (const token of expected) if (!order.includes(token)) order.push(token);
+  return order;
+}
+
+export function resolveWebsiteSectionOrder(page: WebsitePageKey, blocks: WebsiteDraftBlock[], savedOrder?: string[]) {
+  const fallback = defaultWebsiteSectionOrder(page, blocks);
+  if (!savedOrder?.length) return fallback;
+  const expected = new Set(fallback);
+  const order: string[] = [];
+  for (const token of savedOrder) if (expected.has(token) && !order.includes(token)) order.push(token);
+  for (const token of fallback) if (!order.includes(token)) order.push(token);
+  return order;
+}
+
+export function moveWebsiteSection(order: string[], token: string, targetIndex: number) {
+  const next = [...order];
+  const fromIndex = next.indexOf(token);
+  if (fromIndex < 0) return order;
+  const [moving] = next.splice(fromIndex, 1);
+  const insertionIndex = Math.max(0, Math.min(targetIndex - (fromIndex < targetIndex ? 1 : 0), next.length));
+  next.splice(insertionIndex, 0, moving);
+  return next;
+}
+
+export function insertWebsiteSection(order: string[], token: string, targetIndex: number) {
+  if (order.includes(token)) return order;
+  const next = [...order];
+  const insertionIndex = Math.max(0, Math.min(targetIndex, next.length));
+  next.splice(insertionIndex, 0, token);
+  return next;
+}
 
 export const websitePageOptions: { key: WebsitePageKey; label: string; slug: string; route: string }[] = [
   { key: 'home', label: 'Home page', slug: 'system-home', route: '/' },

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { slotsByPage, websitePageOptions, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey } from '@/lib/website-layout';
+import { coreSectionsByPage, defaultWebsiteSectionOrder, slotsByPage, websitePageOptions, type WebsiteBannerSlide, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey } from '@/lib/website-layout';
 
 export type WebsiteActionResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -76,7 +76,20 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
     const color = (candidate: unknown, fallback: string) => typeof candidate === 'string' && /^#[0-9a-f]{6}$/i.test(candidate) ? candidate : fallback;
     const startsAt = String(rawConfig.starts_at ?? '').trim();
     const endsAt = String(rawConfig.ends_at ?? '').trim();
+    const slideCount = Math.max(1, Math.min(10, Number(rawConfig.slide_count ?? 1) || 1));
+    const rawSlides = Array.isArray(rawConfig.slides) ? rawConfig.slides : [];
+    const slides: WebsiteBannerSlide[] = rawSlides.slice(0, slideCount - 1).map((candidate) => {
+      const slide = candidate && typeof candidate === 'object' ? candidate as Record<string, unknown> : {};
+      return {
+        title: String(slide.title ?? '').trim().slice(0, 120),
+        body: String(slide.body ?? '').trim().slice(0, 1800),
+        image_url: String(slide.image_url ?? '').trim().slice(0, 1000),
+        cta_label: String(slide.cta_label ?? '').trim().slice(0, 60),
+        cta_href: String(slide.cta_href ?? '').trim().slice(0, 500),
+      };
+    });
     if (mobileImage && !validImage(mobileImage)) return 'The mobile banner image must use a safe site path or HTTPS address.';
+    if (slides.some((slide) => !validImage(slide.image_url) || !validLink(slide.cta_href) || (slide.cta_label && !slide.cta_href))) return 'Each slide must use a safe image and button destination.';
     if ((type === 'store_rail' || (pageKey === 'stores' && storeSlug)) && !/^[a-z0-9-]{1,100}$/.test(storeSlug)) return 'Select a connected store for this store rail.';
     if (startsAt && Number.isNaN(Date.parse(startsAt))) return 'Choose a valid banner start date.';
     if (endsAt && Number.isNaN(Date.parse(endsAt))) return 'Choose a valid banner end date.';
@@ -106,13 +119,28 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
         background: color(rawConfig.background, '#f2f6ff'),
         starts_at: startsAt || undefined,
         ends_at: endsAt || undefined,
+        slide_count: type === 'hero' || type === 'banner' ? slideCount : undefined,
+        slides: type === 'hero' || type === 'banner' ? slides : undefined,
       },
     });
   }
   return output;
 }
 
-async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[]) {
+function normalizeOrder(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[], value: unknown) {
+  if (!Array.isArray(value)) return defaultWebsiteSectionOrder(pageKey, blocks);
+  const expected = new Set([
+    ...coreSectionsByPage[pageKey].map((section) => `core:${section.key}`),
+    ...blocks.map((block) => `block:${block.id}`),
+  ]);
+  const order = value.filter((item): item is string => typeof item === 'string');
+  if (order.length !== expected.size || new Set(order).size !== order.length || order.some((item) => !expected.has(item))) {
+    return 'Every page section must appear exactly once in the layout.';
+  }
+  return order;
+}
+
+async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[], sectionOrder: string[]) {
   const context = await authorizeWebsiteChange();
   if (!context.ok) return context;
   const { supabase, user } = context;
@@ -123,7 +151,7 @@ async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[])
   const { data: versions, error: versionsError } = await supabase.from('site_page_versions').select('version_number').eq('page_id', page.id).eq('change_note', 'workspace_draft').order('version_number', { ascending: false }).limit(1);
   if (versionsError) return { ok: false, error: 'Could not load the current draft version. Try again.' } as const;
   const versionNumber = Number(versions?.[0]?.version_number ?? 0) + 1;
-  const snapshot: WebsiteLayoutSnapshot = { blocks };
+  const snapshot: WebsiteLayoutSnapshot = { blocks, section_order: sectionOrder };
   const { error } = await supabase.from('site_page_versions').insert({ page_id: page.id, version_number: versionNumber, snapshot, change_note: 'workspace_draft', created_by: user.id });
   if (error) return { ok: false, error: 'The website draft could not be saved. Check your connection and try again.' } as const;
   return { ok: true, supabase, user, page, snapshot } as const;
@@ -131,20 +159,26 @@ async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[])
 
 export async function saveWebsiteDraft(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {
   if (!['home', 'stores', 'product'].includes(pageKey)) return { ok: false, error: 'Choose a supported website page.' };
-  const blocks = normalizeBlocks(pageKey, payload);
+  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown } : {};
+  const blocks = normalizeBlocks(pageKey, request.blocks);
   if (typeof blocks === 'string') return { ok: false, error: blocks };
-  const saved = await saveVersion(pageKey, blocks);
+  const sectionOrder = normalizeOrder(pageKey, blocks, request.section_order);
+  if (typeof sectionOrder === 'string') return { ok: false, error: sectionOrder };
+  const saved = await saveVersion(pageKey, blocks, sectionOrder);
   if (!saved.ok) return { ok: false, error: saved.error };
-  await saved.supabase.from('audit_events').insert({ actor_id: saved.user.id, event_type: 'website_layout_draft_saved', entity_type: 'site_page', entity_id: saved.page.id, source: 'admin_website_workspace', metadata: { page: pageKey, sections: blocks.length } });
+  await saved.supabase.from('audit_events').insert({ actor_id: saved.user.id, event_type: 'website_layout_draft_saved', entity_type: 'site_page', entity_id: saved.page.id, source: 'admin_website_workspace', metadata: { page: pageKey, sections: sectionOrder.length } });
   revalidatePath('/admin/workspace/website');
   return { ok: true, message: 'Draft saved. Customers still see the currently published page.' };
 }
 
 export async function publishWebsiteLayout(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {
   if (!['home', 'stores', 'product'].includes(pageKey)) return { ok: false, error: 'Choose a supported website page.' };
-  const blocks = normalizeBlocks(pageKey, payload);
+  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown } : {};
+  const blocks = normalizeBlocks(pageKey, request.blocks);
   if (typeof blocks === 'string') return { ok: false, error: blocks };
-  const saved = await saveVersion(pageKey, blocks);
+  const sectionOrder = normalizeOrder(pageKey, blocks, request.section_order);
+  if (typeof sectionOrder === 'string') return { ok: false, error: sectionOrder };
+  const saved = await saveVersion(pageKey, blocks, sectionOrder);
   if (!saved.ok) return { ok: false, error: saved.error };
   const publishedAt = new Date().toISOString();
   const { error } = await saved.supabase.from('site_pages').update({
@@ -157,7 +191,7 @@ export async function publishWebsiteLayout(pageKey: WebsitePageKey, payload: unk
     updated_at: publishedAt,
   }).eq('id', saved.page.id).select('id').maybeSingle();
   if (error) return { ok: false, error: 'Your draft was saved, but publishing did not complete. The customer page has not been changed.' };
-  await saved.supabase.from('audit_events').insert({ actor_id: saved.user.id, event_type: 'website_layout_published', entity_type: 'site_page', entity_id: saved.page.id, source: 'admin_website_workspace', metadata: { page: pageKey, sections: blocks.length } });
+  await saved.supabase.from('audit_events').insert({ actor_id: saved.user.id, event_type: 'website_layout_published', entity_type: 'site_page', entity_id: saved.page.id, source: 'admin_website_workspace', metadata: { page: pageKey, sections: sectionOrder.length } });
   revalidatePath('/');
   revalidatePath('/store/[slug]', 'page');
   revalidatePath('/product/[slug]', 'page');

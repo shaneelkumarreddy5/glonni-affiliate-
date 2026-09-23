@@ -3,21 +3,21 @@ import { createClient } from '@/lib/supabase/server';
 import { getCatalogOffers, getCategories, type CatalogOffer } from '@/lib/catalog';
 import { HomeOfferRail } from '@/components/home-offer-rail';
 import { systemPageSlug, type SystemPageKey } from '@/lib/system-pages';
-import type { WebsiteDraftBlock } from '@/lib/website-layout';
+import type { WebsiteDraftBlock, WebsiteLayoutSnapshot, WebsitePageKey } from '@/lib/website-layout';
 import styles from './cms-managed-sections.module.css';
 
 type ManagedBlock = WebsiteDraftBlock & { id: string };
-type LayoutSnapshot = { blocks?: ManagedBlock[] };
+type LayoutSnapshot = { blocks?: ManagedBlock[]; section_order?: string[] };
 
-const loadPublishedLayout = cache(async (pageKey: SystemPageKey) => {
+const loadPublishedLayout = cache(async (pageKey: SystemPageKey): Promise<WebsiteLayoutSnapshot> => {
   const supabase = await createClient();
   const { data: page } = await supabase.from('site_pages').select('id,published_layout').eq('slug', systemPageSlug(pageKey)).eq('status', 'published').maybeSingle();
-  if (!page) return [] as ManagedBlock[];
+  if (!page) return { blocks: [] };
   const snapshot = page.published_layout as LayoutSnapshot | null;
-  if (Array.isArray(snapshot?.blocks)) return snapshot.blocks;
+  if (Array.isArray(snapshot?.blocks)) return { blocks: snapshot.blocks, section_order: Array.isArray(snapshot.section_order) ? snapshot.section_order : undefined };
   // Backwards-compatible path for previously published CMS blocks.
   const { data } = await supabase.from('site_page_blocks').select('id,block_type,title,body,cta_label,cta_href,image_url,config,device_visibility,is_active').eq('page_id', page.id).eq('is_active', true).order('display_order');
-  return (data ?? []).map((item) => ({
+  const blocks = (data ?? []).map((item) => ({
     id: item.id,
     block_type: item.block_type,
     title: item.title ?? '',
@@ -29,7 +29,12 @@ const loadPublishedLayout = cache(async (pageKey: SystemPageKey) => {
     device_visibility: item.device_visibility as WebsiteDraftBlock['device_visibility'],
     is_active: item.is_active,
   })) as ManagedBlock[];
+  return { blocks };
 });
+
+export async function getPublishedWebsiteLayout(pageKey: WebsitePageKey) {
+  return loadPublishedLayout(pageKey);
+}
 
 const loadCatalogOffers = cache(async () => getCatalogOffers());
 const loadCatalogCategories = cache(async () => getCategories());
@@ -69,19 +74,22 @@ function offerOrder(offers: CatalogOffer[], sort: string) {
   return rows.sort((a, b) => ((a.current_price ?? Infinity) - (a.cashback_amount ?? 0)) - ((b.current_price ?? Infinity) - (b.cashback_amount ?? 0)));
 }
 
-export async function CmsManagedSections({ pageKey, slot, className = '', storeSlug, offers: suppliedOffers, fallback }: {
+export async function CmsManagedSections({ pageKey, slot, blockIds, className = '', storeSlug, offers: suppliedOffers, fallback }: {
   pageKey: SystemPageKey;
-  slot: string;
+  slot?: string;
+  blockIds?: string[];
   className?: string;
   storeSlug?: string;
   offers?: CatalogOffer[];
   fallback?: ReactNode;
 }) {
-  const [publishedBlocks, allOffers] = await Promise.all([loadPublishedLayout(pageKey), suppliedOffers ? Promise.resolve(suppliedOffers) : loadCatalogOffers()]);
+  const [layout, allOffers] = await Promise.all([loadPublishedLayout(pageKey), suppliedOffers ? Promise.resolve(suppliedOffers) : loadCatalogOffers()]);
+  const publishedBlocks = layout.blocks as ManagedBlock[];
   const now = Date.now();
   const blocks = publishedBlocks.filter((block) => {
     const config = block.config ?? {};
-    if (!block.is_active || (config.slot ?? 'page_end') !== slot) return false;
+    if (!block.is_active) return false;
+    if (blockIds ? !blockIds.includes(block.id) : (config.slot ?? 'page_end') !== slot) return false;
     if (storeSlug && config.store_slug && config.store_slug !== storeSlug) return false;
     if (config.starts_at && Date.parse(config.starts_at) > now) return false;
     if (config.ends_at && Date.parse(config.ends_at) < now) return false;
@@ -97,10 +105,15 @@ export async function CmsManagedSections({ pageKey, slot, className = '', storeS
     const accent = /^#[0-9a-f]{6}$/i.test(config.accent ?? '') ? config.accent! : '#1454d9';
     const background = /^#[0-9a-f]{6}$/i.test(config.background ?? '') ? config.background! : '#ffffff';
     const visibility = block.device_visibility ?? 'all';
-    if (block.block_type === 'hero' || block.block_type === 'banner') return <section key={block.id} className={`${styles.block} ${styles.bannerBlock} ${styles[block.block_type] ?? ''} ${styles[`size_${config.banner_size ?? 'wide'}`] ?? ''}`} style={{ '--accent': accent, '--background': background } as React.CSSProperties} data-device={visibility}>
-      {block.image_url && <picture className={styles.bannerPicture}>{config.mobile_image_url && <source media="(max-width: 700px)" srcSet={config.mobile_image_url}/>}<img src={block.image_url} alt=""/></picture>}
-      <div className={styles.copy}><span className={styles.bannerEyebrow}>{block.block_type === 'hero' ? 'FEATURED' : 'PROMOTION'}</span>{block.title && <h2>{block.title}</h2>}{block.body && <p>{block.body}</p>}{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label}</a>}</div>
-    </section>;
+    if (block.block_type === 'hero' || block.block_type === 'banner') {
+      const slides = [{ title: block.title, body: block.body, image_url: block.image_url, cta_label: block.cta_label, cta_href: block.cta_href }, ...(config.slides ?? [])].slice(0, Math.max(1, Math.min(10, Number(config.slide_count ?? 1))));
+      return <div key={block.id} className={`${styles.bannerSlides} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`} aria-label={`${block.title || 'Promotion'} banner slides`}>
+        {slides.map((slide, index) => <section key={`${block.id}-slide-${index}`} className={`${styles.block} ${styles.bannerBlock} ${styles.bannerSlide} ${styles[block.block_type] ?? ''} ${styles[`size_${config.banner_size ?? 'wide'}`] ?? ''}`} style={{ '--accent': accent, '--background': background } as React.CSSProperties}>
+          {slide.image_url && <picture className={styles.bannerPicture}>{index === 0 && config.mobile_image_url && <source media="(max-width: 700px)" srcSet={config.mobile_image_url}/>}<img src={slide.image_url} alt=""/></picture>}
+          <div className={styles.copy}><span className={styles.bannerEyebrow}>{block.block_type === 'hero' ? 'FEATURED' : 'PROMOTION'}</span>{slide.title && <h2>{slide.title}</h2>}{slide.body && <p>{slide.body}</p>}{slide.cta_label && slide.cta_href && <a href={slide.cta_href}>{slide.cta_label}</a>}</div>
+        </section>)}
+      </div>;
+    }
 
     if (block.block_type === 'product_rail' || block.block_type === 'store_rail') {
       const filtered = allOffers.filter((offer) => {
