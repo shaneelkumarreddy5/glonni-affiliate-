@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { defaultWebsiteSectionOrder, insertWebsiteSection, moveWebsiteSection, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, websiteItemHref } from '../lib/website-layout.ts';
+import { defaultWebsiteSectionOrder, insertWebsiteSection, moveWebsiteSection, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, resolveWebsiteSlideItems, websiteItemHref } from '../lib/website-layout.ts';
 
 const block = (id, slot) => ({
   id,
@@ -48,6 +48,27 @@ test('catalogue slide destinations open the selected product, subcategory or sto
   assert.equal(websiteItemHref('store', 'amazon'), '/store/amazon');
 });
 
+test('a slide resolves mixed stores, subcategories and individual products from approved catalogue rows', () => {
+  const stores = [{ id: 'store-a', name: 'Amazon', slug: 'amazon', imageUrl: null }, { id: 'store-b', name: 'Flipkart', slug: 'flipkart', imageUrl: null }];
+  const categories = [{ id: 'fashion', name: 'Fashion', slug: 'fashion', parentId: null }, { id: 'men', name: 'Men', slug: 'men', parentId: 'fashion' }, { id: 'shirts', name: 'Shirts', slug: 'shirts', parentId: 'men' }];
+  const products = [
+    { id: 'shirt', title: 'Blue shirt', slug: 'blue-shirt', categoryId: 'shirts', storeSlug: 'amazon', price: 500 },
+    { id: 'shirt', title: 'Blue shirt', slug: 'blue-shirt', categoryId: 'shirts', storeSlug: 'flipkart', price: 400 },
+    { id: 'other', title: 'Red shirt', slug: 'red-shirt', categoryId: 'shirts', storeSlug: 'amazon', price: 600 },
+  ];
+  const resolved = resolveWebsiteSlideItems([{ type: 'store', id: 'store-a', product_count: 1 }, { type: 'category', id: 'men', product_count: 2 }, { type: 'product', id: 'shirt' }], stores, categories, products);
+  assert.deepEqual(resolved.map((item) => item.href), ['/store/amazon', '/category/men', '/product/blue-shirt']);
+  assert.deepEqual(resolved[0].products.map((product) => product.id), ['shirt']);
+  assert.equal(resolved[0].products[0].price, 500, 'store content must not use another store’s cheaper offer');
+  assert.deepEqual(resolved[1].products.map((product) => product.id), ['shirt', 'other']);
+  assert.equal(resolved[1].name, 'Fashion › Men');
+  assert.equal(resolved[2].products[0].price, 400, 'individual product uses the best active offer');
+  const leaf = resolveWebsiteSlideItems([{ type: 'category', id: 'shirts', product_count: 1 }], stores, categories, products);
+  assert.equal(leaf[0].name, 'Fashion › Men › Shirts');
+  assert.equal(leaf[0].products.length, 1);
+  assert.deepEqual(resolveWebsiteSlideItems([{ type: 'product', id: 'not-published' }], stores, categories, products), []);
+});
+
 test('deleting a selected slide keeps the remaining content and linked items aligned', () => {
   const banner = {
     ...block('banner', 'after_hero'),
@@ -60,6 +81,7 @@ test('deleting a selected slide keeps the remaining content and linked items ali
       ],
       slide_targets: [{ type: 'product', id: 'one' }, { type: 'category', id: 'two' }, { type: 'store', id: 'three' }],
       slide_shapes: ['wide', 'rectangle_horizontal', 'rectangle_vertical'],
+      slide_items: [[{ type: 'store', id: 'store-a' }], [{ type: 'category', id: 'fashion' }], [{ type: 'product', id: 'shirt' }]],
     },
   };
   const afterFirst = removeWebsiteBannerSlide(banner, 0);
@@ -67,12 +89,14 @@ test('deleting a selected slide keeps the remaining content and linked items ali
   assert.equal(afterFirst.cta_href, '/second');
   assert.deepEqual(afterFirst.config.slide_targets, [{ type: 'category', id: 'two' }, { type: 'store', id: 'three' }]);
   assert.deepEqual(afterFirst.config.slide_shapes, ['rectangle_horizontal', 'rectangle_vertical']);
+  assert.deepEqual(afterFirst.config.slide_items, [[{ type: 'category', id: 'fashion' }], [{ type: 'product', id: 'shirt' }]]);
   assert.equal(afterFirst.config.slides[0].title, 'Third');
   assert.equal(afterFirst.config.slide_count, 2);
   const afterLast = removeWebsiteBannerSlide(afterFirst, 1);
   assert.equal(afterLast.title, 'Second');
   assert.deepEqual(afterLast.config.slide_targets, [{ type: 'category', id: 'two' }]);
   assert.deepEqual(afterLast.config.slide_shapes, ['rectangle_horizontal']);
+  assert.deepEqual(afterLast.config.slide_items, [[{ type: 'category', id: 'fashion' }]]);
   assert.deepEqual(afterLast.config.slides, []);
   assert.equal(removeWebsiteBannerSlide(afterLast, 0), afterLast);
 });

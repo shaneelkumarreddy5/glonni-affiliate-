@@ -22,6 +22,51 @@ export type WebsiteBannerSlide = {
 };
 
 export type WebsiteSlideTarget = { type: 'manual' | 'product' | 'category' | 'store'; id?: string };
+export type WebsiteSlideItem = { type: 'product' | 'category' | 'store'; id: string; product_count?: number };
+export type WebsiteSlideStore = { id: string; name: string; slug: string; imageUrl?: string | null };
+export type WebsiteSlideCategory = { id: string; name: string; slug: string; parentId: string | null; imageUrl?: string | null };
+export type WebsiteSlideProduct = { id: string; title: string; slug: string; imageUrl?: string | null; categoryId: string; storeSlug: string; price: number | null; cashback?: number | null; brand?: string | null };
+export type ResolvedWebsiteSlideItem = { type: WebsiteSlideItem['type']; id: string; name: string; imageUrl?: string | null; href: string; products: WebsiteSlideProduct[] };
+
+export function resolveWebsiteSlideItems(items: WebsiteSlideItem[], stores: WebsiteSlideStore[], categories: WebsiteSlideCategory[], products: WebsiteSlideProduct[]): ResolvedWebsiteSlideItem[] {
+  const uniqueProducts = (source: WebsiteSlideProduct[]) => {
+    const byProduct = new Map<string, WebsiteSlideProduct>();
+    for (const product of source) {
+      const current = byProduct.get(product.id);
+      if (!current || (product.price ?? Infinity) - (product.cashback ?? 0) < (current.price ?? Infinity) - (current.cashback ?? 0)) byProduct.set(product.id, product);
+    }
+    return [...byProduct.values()];
+  };
+  return items.flatMap<ResolvedWebsiteSlideItem>((item) => {
+    const count = Math.max(1, Math.min(50, Number(item.product_count ?? 4) || 4));
+    if (item.type === 'product') {
+      const product = uniqueProducts(products.filter((entry) => entry.id === item.id))[0];
+      return product ? [{ type: item.type, id: item.id, name: product.title, imageUrl: product.imageUrl, href: websiteItemHref('product', product.slug), products: [product] }] : [];
+    }
+    if (item.type === 'store') {
+      const store = stores.find((entry) => entry.id === item.id);
+      return store ? [{ type: item.type, id: item.id, name: store.name, imageUrl: store.imageUrl, href: websiteItemHref('store', store.slug), products: uniqueProducts(products.filter((product) => product.storeSlug === store.slug)).slice(0, count) }] : [];
+    }
+    const category = categories.find((entry) => entry.id === item.id);
+    if (!category) return [];
+    const path = [category.name];
+    const visited = new Set([category.id]);
+    let parentId = category.parentId;
+    while (parentId && !visited.has(parentId)) {
+      const parent = categories.find((entry) => entry.id === parentId);
+      if (!parent) break;
+      path.unshift(parent.name);
+      visited.add(parent.id);
+      parentId = parent.parentId;
+    }
+    const branch = new Set([category.id]);
+    for (let changed = true; changed;) {
+      changed = false;
+      for (const entry of categories) if (entry.parentId && branch.has(entry.parentId) && !branch.has(entry.id)) { branch.add(entry.id); changed = true; }
+    }
+    return [{ type: item.type, id: item.id, name: path.join(' › '), imageUrl: category.imageUrl, href: websiteItemHref('category', category.slug), products: uniqueProducts(products.filter((product) => branch.has(product.categoryId))).slice(0, count) }];
+  });
+}
 
 export function websiteItemHref(type: Exclude<WebsiteSlideTarget['type'], 'manual'>, slug: string) {
   return `/${type}/${encodeURIComponent(slug)}`;
@@ -48,6 +93,7 @@ export type WebsiteBlockConfig = {
   slides?: WebsiteBannerSlide[];
   slide_targets?: WebsiteSlideTarget[];
   slide_shapes?: Exclude<WebsiteVisualShape, 'standard'>[];
+  slide_items?: WebsiteSlideItem[][];
 };
 
 export type WebsiteDraftBlock = {
@@ -78,7 +124,9 @@ export function removeWebsiteBannerSlide(block: WebsiteDraftBlock, index: number
   targets.splice(index, 1);
   const shapes = [...(block.config.slide_shapes ?? [])];
   shapes.splice(index, 1);
-  return { ...block, ...first, config: { ...block.config, slides: remaining, slide_targets: targets, slide_shapes: shapes, slide_count: count - 1 } };
+  const items = [...(block.config.slide_items ?? [])];
+  items.splice(index, 1);
+  return { ...block, ...first, config: { ...block.config, slides: remaining, slide_targets: targets, slide_shapes: shapes, slide_items: items, slide_count: count - 1 } };
 }
 
 export const coreSectionsByPage: Record<WebsitePageKey, WebsiteCoreSection[]> = {

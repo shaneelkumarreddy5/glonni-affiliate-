@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { coreSectionsByPage, defaultWebsiteSectionOrder, slotsByPage, websitePageOptions, type WebsiteBannerSlide, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey, type WebsiteSlideTarget, type WebsiteVisualShape } from '@/lib/website-layout';
+import { coreSectionsByPage, defaultWebsiteSectionOrder, slotsByPage, websitePageOptions, type WebsiteBannerSlide, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteVisualShape } from '@/lib/website-layout';
 
 export type WebsiteActionResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -91,7 +91,24 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
       if (targetType !== 'manual' && !/^[0-9a-f-]{36}$/i.test(targetId)) return 'Choose a product, category or store for every linked slide.';
       slideTargets.push(targetType === 'manual' ? { type: 'manual' } : { type: targetType as WebsiteSlideTarget['type'], id: targetId });
     }
-    if (ctaLabel && !ctaHref && slideTargets[0]?.type !== 'product' && slideTargets[0]?.type !== 'category' && slideTargets[0]?.type !== 'store') return 'Add a destination for the button or clear its label.';
+    const rawSlideItems = Array.isArray(rawConfig.slide_items) ? rawConfig.slide_items : [];
+    const slideItems: WebsiteSlideItem[][] = [];
+    if (type === 'hero' || type === 'banner') for (let index = 0; index < slideCount; index++) {
+      const candidates = rawSlideItems[index];
+      if (candidates != null && (!Array.isArray(candidates) || candidates.length > 12)) return 'Each slide can contain up to 12 catalogue items.';
+      const items: WebsiteSlideItem[] = [];
+      for (const candidate of candidates ?? []) {
+        if (!candidate || typeof candidate !== 'object') return 'Choose a valid catalogue item for each slide.';
+        const entry = candidate as Record<string, unknown>;
+        const itemType = String(entry.type ?? '');
+        const itemId = String(entry.id ?? '');
+        if (!['product', 'category', 'store'].includes(itemType) || !/^[0-9a-f-]{36}$/i.test(itemId)) return 'Choose a valid store, category, subcategory or product for each slide item.';
+        if (items.some((item) => item.type === itemType && item.id === itemId)) return 'The same catalogue item can appear only once in a slide.';
+        items.push({ type: itemType as WebsiteSlideItem['type'], id: itemId, product_count: Math.max(1, Math.min(50, Number(entry.product_count ?? 4) || 4)) });
+      }
+      slideItems.push(items);
+    }
+    if (ctaLabel && !ctaHref && !slideItems[0]?.length && slideTargets[0]?.type !== 'product' && slideTargets[0]?.type !== 'category' && slideTargets[0]?.type !== 'store') return 'Add a destination for the button or clear its label.';
     const rawSlides = Array.isArray(rawConfig.slides) ? rawConfig.slides : [];
     const slides: WebsiteBannerSlide[] = Array.from({ length: type === 'hero' || type === 'banner' ? slideCount - 1 : 0 }, (_, index) => {
       const candidate = rawSlides[index];
@@ -105,7 +122,7 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
       };
     });
     if (mobileImage && !validImage(mobileImage)) return 'The mobile banner image must use a safe site path or HTTPS address.';
-    if (slides.some((slide, index) => !validImage(slide.image_url) || !validLink(slide.cta_href) || (slide.cta_label && !slide.cta_href && slideTargets[index + 1]?.type === 'manual'))) return 'Each slide must use a safe image and button destination.';
+    if (slides.some((slide, index) => !validImage(slide.image_url) || !validLink(slide.cta_href) || (slide.cta_label && !slide.cta_href && !slideItems[index + 1]?.length && slideTargets[index + 1]?.type === 'manual'))) return 'Each slide must use a safe image and button destination.';
     if ((type === 'store_rail' || (pageKey === 'stores' && storeSlug)) && !/^[a-z0-9-]{1,100}$/.test(storeSlug)) return 'Select a connected store for this store rail.';
     if (startsAt && Number.isNaN(Date.parse(startsAt))) return 'Choose a valid banner start date.';
     if (endsAt && Number.isNaN(Date.parse(endsAt))) return 'Choose a valid banner end date.';
@@ -142,6 +159,7 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
         slides: type === 'hero' || type === 'banner' ? slides : undefined,
         slide_targets: type === 'hero' || type === 'banner' ? slideTargets : undefined,
         slide_shapes: type === 'hero' || type === 'banner' ? slideShapes : undefined,
+        slide_items: type === 'hero' || type === 'banner' ? slideItems : undefined,
       },
     });
   }
