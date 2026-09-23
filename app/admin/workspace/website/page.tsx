@@ -77,7 +77,6 @@ export default async function WebsiteWorkspacePage() {
   }] : []);
 
   return <main className="admin-v2"><AdminSidebar/><section className="admin-main website-workspace-main"><main className="admin-content website-workspace-content">
-    <div className="website-compact-header"><h1>Website</h1><a className="website-open-link" href="/" target="_blank" rel="noreferrer">Open customer site ↗</a></div>
     {!canEdit && <div className="website-access-note" role="status">{assurance?.currentLevel !== 'aal2' ? 'Complete two-step verification to edit or publish. Your account must be an active Owner, Admin, or Editor.' : 'An active Owner, Admin, or Editor account is required to edit this workspace.'}</div>}
     <WebsiteWorkspace initialPage="home" initialLayouts={layouts} initialOrders={orders} initialCoreContent={coreContent} publishedLayouts={publishedLayouts} publishedOrders={publishedOrders} publishedCoreContent={publishedCoreContent} pageStatuses={statuses} stores={workspaceStores} products={workspaceProducts} categories={categories.map((category) => ({ id: category.id, name: category.name, slug: category.slug, parentId: category.parent_id, imageUrl: category.image_url }))} canEdit={canEdit}/>
   </main></section></main>;

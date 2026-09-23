@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useMemo, useRef, useState } from 'react';
-import { Bold, Check, ChevronDown, ChevronRight, GripVertical, ImagePlus, Italic, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Underline, Upload, X } from 'lucide-react';
+import { Bold, Check, ChevronDown, ChevronRight, ExternalLink, GripVertical, ImagePlus, Italic, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Underline, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { coreSectionsByPage, insertWebsiteSection, moveWebsiteSection, removeWebsiteBannerSlide, websiteItemHref, websitePageOptions, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlideTarget, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
@@ -504,10 +504,10 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       </div>
       {pageKey === 'stores' && <label className={styles.contextPicker}>Preview store<select value={previewStoreSlug} onChange={(event) => setPreviewStoreSlug(event.target.value)}>{stores.map((store) => <option value={store.slug} key={store.id}>{store.name}</option>)}</select></label>}
       {pageKey === 'product' && <label className={styles.contextPicker}>Preview product<select value={previewProductId} onChange={(event) => setPreviewProductId(event.target.value)}>{orderedOffers.map((product) => <option value={product.productId} key={product.productId}>{product.title}</option>)}</select></label>}
-      <div className={styles.topActions}><span className={`${styles.statusChip} ${statuses[pageKey] === 'published' && !hasUnpublishedDraft && !dirty ? styles.live : ''}`}><i/>{dirty ? 'Unsaved edits' : hasUnpublishedDraft ? 'Draft saved · not live' : statuses[pageKey] === 'published' ? 'Live page' : 'Draft only'}</span><a href={customerHref} target="_blank" rel="noreferrer">Open page ↗</a></div>
+      <div className={styles.topActions}><span className={`${styles.statusChip} ${statuses[pageKey] === 'published' && !hasUnpublishedDraft && !dirty ? styles.live : ''}`}><i/>{dirty ? 'Unsaved edits' : hasUnpublishedDraft ? 'Draft saved · not live' : statuses[pageKey] === 'published' ? 'Live page' : 'Draft only'}</span><a href={customerHref} target="_blank" rel="noreferrer" aria-label="Open customer page in a new tab" title="Open customer page in a new tab"><ExternalLink aria-hidden="true"/></a></div>
     </div>
 
-    <div className={styles.editorGrid}>
+    <div className={`${styles.editorGrid} ${selected || selectedCore ? styles.withInspector : ''}`}>
       <aside className={styles.sectionSidebar} aria-label="Page sections">
         <header><div><small>PAGE CONTENT</small><b>Sections</b><span>{orderedItems.length} sections · all movable</span></div></header>
         <div className={styles.sectionList}>
@@ -529,7 +529,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       </aside>
 
       <section className={styles.previewStage} aria-label="Live customer page preview">
-        <header className={styles.stageHeader}><div><p>LIVE CUSTOMER PAGE</p><b>{pageOption.label}{pageKey === 'stores' && activeStore ? ` · ${activeStore.name}` : pageKey === 'product' && activeProduct ? ` · ${activeProduct.title}` : ''}</b><span>Preview uses active products, prices and stores from your catalogue.</span></div><span className={styles.previewBadge}><i/>INTERACTIVE PREVIEW</span></header>
+        <header className={styles.stageHeader}><b>Preview · {pageOption.label}{pageKey === 'stores' && activeStore ? ` · ${activeStore.name}` : pageKey === 'product' && activeProduct ? ` · ${activeProduct.title}` : ''}</b><span className={styles.previewBadge}><i/>INTERACTIVE</span></header>
         <div className={styles.stageScroller}>
           <div className={`${styles.customerPage} ${widthClass}`}>
             <header className={styles.customerHeader}><b>Glonni</b><span>Search products, brands and stores…</span><small>Stores　 Deals　 Profile</small></header>
@@ -537,10 +537,9 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
             <footer className={styles.previewFooter}>Glonni · Shop with clear offers and cashback terms</footer>
           </div>
         </div>
-        <footer className={styles.stageFootnote}><span><i/>Active catalogue data</span><span>·</span><span>Changes go live only after Publish</span><span>·</span><span>{device === 'mobile' ? 'Mobile' : device === 'tablet' ? 'Tablet' : 'Desktop'} layout preview</span></footer>
       </section>
 
-      <aside className={styles.inspector} aria-label="Section settings">
+      {(selected || selectedCore) && <aside className={styles.inspector} aria-label="Section settings">
         {!selected && !selectedCore ? <div className={styles.inspectorEmpty}><LayoutTemplate/><b>Select a section to edit</b><span>Drag any section using its grip, or choose “Add here” to place a new section exactly where you want it.</span><div><b>Pick what each card opens</b><small>Products open product pages, categories open category pages, and stores open store pages.</small></div></div> : selectedCore ? <>
           <header className={styles.inspectorHeader}><div><small>EDITABLE PAGE SECTION</small><b>{selectedCore.title}</b></div><button type="button" onClick={() => setSelectedCoreKey(null)} aria-label="Close section settings"><X/></button></header>
           <div className={styles.inspectorBody}>
@@ -616,7 +615,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           </div>
           <footer className={styles.inspectorFooter}><button type="button" className={styles.deleteButton} onClick={() => { setNotice(null); setLayouts((current) => ({ ...current, [pageKey]: current[pageKey].filter((block) => block.id !== selected.id) })); setOrders((current) => ({ ...current, [pageKey]: current[pageKey].filter((token) => token !== `block:${selected.id}`) })); setSelectedId(null); }}><Trash2/> Remove section</button><span>Removes only this custom section from the draft.</span></footer>
         </> : null}
-      </aside>
+      </aside>}
     </div>
     <footer className={styles.saveBar}>
       <div>{notice ? <p className={notice.kind === 'success' ? styles.success : styles.error}><i>{notice.kind === 'success' ? <Check/> : <X/>}</i>{notice.text}</p> : <p className={dirty || hasUnpublishedDraft ? styles.unsaved : styles.saved}><i>{dirty || hasUnpublishedDraft ? '!' : <Check/>}</i>{dirty ? 'Unsaved changes' : hasUnpublishedDraft ? 'Draft saved · not live' : 'All changes saved'}<small>{dirty ? 'Save draft to keep your work. Customers are not affected until you publish.' : hasUnpublishedDraft ? 'Shoppers still see the previously published layout until you publish this draft.' : 'Draft and published page are in sync.'}</small></p>}</div>
