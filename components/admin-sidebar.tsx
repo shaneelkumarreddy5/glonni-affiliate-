@@ -50,6 +50,7 @@ const sections = [
     { label: 'Access Reviews', href: '/admin/access-reviews', icon: ShieldCheck },
   ] },
   { title: 'WORKSPACE', icon: Settings, links: [
+    { label: 'Website', href: '/admin/workspace/website', icon: PenTool },
     { label: 'Support Centre', href: '/admin/support', icon: Headphones },
     { label: 'Affiliate Control Centre', href: '/admin/analytics', icon: BarChart3 },
     { label: 'System Testing', href: '/admin/testing', icon: FlaskConical },

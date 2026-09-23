@@ -454,8 +454,8 @@ export default async function ProductPage({
             </a>
           </div>
         </section>
-        <CmsManagedSections pageKey="product" slot="after_summary"/>
-        <CmsManagedSections pageKey="product" slot="before_comparison"/>
+        <CmsManagedSections pageKey="product" slot="after_summary" offers={allOffers}/>
+        <CmsManagedSections pageKey="product" slot="before_comparison" offers={allOffers}/>
         <section id="offers" className="pdp-card pdp-comparison">
           <header>
             <div>
@@ -701,7 +701,7 @@ export default async function ProductPage({
           Glonni Cashback applies only to marked offers after successful
           tracking and merchant confirmation.
         </p>
-        <CmsManagedSections pageKey="product" slot="page_end"/>
+        <CmsManagedSections pageKey="product" slot="page_end" offers={allOffers}/>
       </main>
     </>
   );

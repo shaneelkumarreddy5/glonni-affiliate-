@@ -5,6 +5,7 @@ import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
 import { OfferGrid } from '@/components/offer-grid';
 import { ContextualFaqs } from '@/components/contextual-faqs';
+import { CmsManagedSections } from '@/components/cms-managed-sections';
 import { CustomerPolicyAccordions, parseCustomerPolicy } from '@/components/customer-policy-accordions';
 import { categoryBranchIds, orderCategoryTree } from '@/lib/category-tree';
 import { getCatalogOffers, getCategories, getStores } from '@/lib/catalog';
@@ -66,11 +67,13 @@ export default async function StorePage({ params, searchParams }: { params: Prom
   return <><Header/><main className="store-detail-page">
     <BrowseNav items={[{ label: returnPath.startsWith('/category/') ? 'Category' : 'Stores', href: returnPath }, { label: store.name }]} fallback={returnPath}/>
     <section className="store-hero store-profile-hero"><p className="eyebrow">SHOP BY STORE</p><div>{store.logo_url ? <span className="store-hero-logo"><img src={store.logo_url} alt=""/></span> : <span>{store.name.slice(0, 1)}</span>}<section><h1>{store.name} on Glonni</h1><p>Browse products available from {store.name}, then open a product to compare this store with every other connected seller.</p></section></div><aside><b>{new Set(allOffers.map((offer) => offer.products?.id).filter(Boolean)).size}</b><small>products</small><b>{allOffers.length}</b><small>offers</small><b>{rewards}</b><small>cashback-eligible</small></aside></section>
+    <CmsManagedSections pageKey="stores" slot="store_after_intro" storeSlug={store.slug} offers={allOffers}/>
 
     <section className="vertical-section store-products-section">
       <div className="section-title"><div><p className="eyebrow">{store.name.toUpperCase()} PRODUCTS</p><h2>Browse and compare</h2></div>{hasFilters && <Link className="clear-category-filters" href={`/store/${store.slug}?from=${encodeURIComponent(returnPath)}`}><RotateCcw size={14}/>Clear filters</Link>}</div>
       <form className="category-search" action={`/store/${store.slug}`}><Search size={18}/><input name="q" defaultValue={filters.q} aria-label={`Search ${store.name} products`} placeholder={`Search products and brands at ${store.name}`}/><input type="hidden" name="from" value={returnPath}/><button type="submit">Search</button></form>
 
+      <CmsManagedSections pageKey="stores" slot="store_before_products" storeSlug={store.slug} offers={allOffers}/>
       {storeCategories.length > 0 && <div className="store-category-select"><label htmlFor="store-category">Category</label><div><select id="store-category" name="category" defaultValue={filters.category ?? ''} form="store-filter-submit"><option value="">All categories</option>{storeCategories.map((category) => <option value={category.slug} key={category.id}>{`${'  '.repeat(category.treeDepth)}${category.treeDepth ? '↳ ' : ''}${category.name}`}</option>)}</select><form id="store-filter-submit" action={`/store/${store.slug}`}><input type="hidden" name="from" value={returnPath}/><button type="submit">Apply category</button></form></div></div>}
       <div className="category-filter-columns">
         <div className="category-filter-group"><b>Customer benefit</b><div className="filter-row"><Link className={filters.cashback !== 'yes' ? 'selected' : ''} href={storeLink(store.slug, filters, { cashback: '' })}>All offers</Link><Link className={filters.cashback === 'yes' ? 'selected' : ''} href={storeLink(store.slug, filters, { cashback: 'yes' })}>Cashback eligible</Link></div></div>
@@ -80,6 +83,7 @@ export default async function StorePage({ params, searchParams }: { params: Prom
       {products.length ? <OfferGrid offers={products} contextHref={storeLink(store.slug, filters, {})}/> : <div className="empty-state store-products-empty"><Store size={30}/><h2>{hasFilters ? 'No products match these filters' : `No offers from ${store.name} yet`}</h2><p>{hasFilters ? 'Clear the filters or try a broader search.' : 'Approved products will appear here when they become available.'}</p>{hasFilters ? <Link href={`/store/${store.slug}?from=${encodeURIComponent(returnPath)}`} className="primary">Clear all filters</Link> : <Link href="/stores" className="primary">Browse other stores</Link>}</div>}
     </section>
 
+    <CmsManagedSections pageKey="stores" slot="page_end" storeSlug={store.slug} offers={allOffers}/>
     <CustomerPolicyAccordions storeName={store.name} policy={policyData}/>
     <ContextualFaqs title={`${store.name} cashback rules & FAQs`} faqs={(faqs ?? []) as { id: string; question: string; answer: string; scope: string }[]}/>
   </main></>;
