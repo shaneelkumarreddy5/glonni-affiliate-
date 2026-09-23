@@ -1,4 +1,56 @@
-import { AdminSidebar } from "@/components/admin-sidebar";
-import { Bell, Building2, CheckCircle2, FileText, KeyRound, Landmark, LockKeyhole, ShieldCheck, UsersRound } from 'lucide-react';
-const settings=[['Business profile','Glonni Affiliate · India','Draft','Confirm legal entity, support contact and tax details'],['Admin roles','Owner · Admin · Editor · Reviewer','Locked','Secure authentication required'],['Affiliate disclosure','Customer-facing affiliate disclosure','Configured','Legal review before launch'],['Cashback policy','Offer-specific eligibility only','Configured','Provider confirmation required'],['Wallet & payouts','No money movement in preview','Locked','KYC, payout compliance and secure roles'],['Provider secrets','Server-side credentials and webhook keys','Locked','Never expose secrets in browser'],['Privacy & terms','Privacy, terms and cookie content','Configured','Legal review before launch']];
-export default function SettingsPage(){return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><header className="admin-top"><ShieldCheck size={21}/><b>Settings &amp; Security</b><span className="dashboard-date">Launch configuration · preview mode</span><Bell size={19}/><span className="avatar">SR</span></header><main className="admin-content"><div className="admin-title"><div><p>PLATFORM SETTINGS</p><h1>Settings &amp; Security</h1><span>Prepare Glonni’s business, legal, access and financial safeguards for a controlled launch.</span></div><button className="add-store" disabled>Save changes</button></div><p className="preview-note">Sensitive settings are locked in public preview. Secure authentication and role enforcement must be activated before any live configuration changes.</p><section className="admin-stats"><article><Building2/><div><small>Business profile</small><b>Draft</b><em>Launch configuration</em></div></article><article><UsersRound/><div><small>Admin roles</small><b>4</b><em>Future permission levels</em></div></article><article><LockKeyhole/><div><small>Security controls</small><b>Locked</b><em>Auth required</em></div></article><article><Landmark/><div><small>Money movement</small><b>Disabled</b><em>Preview safeguard</em></div></article><article><FileText/><div><small>Legal pages</small><b>4</b><em>Configured for review</em></div></article></section><section className="admin-grid"><article className="store-table"><div className="table-head"><div><a className="current">Platform configuration</a><a>Security</a><a>Legal</a><a>Launch checklist</a></div></div><div className="table-scroll"><table><thead><tr><th>AREA</th><th>SETTING</th><th>STATUS</th><th>LAUNCH REQUIREMENT</th></tr></thead><tbody>{settings.map(x=><tr key={x[0]}><td><strong>{x[0]}</strong></td><td>{x[1]}</td><td><em className={x[2]==='Configured'?'status-active':'status-paused'}>{x[2]}</em></td><td>{x[3]}</td></tr>)}</tbody></table></div><footer>Security and compliance requirements are visible before activation so public preview is never mistaken for a production finance or provider system.</footer></article><aside className="admin-right"><article><h2>Role structure</h2><p>Owner <span>Full control</span></p><p>Admin <span>Operations</span></p><p>Editor <span>Catalogue &amp; CMS</span></p><p>Reviewer <span>Approval queue</span></p></article><article><h2>Non-negotiable safeguards</h2><p className="activity"><KeyRound size={14}/>No browser-visible secrets<small>Provider tokens and webhook keys stay server-side.</small></p><p className="activity">No payout approval without roles<small>Money movement requires authenticated authorization.</small></p></article></aside></section><section className="admin-grid"><article className="store-table"><div className="table-head"><div><a className="current">Launch checklist</a><a>Blocked items</a></div></div><div className="table-scroll"><table><thead><tr><th>CHECK</th><th>STATE</th><th>WHY IT MATTERS</th></tr></thead><tbody>{[['Customer authentication','Pending','Protects accounts, saved products, cashback and claims'],['Admin authentication & roles','Pending','Protects operational controls and financial decisions'],['Approved providers','Pending','Enables real offers and conversion tracking'],['Provider secret storage','Pending','Protects API and webhook credentials'],['Legal review','Ready for review','Validates disclosures, terms and policies'],['Payout compliance','Pending','Required before any wallet withdrawal']].map(x=><tr key={x[0]}><td><strong>{x[0]}</strong></td><td><em className={x[1]==='Ready for review'?'status-active':'status-paused'}>{x[1]}</em></td><td>{x[2]}</td></tr>)}</tbody></table></div></article><aside className="admin-right"><article><h2>Preview boundary</h2><p className="activity"><CheckCircle2 size={14}/>Catalogue browsing is safe<small>Products, offers and store discovery can be previewed.</small></p><p className="activity">Accounts, providers and payouts stay locked<small>Activated only with security controls.</small></p></article></aside></section></main></section></main>}
+import { AdminSidebar } from '@/components/admin-sidebar';
+import { createClient } from '@/lib/supabase/server';
+import { SettingsWorkspace, type GlobalSettings, type SettingsHealth } from './settings-workspace';
+import './settings.css';
+
+export const dynamic = 'force-dynamic';
+
+const defaults: GlobalSettings = {
+  site_name: 'Glonni', logo_url: '', default_language: 'en-IN',
+  global_rules: '', work_controls: { product_intake: true, scheduled_promotions: true, nonessential_notifications: true, ai_workflows: true, pause_all: false },
+  require_admin_approval: true,
+};
+
+export default async function SettingsPage() {
+  const supabase = await createClient();
+  const [identityResult, settingsResult, agentsResult, jobsResult, feedsResult, campaignsResult, templatesResult] = await Promise.all([
+    supabase.from('website_identity').select('site_name,logo_url,default_language').eq('id', 1).maybeSingle(),
+    supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle(),
+    supabase.from('ai_agents').select('key,is_enabled,runtime_status,capability_status'),
+    supabase.from('ai_jobs').select('id,status,created_at').order('created_at', { ascending: false }).limit(100),
+    supabase.from('product_feeds').select('id,status'),
+    supabase.from('homepage_campaigns').select('id,status,starts_at,ends_at'),
+    supabase.from('notification_templates').select('id,status,category,is_promotional'),
+  ]);
+  const identity = identityResult.data as Pick<GlobalSettings, 'site_name' | 'logo_url' | 'default_language'> | null;
+  const operational = settingsResult.data as Partial<GlobalSettings> | null;
+  const settings: GlobalSettings = {
+    ...defaults,
+    ...(identity ?? {}),
+    ...(operational ?? {}),
+    work_controls: { ...defaults.work_controls, ...(operational?.work_controls ?? {}) },
+  };
+  const agents = agentsResult.data ?? [];
+  const jobs = jobsResult.data ?? [];
+  const feeds = feedsResult.data ?? [];
+  const campaigns = campaignsResult.data ?? [];
+  const templates = templatesResult.data ?? [];
+  const health: SettingsHealth = {
+    ai_available: !agentsResult.error && !jobsResult.error,
+    ai_enabled: agents.filter((agent) => agent.is_enabled).length,
+    ai_total: agents.length,
+    ai_failed_recent: jobs.filter((job) => job.status === 'failed').length,
+    feeds_available: !feedsResult.error,
+    feeds_active: feeds.filter((feed) => feed.status === 'active').length,
+    feeds_total: feeds.length,
+    campaigns_available: !campaignsResult.error,
+    campaigns_live: campaigns.filter((campaign) => campaign.status === 'published').length,
+    campaigns_total: campaigns.length,
+    templates_available: !templatesResult.error,
+    templates_active: templates.filter((template) => template.status === 'active').length,
+    templates_total: templates.length,
+  };
+  const connected = Boolean(settingsResult.data && identityResult.data) && !settingsResult.error && !identityResult.error;
+
+  return <main className="admin-v2 settings-admin"><AdminSidebar/><section className="admin-main"><header className="admin-top"><b>Global Settings</b><span className="dashboard-date">Website-wide controls</span></header><main className="admin-content settings-content"><SettingsWorkspace initial={settings} health={health} connected={connected}/></main></section></main>;
+}

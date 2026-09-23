@@ -4,7 +4,10 @@ import { CustomerMobileNavigation } from '@/components/customer-mobile-navigatio
 
 export async function Header() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const [{ data: { user } }, { data: identity }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.from('website_identity').select('site_name,logo_url').eq('id', 1).maybeSingle(),
+  ]);
   const [{ data: profile }, savedResult, notificationResult] = await Promise.all([
     user ? supabase.from('profiles').select('display_name,avatar_url,city').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null }),
     user ? supabase.from('saved_offers').select('offer_id', { count: 'exact', head: true }).eq('profile_id', user.id) : Promise.resolve({ count: 0 }),
@@ -17,7 +20,7 @@ export async function Header() {
   const unreadNotificationCount = notificationResult.count ?? 0;
 
   return <><header className="top">
-    <a className="logo" href="/" aria-label="Glonni home">Glonni</a>
+    <a className="logo" href="/" aria-label={`${identity?.site_name || 'Glonni'} home`}>{identity?.logo_url ? <img src={identity.logo_url} alt="" style={{ maxWidth: 180, maxHeight: 44, objectFit: 'contain' }}/> : identity?.site_name || 'Glonni'}</a>
     <form className="search" action="/deals"><input name="q" aria-label="Search products, brands and stores" placeholder="Search products, brands and stores..."/><button type="submit" aria-label="Search"><Search size={20}/></button></form>
     <div className="top-actions">
       <span className="header-location"><MapPin/><small>Shopping location</small><b>{location}</b></span>

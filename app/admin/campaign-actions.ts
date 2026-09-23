@@ -48,6 +48,7 @@ export async function saveCampaignDistribution(form: FormData) {
 
 export async function campaignStatus(form: FormData) {
   const action = String(form.get("action") ?? ""), id = String(form.get("id") ?? ""); const { s, user } = await operator(["approve", "publish"].includes(action));
+  if (action === 'publish') { const { data: globalSettings } = await s.from('platform_settings').select('work_controls').eq('id', 1).maybeSingle(); if (globalSettings?.work_controls?.pause_all === true || globalSettings?.work_controls?.scheduled_promotions === false) throw new Error('Promotion publishing is stopped in global Settings.'); }
   const values = action === "submit" ? { status: "pending" } : action === "approve" ? { status: "approved", approved_by: user.id, approved_at: new Date().toISOString() } : action === "publish" ? { status: "published", final_approved_at: new Date().toISOString(), published_at: new Date().toISOString() } : action === "pause" ? { status: "paused" } : null;
   if (!id || !values) throw new Error("Invalid campaign action.");
   if (action === "publish") { const { count } = await s.from("campaign_channels").select("id", { count: "exact", head: true }).eq("campaign_id", id).eq("channel_type", "website").eq("status", "ready"); if (!count) throw new Error("Configure at least one ready website placement before publishing."); }

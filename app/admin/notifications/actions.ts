@@ -36,6 +36,8 @@ export async function saveNotificationTemplate(formData: FormData) {
 
 export async function sendNotificationCampaign(formData: FormData) {
   const { supabase, user } = await requireNotificationAdmin();
+  const { data: globalSettings } = await supabase.from('platform_settings').select('work_controls').eq('id', 1).maybeSingle();
+  if (globalSettings?.work_controls?.pause_all === true || globalSettings?.work_controls?.nonessential_notifications === false) redirect(noticeUrl('error', 'Promotional notifications are stopped in global Settings. Essential support, security and cashback updates remain available.'));
   const templateId = String(formData.get('templateId') ?? '');
   const subject = String(formData.get('subject') ?? '').trim();
   const body = String(formData.get('body') ?? '').trim();

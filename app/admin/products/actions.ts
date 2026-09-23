@@ -954,6 +954,8 @@ export async function toggleProductFeed(form: FormData) {
 
 export async function requestFeedRunReview(form: FormData) {
   const { supabase, user } = await requireProductAdmin();
+  const { data: globalSettings } = await supabase.from('platform_settings').select('work_controls').eq('id', 1).maybeSingle();
+  if (globalSettings?.work_controls?.pause_all === true || globalSettings?.work_controls?.product_intake === false) redirect('/admin/products?view=feeds&error=Automated+product+intake+is+stopped+in+global+Settings');
   const feedId = String(form.get("feedId") ?? "");
   const { data: feed } = await supabase.from("product_feeds").select("id,name,status,provider_id,feed_url").eq("id", feedId).single();
   if (!feed || feed.status !== "active") redirect("/admin/products?view=feeds&error=Only%20an%20active%20approved%20feed%20can%20be%20run");

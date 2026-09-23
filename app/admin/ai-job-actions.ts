@@ -25,6 +25,8 @@ export async function runAiJob(formData:FormData) {
   const jobType=String(formData.get('jobType')??'') as keyof typeof allowed;
   const query=String(formData.get('query')??'').trim();
   if (!allowed[jobType]) redirect('/admin/ai-agents?error=Unsupported+AI+job.');
+  const {data:globalSettings}=await supabase.from('platform_settings').select('work_controls').eq('id',1).maybeSingle();
+  if(globalSettings?.work_controls?.pause_all===true||globalSettings?.work_controls?.ai_workflows===false)redirect('/admin/ai-agents?error=AI+workflows+are+paused+in+global+Settings.');
   if (jobType!=='owner_daily_brief' && query.length<3) redirect('/admin/ai-agents?error=Enter+a+clear+research+request.');
   const bucket=Math.floor(Date.now()/300000);
   const dedupeKey=createHash('sha256').update(`${jobType}:${query.toLowerCase()}:${bucket}`).digest('hex');

@@ -66,6 +66,13 @@ export default {
     const body = await req.json().catch(() => ({})) as { query?: string; productId?: string };
     const query = body.query?.trim();
     if (!query || query.length < 3) return respond({ error: "Enter a clear product name first." }, 400);
+    const [{ data: globalSettings }, { data: catalogueAgent }] = await Promise.all([
+      ctx.supabaseAdmin.from("platform_settings").select("global_rules,work_controls").eq("id", 1).maybeSingle(),
+      ctx.supabaseAdmin.from("ai_agents").select("is_enabled").eq("key", "catalogue_merchandising").maybeSingle(),
+    ]);
+    if (catalogueAgent && !catalogueAgent.is_enabled) return respond({ error: "Catalogue & Merchandising is stopped on its AI Agents page." }, 423);
+    if (globalSettings?.work_controls?.pause_all === true || globalSettings?.work_controls?.ai_workflows === false) return respond({ error: "AI workflows are paused in global Settings." }, 423);
+    if (globalSettings?.work_controls?.product_intake === false) return respond({ error: "Automated product intake is stopped in global Settings." }, 423);
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) return respond({ error: "OpenAI is not configured for product enrichment." }, 503);
     const startedAt = Date.now();
@@ -85,10 +92,12 @@ export default {
     const fetchMode = savedMasterComplete ? "offers_only" : "master_and_offers";
     const connectedStores = (merchants ?? []).map((item: any) => item.name);
     const commonRules = "Use ONLY the supplied connected store and brand websites. Never use news, review, rumour, comparison or unrelated websites. The user supplies only a product name; do not ask for colour, storage or other options. Search and return every verified variant available. Mark verified only when the exact product/model is visibly listed on at least one allowed connected website. If it is not verified, say so clearly, return no invented product, price or image data, and set verification_status to not_verified. Return one offer row for every connected store, using not_found or unable_to_verify when appropriate. Store checks need ONLY exact variant match, variant label, current price, bank offer, coupon, rating/count, stock, merchant product URL and checked time. Never fetch or decide Glonni cashback, commission, confirmation time or payout terms.";
+    const sharedRules = String(globalSettings?.global_rules ?? "").trim();
+    const ownerRuleText = sharedRules ? ` Mandatory global owner rules to follow: ${sharedRules}` : "";
     const instructions = fetchMode === "offers_only"
-      ? `You update connected-store availability for an existing Glonni product. ${commonRules} Do not research or return product identity, images, descriptions, categories, specifications or variations; the saved master record is authoritative and must be reused.`
-      : `You create a verified product master for Glonni, an Indian affiliate-shopping platform. ${commonRules} Research identity, official product images, all variants, specifications and shopper information once. Prefer a connected manufacturer/brand website for master facts. Choose the deepest accurate supplied category_id and never invent categories. Image URLs must point to the real product and come from an allowed connected domain. Report disagreements instead of guessing. Keep specifications to the 10 most useful category-appropriate shopper facts.`;
-    const context = JSON.stringify({ query, fetch_mode: fetchMode, saved_master_product: savedMasterComplete ? currentProduct : null, category_tree: fetchMode === "master_and_offers" ? categoryPaths(categories ?? []) : [], connected_stores: domainStores.map(({ id, name, storefront_url, domain }: any) => ({ id, name, storefront_url, domain })), connected_affiliate_providers: providers ?? [] });
+      ? `You update connected-store availability for an existing Glonni product. ${commonRules} Do not research or return product identity, images, descriptions, categories, specifications or variations; the saved master record is authoritative and must be reused.${ownerRuleText}`
+      : `You create a verified product master for Glonni, an Indian affiliate-shopping platform. ${commonRules} Research identity, official product images, all variants, specifications and shopper information once. Prefer a connected manufacturer/brand website for master facts. Choose the deepest accurate supplied category_id and never invent categories. Image URLs must point to the real product and come from an allowed connected domain. Report disagreements instead of guessing. Keep specifications to the 10 most useful category-appropriate shopper facts.${ownerRuleText}`;
+    const context = JSON.stringify({ query, fetch_mode: fetchMode, saved_master_product: savedMasterComplete ? currentProduct : null, category_tree: fetchMode === "master_and_offers" ? categoryPaths(categories ?? []) : [], connected_stores: domainStores.map(({ id, name, storefront_url, domain }: any) => ({ id, name, storefront_url, domain })), connected_affiliate_providers: providers ?? [], global_operating_rules: sharedRules });
     const models = ["gpt-5.4-nano", "gpt-5-nano", "gpt-5.6-luna"]; let result: any; let selectedModel = ""; const failures: string[] = [];
     for (const model of models) {
       const response = await fetch("https://api.openai.com/v1/responses", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model, instructions, input: context, tools: [{ type: "web_search", filters: { allowed_domains: allowedDomains }, external_web_access: true }], tool_choice: "required", include: ["web_search_call.action.sources"], max_output_tokens: fetchMode === "offers_only" ? 2200 : 5000, text: { format: { type: "json_schema", name: fetchMode === "offers_only" ? "connected_store_offer_check" : "product_enrichment", strict: true, schema: fetchMode === "offers_only" ? offerOnlySchema : schema } } }) });
