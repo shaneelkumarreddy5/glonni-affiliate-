@@ -6,7 +6,7 @@ import { ScrollRail } from '@/components/scroll-rail';
 import { getStores } from '@/lib/catalog';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { systemPageSlug, type SystemPageKey } from '@/lib/system-pages';
-import type { WebsiteDraftBlock, WebsiteLayoutSnapshot, WebsitePageKey } from '@/lib/website-layout';
+import { websiteItemHref, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey } from '@/lib/website-layout';
 import styles from './cms-managed-sections.module.css';
 
 type ManagedBlock = WebsiteDraftBlock & { id: string };
@@ -99,8 +99,8 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
     return true;
   });
   const categoryBlocks = blocks.filter((block) => block.config.category_slug);
-  const needsCategories = categoryBlocks.length || blocks.some((block) => block.block_type === 'category_rail');
-  const needsStores = blocks.some((block) => block.block_type === 'store_directory');
+  const needsCategories = categoryBlocks.length || blocks.some((block) => block.block_type === 'category_rail' || block.config.slide_targets?.some((target) => target.type === 'category'));
+  const needsStores = blocks.some((block) => block.block_type === 'store_directory' || block.config.slide_targets?.some((target) => target.type === 'store'));
   const [categories, stores] = await Promise.all([
     needsCategories ? loadCatalogCategories() : Promise.resolve([]),
     needsStores ? getStores() : Promise.resolve([]),
@@ -115,11 +115,38 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
     const visibility = block.device_visibility ?? 'all';
     if (block.block_type === 'hero' || block.block_type === 'banner') {
       const slides = [{ title: block.title, body: block.body, image_url: block.image_url, cta_label: block.cta_label, cta_href: block.cta_href }, ...(config.slides ?? [])].slice(0, Math.max(1, Math.min(10, Number(config.slide_count ?? 1))));
+      const visibleSlides = slides.flatMap((slide, index) => {
+        const target = config.slide_targets?.[index];
+        let href = slide.cta_href;
+        let itemImage: string | null | undefined;
+        if (target && target.type !== 'manual') {
+          if (target.type === 'product') {
+            const product = allOffers.find((offer) => offer.products?.id === target.id)?.products;
+            if (!product) return [];
+            href = websiteItemHref('product', product.slug);
+            itemImage = product.image_url;
+          } else if (target.type === 'category') {
+            const category = categories.find((item) => item.id === target.id);
+            if (!category) return [];
+            href = websiteItemHref('category', category.slug);
+            itemImage = category.image_url;
+          } else if (target.type === 'store') {
+            const store = stores.find((item) => item.id === target.id);
+            if (!store) return [];
+            href = websiteItemHref('store', store.slug);
+            itemImage = store.logo_url;
+          }
+        }
+        return [{ slide, index, href, image: slide.image_url || itemImage }];
+      });
+      if (!visibleSlides.length) return null;
       return <div key={block.id} className={`${styles.bannerSlides} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`} aria-label={`${block.title || 'Promotion'} banner slides`}>
-        {slides.map((slide, index) => <section key={`${block.id}-slide-${index}`} className={`${styles.block} ${styles.bannerBlock} ${styles.bannerSlide} ${styles[block.block_type] ?? ''} ${styles[`size_${config.banner_size ?? 'wide'}`] ?? ''}`} style={{ '--accent': accent, '--background': background } as React.CSSProperties}>
-          {slide.image_url && <picture className={styles.bannerPicture}>{index === 0 && config.mobile_image_url && <source media="(max-width: 700px)" srcSet={config.mobile_image_url}/>}<img src={slide.image_url} alt=""/></picture>}
-          <div className={styles.copy}><span className={styles.bannerEyebrow}>{block.block_type === 'hero' ? 'FEATURED' : 'PROMOTION'}</span>{slide.title && <h2>{slide.title}</h2>}{slide.body && <p>{slide.body}</p>}{slide.cta_label && slide.cta_href && <a href={slide.cta_href}>{slide.cta_label}</a>}</div>
-        </section>)}
+        {visibleSlides.map(({ slide, index, href, image }) => {
+          const content = <>{image && <picture className={styles.bannerPicture}>{index === 0 && config.mobile_image_url && <source media="(max-width: 700px)" srcSet={config.mobile_image_url}/>}<img src={image} alt=""/></picture>}<div className={styles.copy}><span className={styles.bannerEyebrow}>{block.block_type === 'hero' ? 'FEATURED' : 'PROMOTION'}</span>{slide.title && <h2>{slide.title}</h2>}{slide.body && <p>{renderWebsiteRichText(slide.body)}</p>}{href && <span className={styles.slideCta}>{slide.cta_label || 'Open page'} →</span>}</div></>;
+          const slideClass = `${styles.block} ${styles.bannerBlock} ${styles.bannerSlide} ${styles[block.block_type] ?? ''} ${styles[`size_${config.slide_shapes?.[index] ?? config.banner_size ?? 'wide'}`] ?? ''}`;
+          const slideStyle = { '--accent': accent, '--background': background } as React.CSSProperties;
+          return href ? <a key={`${block.id}-slide-${index}`} href={href} className={`${slideClass} ${styles.bannerSlideLink}`} style={slideStyle} aria-label={`${slide.title || 'Promotion'} — ${slide.cta_label || 'Open page'}`}>{content}</a> : <section key={`${block.id}-slide-${index}`} className={slideClass} style={slideStyle}>{content}</section>;
+        })}
       </div>;
     }
 

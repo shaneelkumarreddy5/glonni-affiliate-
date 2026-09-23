@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { coreSectionsByPage, defaultWebsiteSectionOrder, slotsByPage, websitePageOptions, type WebsiteBannerSlide, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey, type WebsiteVisualShape } from '@/lib/website-layout';
+import { coreSectionsByPage, defaultWebsiteSectionOrder, slotsByPage, websitePageOptions, type WebsiteBannerSlide, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey, type WebsiteSlideTarget, type WebsiteVisualShape } from '@/lib/website-layout';
 
 export type WebsiteActionResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -61,7 +61,6 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
     if (!allowedSlots.has(slot as never)) return 'Choose a valid placement for this page.';
     if (title.length > 120 || body.length > 1800 || ctaLabel.length > 60 || ctaHref.length > 500 || imageUrl.length > 1000) return 'A section has text or an image address that is too long.';
     if (!validLink(ctaHref) || !validImage(imageUrl)) return 'Buttons and images must use a safe site path or HTTPS address.';
-    if (ctaLabel && !ctaHref) return 'Add a destination for the button or clear its label.';
     if (!['all', 'desktop', 'mobile'].includes(deviceVisibility)) return 'Choose a supported device visibility.';
 
     const storeSlug = String(rawConfig.store_slug ?? '').trim();
@@ -74,14 +73,28 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
     const count = Math.max(1, Math.min(50, Number(rawConfig.count ?? 10) || 10));
     const productIds = Array.isArray(rawConfig.product_ids) ? rawConfig.product_ids.filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50) : [];
     const mobileImage = String(rawConfig.mobile_image_url ?? '').trim();
-    const bannerSize = ['wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawConfig.banner_size)) ? rawConfig.banner_size as WebsiteDraftBlock['config']['banner_size'] : 'wide';
+    const bannerSize: NonNullable<WebsiteDraftBlock['config']['banner_size']> = ['wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawConfig.banner_size)) ? rawConfig.banner_size as NonNullable<WebsiteDraftBlock['config']['banner_size']> : 'wide';
     const visualShape = ['standard', 'wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawConfig.visual_shape)) ? rawConfig.visual_shape as WebsiteVisualShape : 'standard';
     const color = (candidate: unknown, fallback: string) => typeof candidate === 'string' && /^#[0-9a-f]{6}$/i.test(candidate) ? candidate : fallback;
     const startsAt = String(rawConfig.starts_at ?? '').trim();
     const endsAt = String(rawConfig.ends_at ?? '').trim();
     const slideCount = Math.max(1, Math.min(10, Number(rawConfig.slide_count ?? 1) || 1));
+    const rawShapes = Array.isArray(rawConfig.slide_shapes) ? rawConfig.slide_shapes : [];
+    const slideShapes = Array.from({ length: slideCount }, (_, index) => ['wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawShapes[index])) ? rawShapes[index] as NonNullable<WebsiteDraftBlock['config']['banner_size']> : bannerSize);
+    const rawTargets = Array.isArray(rawConfig.slide_targets) ? rawConfig.slide_targets : [];
+    const slideTargets: WebsiteSlideTarget[] = [];
+    if (type === 'hero' || type === 'banner') for (let index = 0; index < slideCount; index++) {
+      const rawTarget = rawTargets[index] && typeof rawTargets[index] === 'object' ? rawTargets[index] as Record<string, unknown> : {};
+      const targetType = String(rawTarget.type ?? 'manual');
+      const targetId = String(rawTarget.id ?? '');
+      if (!['manual', 'product', 'category', 'store'].includes(targetType)) return 'Choose a valid destination type for every slide.';
+      if (targetType !== 'manual' && !/^[0-9a-f-]{36}$/i.test(targetId)) return 'Choose a product, category or store for every linked slide.';
+      slideTargets.push(targetType === 'manual' ? { type: 'manual' } : { type: targetType as WebsiteSlideTarget['type'], id: targetId });
+    }
+    if (ctaLabel && !ctaHref && slideTargets[0]?.type !== 'product' && slideTargets[0]?.type !== 'category' && slideTargets[0]?.type !== 'store') return 'Add a destination for the button or clear its label.';
     const rawSlides = Array.isArray(rawConfig.slides) ? rawConfig.slides : [];
-    const slides: WebsiteBannerSlide[] = rawSlides.slice(0, slideCount - 1).map((candidate) => {
+    const slides: WebsiteBannerSlide[] = Array.from({ length: type === 'hero' || type === 'banner' ? slideCount - 1 : 0 }, (_, index) => {
+      const candidate = rawSlides[index];
       const slide = candidate && typeof candidate === 'object' ? candidate as Record<string, unknown> : {};
       return {
         title: String(slide.title ?? '').trim().slice(0, 120),
@@ -92,7 +105,7 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
       };
     });
     if (mobileImage && !validImage(mobileImage)) return 'The mobile banner image must use a safe site path or HTTPS address.';
-    if (slides.some((slide) => !validImage(slide.image_url) || !validLink(slide.cta_href) || (slide.cta_label && !slide.cta_href))) return 'Each slide must use a safe image and button destination.';
+    if (slides.some((slide, index) => !validImage(slide.image_url) || !validLink(slide.cta_href) || (slide.cta_label && !slide.cta_href && slideTargets[index + 1]?.type === 'manual'))) return 'Each slide must use a safe image and button destination.';
     if ((type === 'store_rail' || (pageKey === 'stores' && storeSlug)) && !/^[a-z0-9-]{1,100}$/.test(storeSlug)) return 'Select a connected store for this store rail.';
     if (startsAt && Number.isNaN(Date.parse(startsAt))) return 'Choose a valid banner start date.';
     if (endsAt && Number.isNaN(Date.parse(endsAt))) return 'Choose a valid banner end date.';
@@ -127,6 +140,8 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
         ends_at: endsAt || undefined,
         slide_count: type === 'hero' || type === 'banner' ? slideCount : undefined,
         slides: type === 'hero' || type === 'banner' ? slides : undefined,
+        slide_targets: type === 'hero' || type === 'banner' ? slideTargets : undefined,
+        slide_shapes: type === 'hero' || type === 'banner' ? slideShapes : undefined,
       },
     });
   }

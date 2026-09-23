@@ -21,6 +21,12 @@ export type WebsiteBannerSlide = {
   cta_href: string;
 };
 
+export type WebsiteSlideTarget = { type: 'manual' | 'product' | 'category' | 'store'; id?: string };
+
+export function websiteItemHref(type: Exclude<WebsiteSlideTarget['type'], 'manual'>, slug: string) {
+  return `/${type}/${encodeURIComponent(slug)}`;
+}
+
 export type WebsiteBlockConfig = {
   slot?: WebsiteSlot;
   store_slug?: string;
@@ -40,6 +46,8 @@ export type WebsiteBlockConfig = {
   ends_at?: string;
   slide_count?: number;
   slides?: WebsiteBannerSlide[];
+  slide_targets?: WebsiteSlideTarget[];
+  slide_shapes?: Exclude<WebsiteVisualShape, 'standard'>[];
 };
 
 export type WebsiteDraftBlock = {
@@ -57,6 +65,21 @@ export type WebsiteDraftBlock = {
 
 export type WebsiteCoreContent = { title?: string; body?: string; count?: number; visual_shape?: WebsiteVisualShape; product_ids?: string[]; category_ids?: string[]; store_ids?: string[] };
 export type WebsiteLayoutSnapshot = { blocks: WebsiteDraftBlock[]; section_order?: string[]; core_content?: Record<string, WebsiteCoreContent> };
+
+export function removeWebsiteBannerSlide(block: WebsiteDraftBlock, index: number): WebsiteDraftBlock {
+  const count = Math.max(1, Math.min(10, block.config.slide_count ?? 1));
+  if (count <= 1 || index < 0 || index >= count) return block;
+  const blank = (): WebsiteBannerSlide => ({ title: '', body: '', image_url: '', cta_label: '', cta_href: '' });
+  const slides = [{ title: block.title, body: block.body, image_url: block.image_url, cta_label: block.cta_label, cta_href: block.cta_href }, ...(block.config.slides ?? [])];
+  while (slides.length < count) slides.push(blank());
+  slides.splice(index, 1);
+  const [first, ...remaining] = slides;
+  const targets = [...(block.config.slide_targets ?? [])];
+  targets.splice(index, 1);
+  const shapes = [...(block.config.slide_shapes ?? [])];
+  shapes.splice(index, 1);
+  return { ...block, ...first, config: { ...block.config, slides: remaining, slide_targets: targets, slide_shapes: shapes, slide_count: count - 1 } };
+}
 
 export const coreSectionsByPage: Record<WebsitePageKey, WebsiteCoreSection[]> = {
   home: [

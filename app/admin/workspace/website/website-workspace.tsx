@@ -4,7 +4,7 @@ import { Fragment, useMemo, useRef, useState } from 'react';
 import { Bold, Check, ChevronDown, ChevronRight, GripVertical, ImagePlus, Italic, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Underline, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
-import { coreSectionsByPage, insertWebsiteSection, moveWebsiteSection, websitePageOptions, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
+import { coreSectionsByPage, insertWebsiteSection, moveWebsiteSection, removeWebsiteBannerSlide, websiteItemHref, websitePageOptions, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlideTarget, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
 import { publishWebsiteLayout, saveWebsiteDraft } from './actions';
 import styles from './website-workspace.module.css';
 
@@ -51,10 +51,21 @@ function CataloguePicker({ title, items, selectedIds, search, onSearch, onToggle
   </details>;
 }
 
+function SlideItemPicker({ title, items, selectedId, name, onSelect }: { title: string; items: PickerItem[]; selectedId?: string; name: string; onSelect: (id: string) => void }) {
+  const [search, setSearch] = useState('');
+  const selected = items.find((item) => item.id === selectedId);
+  const matches = items.filter((item) => `${item.label} ${item.detail ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()));
+  return <details className={`${styles.productPicker} ${styles.slideItemPicker}`}>
+    <summary><b>{title}</b><small>{selected?.label ?? 'Choose one'}</small></summary>
+    <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${title.toLowerCase()}…`} aria-label={`Search ${title.toLowerCase()}`}/>
+    <div>{matches.slice(0, 60).map((item) => <label key={item.id}><input type="radio" name={name} checked={item.id === selectedId} onChange={() => onSelect(item.id)}/>{item.image ? <img src={item.image} alt=""/> : <span className={styles.pickerLetter}>{item.label.slice(0, 1)}</span>}<span><b>{item.label}</b><small>{item.detail}</small></span></label>)}{!matches.length && <small className={styles.noProducts}>No matching catalogue items.</small>}</div>
+  </details>;
+}
+
 function newBlock(type: WebsiteBlockType, page: WebsitePageKey, storeSlug?: string): WebsiteDraftBlock {
   const slot = page === 'home' ? 'after_price_drops' : page === 'stores' ? 'store_before_products' : 'after_summary';
   const title = type === 'hero' ? 'Your featured campaign' : type === 'banner' ? 'New promotion' : type === 'store_rail' ? 'Top deals at this store' : type === 'category_rail' ? 'Browse categories' : type === 'store_directory' ? 'Shop by store' : 'Featured products';
-  const config: WebsiteDraftBlock['config'] = { slot: slot as WebsiteSlot, count: 10, slide_count: type === 'hero' || type === 'banner' ? 1 : undefined, sort: 'best_deal', source_mode: type === 'product_rail' ? 'curated' : 'all', product_ids: [], banner_size: type === 'hero' || type === 'banner' ? 'wide' : undefined, visual_shape: 'standard', accent: '#1554d1', background: '#f2f6ff' };
+  const config: WebsiteDraftBlock['config'] = { slot: slot as WebsiteSlot, count: 10, slide_count: type === 'hero' || type === 'banner' ? 1 : undefined, slide_targets: type === 'hero' || type === 'banner' ? [{ type: 'manual' }] : undefined, sort: 'best_deal', source_mode: type === 'product_rail' ? 'curated' : 'all', product_ids: [], banner_size: type === 'hero' || type === 'banner' ? 'wide' : undefined, visual_shape: 'standard', accent: '#1554d1', background: '#f2f6ff' };
   if (type === 'store_rail') config.store_slug = storeSlug;
   if (page === 'stores' && storeSlug) config.store_slug = storeSlug;
   return { id: crypto.randomUUID(), block_type: type, title, body: '', cta_label: type.includes('rail') ? 'View all deals' : 'Shop now', cta_href: type === 'store_rail' && storeSlug ? `/store/${storeSlug}` : '/deals', image_url: '', config, device_visibility: 'all', is_active: true };
@@ -219,12 +230,76 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     });
   }
 
+  function slideItem(target?: WebsiteSlideTarget) {
+    if (!target?.id) return null;
+    if (target.type === 'product') {
+      const product = orderedOffers.find((item) => item.productId === target.id);
+      return product ? { label: product.title, image: product.imageUrl, href: websiteItemHref('product', product.slug) } : null;
+    }
+    if (target.type === 'category') {
+      const category = categories.find((item) => item.id === target.id);
+      return category ? { label: category.name, image: category.imageUrl, href: websiteItemHref('category', category.slug) } : null;
+    }
+    if (target.type === 'store') {
+      const store = stores.find((item) => item.id === target.id);
+      return store ? { label: store.name, image: store.logoUrl, href: websiteItemHref('store', store.slug) } : null;
+    }
+    return null;
+  }
+
+  function setBannerSlideTarget(blockId: string, index: number, type: WebsiteSlideTarget['type'], id?: string) {
+    const target: WebsiteSlideTarget = type === 'manual' ? { type } : { type, id };
+    const item = slideItem(target);
+    updateBlock(blockId, (block) => {
+      const slideTargets = [...(block.config.slide_targets ?? [])];
+      slideTargets[index] = target;
+      const config = { ...block.config, slide_targets: slideTargets };
+      if (!item) return { ...block, config };
+      const current = index === 0 ? block : block.config.slides?.[index - 1];
+      const next = {
+        title: item.label,
+        image_url: item.image ?? '',
+        cta_label: !current?.cta_label || current.cta_label === 'Shop now' ? type === 'product' ? 'View product' : type === 'category' ? 'Explore category' : 'Shop store' : current.cta_label,
+      };
+      if (index === 0) return { ...block, ...next, config };
+      const slides = [...(block.config.slides ?? [])];
+      const currentSlide: WebsiteBannerSlide = slides[index - 1] ?? { title: '', body: '', image_url: '', cta_label: '', cta_href: '' };
+      slides[index - 1] = { ...currentSlide, ...next };
+      return { ...block, config: { ...config, slides } };
+    });
+  }
+
+  function deleteBannerSlide(blockId: string, index: number) {
+    const block = blocks.find((item) => item.id === blockId);
+    if (!block) return;
+    if ((block.config.slide_count ?? 1) <= 1) {
+      setLayouts((current) => ({ ...current, [pageKey]: current[pageKey].filter((item) => item.id !== blockId) }));
+      setOrders((current) => ({ ...current, [pageKey]: current[pageKey].filter((token) => token !== `block:${blockId}`) }));
+      setSelectedId(null);
+      setNotice(null);
+      return;
+    }
+    updateBlock(blockId, (block) => removeWebsiteBannerSlide(block, index));
+  }
+
+  function setBannerSlideShape(blockId: string, index: number, shape: NonNullable<WebsiteDraftBlock['config']['banner_size']>) {
+    updateBlock(blockId, (block) => {
+      const slideShapes = [...(block.config.slide_shapes ?? [])];
+      slideShapes[index] = shape;
+      return { ...block, config: { ...block.config, slide_shapes: slideShapes } };
+    });
+  }
+
   function setBannerSlideCount(blockId: string, requestedCount: number) {
     const count = Math.max(1, Math.min(10, Math.round(requestedCount || 1)));
     updateBlock(blockId, (block) => {
       const slides = [...(block.config.slides ?? [])].slice(0, count - 1);
       while (slides.length < count - 1) slides.push({ title: '', body: '', image_url: '', cta_label: '', cta_href: '' });
-      return { ...block, config: { ...block.config, slide_count: count, slides } };
+      const slideTargets = [...(block.config.slide_targets ?? [])].slice(0, count);
+      while (slideTargets.length < count) slideTargets.push({ type: 'manual' });
+      const slideShapes = [...(block.config.slide_shapes ?? [])].slice(0, count);
+      while (slideShapes.length < count) slideShapes.push(block.config.banner_size ?? 'wide');
+      return { ...block, config: { ...block.config, slide_count: count, slides, slide_targets: slideTargets, slide_shapes: slideShapes } };
     });
   }
 
@@ -279,7 +354,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       const result = publish ? await publishWebsiteLayout(pageKey, payload) : await saveWebsiteDraft(pageKey, payload);
       if (!result.ok) setNotice({ kind: 'error', text: result.error });
       else {
-        const copied = blocks.map((block) => ({ ...block, config: { ...block.config, product_ids: block.config.product_ids ? [...block.config.product_ids] : undefined, slides: block.config.slides?.map((slide) => ({ ...slide })) } }));
+        const copied = blocks.map((block) => ({ ...block, config: { ...block.config, product_ids: block.config.product_ids ? [...block.config.product_ids] : undefined, slides: block.config.slides?.map((slide) => ({ ...slide })), slide_targets: block.config.slide_targets?.map((target) => ({ ...target })), slide_shapes: block.config.slide_shapes ? [...block.config.slide_shapes] : undefined } }));
         setSavedLayouts((current) => ({ ...current, [pageKey]: copied }));
         setSavedOrders((current) => ({ ...current, [pageKey]: [...sectionOrder] }));
         const copiedCore = JSON.parse(JSON.stringify(currentCoreContent)) as Record<string, WebsiteCoreContent>;
@@ -345,10 +420,16 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     if (block.device_visibility === 'desktop' && device === 'mobile') return null;
     if (!block.is_active || (block.config.starts_at && Date.parse(block.config.starts_at) > Date.now()) || (block.config.ends_at && Date.parse(block.config.ends_at) < Date.now())) return null;
     if (block.block_type === 'hero' || block.block_type === 'banner') {
-      const slides = [{ title: block.title, body: block.body, image_url: block.image_url, cta_label: block.cta_label }, ...(block.config.slides ?? [])].slice(0, Math.max(1, Math.min(10, Number(block.config.slide_count ?? 1))));
-      return <div className={styles.previewBannerTrack} key={block.id}>{slides.map((slide, index) => <article key={`${block.id}-preview-${index}`} className={`${styles.previewBanner} ${styles[`size_${block.config.banner_size ?? 'wide'}`]}`} style={{ background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
-        {slide.image_url && <img src={slide.image_url} alt=""/>}<div><small>{block.block_type === 'hero' ? 'FEATURED' : 'PROMOTION'} · {index + 1}/{slides.length}</small><b>{slide.title || 'Campaign banner'}</b>{slide.body && <span>{slide.body}</span>}{slide.cta_label && <em>{slide.cta_label} ↗</em>}</div>
-      </article>)}</div>;
+      const slides = [{ title: block.title, body: block.body, image_url: block.image_url, cta_label: block.cta_label, cta_href: block.cta_href }, ...(block.config.slides ?? [])].slice(0, Math.max(1, Math.min(10, Number(block.config.slide_count ?? 1))));
+      return <div className={styles.previewBannerTrack} key={block.id}>{slides.map((slide, index) => {
+        const target = block.config.slide_targets?.[index];
+        const linkedItem = slideItem(target);
+        const destination = target && target.type !== 'manual' ? linkedItem?.href : slide.cta_href;
+        const image = slide.image_url || linkedItem?.image;
+        return <article key={`${block.id}-preview-${index}`} className={`${styles.previewBanner} ${styles[`size_${block.config.slide_shapes?.[index] ?? block.config.banner_size ?? 'wide'}`]}`} style={{ background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
+          {image && <img src={image} alt=""/>}<div><small>{block.block_type === 'hero' ? 'FEATURED' : 'PROMOTION'} · {index + 1}/{slides.length}</small><b>{slide.title || linkedItem?.label || 'Campaign banner'}</b>{slide.body && <span>{renderRichPreview(slide.body)}</span>}{destination ? <a className={styles.previewDestination} href={destination} target="_blank" rel="noreferrer">{slide.cta_label || 'Open card'} ↗ <small>{destination}</small></a> : target?.type !== 'manual' ? <em>Select an item to link this card</em> : null}</div>
+        </article>;
+      })}</div>;
     }
     if (block.block_type === 'category_rail') {
       const ids = block.config.category_ids ?? [];
@@ -482,15 +563,22 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
             {(selected.block_type === 'hero' || selected.block_type === 'banner') ? <>
               <div className={styles.bannerSectionTitle}><b>Banner content</b><small>Shape and size apply to this section; every slide keeps its own content.</small></div>
               <label>Number of slides<input type="number" min={1} max={10} value={selected.config.slide_count ?? 1} onChange={(event) => setBannerSlideCount(selected.id, Number(event.target.value))}/></label>
-              <label>Banner shape<select value={selected.config.banner_size ?? 'wide'} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, banner_size: event.target.value as WebsiteDraftBlock['config']['banner_size'] } }))}><option value="wide">Wide</option><option value="strip">Promotional strip</option><option value="square">Square card</option><option value="rectangle_horizontal">Rectangle · horizontal</option><option value="rectangle_vertical">Rectangle · vertical</option></select></label>
+              <small className={styles.shapeHint}>Choose the shape and linked item separately for each slide below.</small>
               {Array.from({ length: selected.config.slide_count ?? 1 }, (_, slideIndex) => {
                 const extra = selected.config.slides?.[slideIndex - 1];
                 const values = slideIndex === 0 ? { title: selected.title, body: selected.body, image_url: selected.image_url, cta_label: selected.cta_label, cta_href: selected.cta_href } : extra ?? { title: '', body: '', image_url: '', cta_label: '', cta_href: '' };
-                return <section className={styles.slideEditor} key={`${selected.id}-slide-editor-${slideIndex}`}><header><b>Slide {slideIndex + 1}</b><small>{slideIndex === 0 ? 'First slide' : 'Additional slide'}</small></header>
+                const target = selected.config.slide_targets?.[slideIndex] ?? { type: 'manual' as const };
+                const linkedItem = slideItem(target);
+                const targetItems: PickerItem[] = target.type === 'product' ? orderedOffers.map((product) => ({ id: product.productId, label: product.title, detail: `${product.storeName} · ${money(product.price)} · ${websiteItemHref('product', product.slug)}`, image: product.imageUrl })) : target.type === 'category' ? categories.map((category) => ({ id: category.id, label: formatCategory(category, categories), detail: websiteItemHref('category', category.slug), image: category.imageUrl })) : target.type === 'store' ? stores.map((store) => ({ id: store.id, label: store.name, detail: websiteItemHref('store', store.slug), image: store.logoUrl })) : [];
+                return <section className={styles.slideEditor} key={`${selected.id}-slide-editor-${slideIndex}`}><header><b>Slide {slideIndex + 1}</b><button type="button" className={styles.deleteSlide} onClick={() => deleteBannerSlide(selected.id, slideIndex)} aria-label={(selected.config.slide_count ?? 1) > 1 ? `Delete slide ${slideIndex + 1}` : 'Delete only slide and banner section'}><Trash2/> {(selected.config.slide_count ?? 1) > 1 ? 'Delete slide' : 'Delete slide & section'}</button></header>
+                  <label>Card shape<select value={selected.config.slide_shapes?.[slideIndex] ?? selected.config.banner_size ?? 'wide'} onChange={(event) => setBannerSlideShape(selected.id, slideIndex, event.target.value as NonNullable<WebsiteDraftBlock['config']['banner_size']>)}><option value="wide">Full-width banner</option><option value="strip">Promotional strip</option><option value="square">Square card</option><option value="rectangle_horizontal">Horizontal rectangle card</option><option value="rectangle_vertical">Vertical rectangle card</option></select></label>
+                  <label>Card opens<select value={target.type} onChange={(event) => setBannerSlideTarget(selected.id, slideIndex, event.target.value as WebsiteSlideTarget['type'])}><option value="manual">Custom link</option><option value="product">Product page</option><option value="category">Category or subcategory page</option><option value="store">Store page</option></select></label>
+                  {target.type !== 'manual' && <SlideItemPicker key={`${selected.id}-${slideIndex}-${target.type}`} title={target.type === 'product' ? 'Choose a product' : target.type === 'category' ? 'Choose a category or subcategory' : 'Choose a store'} items={targetItems} selectedId={target.id} name={`slide-target-${selected.id}-${slideIndex}`} onSelect={(id) => setBannerSlideTarget(selected.id, slideIndex, target.type, id)}/>}
+                  {target.type !== 'manual' && <small className={styles.sourceNote}><Check/> {linkedItem ? `The entire card opens ${linkedItem.href}` : 'Select an item above to link this card.'}</small>}
                   <label>Heading<input maxLength={120} value={values.title} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { title: event.target.value })} placeholder="e.g. Diwali essentials"/></label>
                   <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={values.body} onChange={(body) => updateBannerSlide(selected.id, slideIndex, { body })} placeholder="Add a short customer-friendly description"/></div>
                   {slideIndex === 0 ? <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === 'image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label> : <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === `slide-${slideIndex}` ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0], slideIndex)} disabled={Boolean(uploading)}/></label></span></label>}
-                  <div className={styles.twoFields}><label>Button label<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Shop now"/></label><label>Button link<input maxLength={500} value={values.cta_href} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_href: event.target.value })} placeholder="/deals or https://…"/></label></div>
+                  <div className={styles.twoFields}><label>Button label<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Shop now"/></label>{target.type === 'manual' ? <label>Button link<input maxLength={500} value={values.cta_href} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_href: event.target.value })} placeholder="/deals or https://…"/></label> : <label>Linked page<input value={linkedItem?.href ?? 'Choose an item above'} readOnly/></label>}</div>
                 </section>;
               })}
               <label className={styles.uploadField}>Mobile image for first slide (optional)<span className={styles.uploadRow}><input value={selected.config.mobile_image_url ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, mobile_image_url: event.target.value } }))} placeholder="Use a crop suited to mobile"/><label className={styles.uploadButton}><Upload/>{uploading === 'mobile_image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('mobile_image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label>
