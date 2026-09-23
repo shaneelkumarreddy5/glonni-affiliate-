@@ -36,7 +36,8 @@ import {
   Tag,
   Wifi,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
+import { renderWebsiteRichText } from '@/lib/website-rich-text';
 
 export const dynamic = "force-dynamic";
 const money = (value: number | null | undefined) =>
@@ -354,6 +355,8 @@ export default async function ProductPage({
   const layout = await getPublishedWebsiteLayout('product');
   const sectionOrder = resolveWebsiteSectionOrder('product', layout.blocks, layout.section_order);
   const sectionPositions = new Map(sectionOrder.map((token, index) => [token, index + 1]));
+  const coreContent = layout.core_content ?? {};
+  const sectionStyle = (key: string, fallback: number): CSSProperties => ({ order: sectionPositions.get(`core:${key}`) ?? fallback, display: sectionPositions.has(`core:${key}`) ? undefined : 'none' });
   const historyRows=(storedHistory??[]).map(row=>({price:Number(row.price),recordedAt:String(row.recorded_at)})).filter(row=>Number.isFinite(row.price)),
     storedPrices=historyRows.map(row=>row.price),
     historyLow=storedPrices.length?Math.min(...storedPrices):null,
@@ -386,17 +389,17 @@ export default async function ProductPage({
           ]}
           fallback={parent}
         /></div>
-        <div style={{ order: sectionPositions.get('core:product_summary') ?? 1 }}>
+        <div style={sectionStyle('product_summary', 1)}>
         <section className="pdp-hero">
           <ProductGallery images={gallery} title={product.title}/>
           <div className="pdp-summary">
             <p className="pdp-brand">
-              {product.brand ?? "GLONNI"} · {category}
+              {coreContent.product_summary?.title || `${product.brand ?? "GLONNI"} · ${category}`}
             </p>
             <h1>{product.title}</h1>
             {averageRating ? <div className="pdp-rating"><span><Star/></span><b>{averageRating.toFixed(1)} / 5</b><small>{totalRatings.toLocaleString('en-IN')} ratings across reporting stores</small></div> : <div className="pdp-rating pdp-rating-missing"><small>Customer ratings are not available from connected stores yet.</small></div>}
             <p>
-              {product.description ||
+              {coreContent.product_summary?.body ? renderWebsiteRichText(coreContent.product_summary.body) : product.description ||
                 "Compare the exact same product variant across verified stores before choosing where to buy."}
             </p>
             <div className="pdp-save-row">
@@ -460,14 +463,14 @@ export default async function ProductPage({
           </div>
         </section>
         </div>
-        <div style={{ order: sectionPositions.get('core:offer_comparison') ?? 2 }}>
+        <div style={sectionStyle('offer_comparison', 2)}>
         <section id="offers" className="pdp-card pdp-comparison">
           <header>
             <div>
-              <h2>Compare prices across stores</h2>
-              <p>
+              <h2>{coreContent.offer_comparison?.title || 'Compare prices across stores'}</h2>
+              <p>{coreContent.offer_comparison?.body ? renderWebsiteRichText(coreContent.offer_comparison.body) : <>
                 Same product and selected variant. Different merchant offers.
-              </p>
+              </>}</p>
             </div>
             <span>
               <ShieldCheck /> Verified redirects
@@ -542,12 +545,12 @@ export default async function ProductPage({
           </div>
         </section>
         </div>
-        <div style={{ order: sectionPositions.get('core:price_history') ?? 3 }}>
+        <div style={sectionStyle('price_history', 3)}>
         <section className="pdp-card pdp-history">
           <header>
             <div>
-              <h2>Price history</h2>
-              <p>Verified recorded prices for this product</p>
+              <h2>{coreContent.price_history?.title || 'Price history'}</h2>
+              <p>{coreContent.price_history?.body ? renderWebsiteRichText(coreContent.price_history.body) : 'Verified recorded prices for this product'}</p>
             </div>
           </header>
           {historyRows.length ? <><div className="pdp-chart">
@@ -599,12 +602,12 @@ export default async function ProductPage({
           </> : <div className="pdp-history-empty"><b>Price history is not available yet</b><span>Glonni will show a chart after verified price records have been collected.</span></div>}
         </section>
         </div>
-        <div style={{ order: sectionPositions.get('core:specifications') ?? 4 }}>
+        <div style={sectionStyle('specifications', 4)}>
         <section className="pdp-card pdp-specifications">
           <header>
             <div>
-              <h2>Top 10 specifications</h2>
-              <p>Category-relevant details for faster comparison</p>
+              <h2>{coreContent.specifications?.title || 'Top 10 specifications'}</h2>
+              <p>{coreContent.specifications?.body ? renderWebsiteRichText(coreContent.specifications.body) : 'Category-relevant details for faster comparison'}</p>
             </div>
             <a href="#full-information">View all specifications</a>
           </header>
@@ -621,11 +624,11 @@ export default async function ProductPage({
           </div> : <div className="pdp-section-empty"><b>Specifications have not been added</b><span>Confirm technical details on the selected store before purchasing.</span></div>}
         </section>
         </div>
-        <div style={{ order: sectionPositions.get('core:product_information') ?? 5 }}>
+        <div style={sectionStyle('product_information', 5)}>
         <section id="category-guide" className="pdp-information-grid">
           <article className="pdp-card">
-            <h2>{view.guideTitle}</h2>
-            <p>{view.guideText}</p>
+            <h2>{coreContent.product_information?.title || view.guideTitle}</h2>
+            <p>{coreContent.product_information?.body ? renderWebsiteRichText(coreContent.product_information.body) : view.guideText}</p>
             <div className="pdp-guide">
               <ShieldCheck />
               <span>
@@ -663,11 +666,12 @@ export default async function ProductPage({
           </article>
         </section>
         </div>
-        <div style={{ order: sectionPositions.get('core:store_policies') ?? 6 }}>
-        {merchantPolicies.length > 0 && <section className="pdp-merchant-policies"><header><p className="eyebrow">PURCHASE TERMS</p><h2>Terms for stores selling this product</h2><p>Select the store you plan to buy from and review the applicable Glonni, store and cashback terms.</p></header>{merchantPolicies.map(({merchant,policy})=><CustomerPolicyAccordions key={merchant.slug} storeName={merchant.name} policy={policy}/>)}</section>}
+        <div style={sectionStyle('store_policies', 6)}>
+        {merchantPolicies.length > 0 && <section className="pdp-merchant-policies"><header><p className="eyebrow">PURCHASE TERMS</p><h2>{coreContent.store_policies?.title || 'Terms for stores selling this product'}</h2><p>{coreContent.store_policies?.body ? renderWebsiteRichText(coreContent.store_policies.body) : 'Select the store you plan to buy from and review the applicable Glonni, store and cashback terms.'}</p></header>{merchantPolicies.map(({merchant,policy})=><CustomerPolicyAccordions key={merchant.slug} storeName={merchant.name} policy={policy}/>)}</section>}
         </div>
-        <div style={{ order: sectionPositions.get('core:product_faqs') ?? 7 }}>
+        <div style={sectionStyle('product_faqs', 7)}>
         <ContextualFaqs
+          title={coreContent.product_faqs?.title || 'Cashback & offer details'}
           faqs={
             (offerFaqs ?? []) as {
               id: string;
@@ -678,13 +682,13 @@ export default async function ProductPage({
           }
         />
         </div>
-        <div style={{ order: sectionPositions.get('core:related_products') ?? 8 }}>
+        <div style={sectionStyle('related_products', 8)}>
         {related.length > 0 && (
           <section className="pdp-related">
             <header>
               <div>
-                <h2>Similar products</h2>
-                <p>More options in {category}</p>
+                <h2>{coreContent.related_products?.title || 'Similar products'}</h2>
+                <p>{coreContent.related_products?.body ? renderWebsiteRichText(coreContent.related_products.body) : `More options in ${category}`}</p>
               </div>
               <a
                 href={
@@ -712,13 +716,15 @@ export default async function ProductPage({
           </section>
         )}
         </div>
-        <div style={{ order: sectionPositions.get('core:disclosure') ?? 9 }}>
+        <div style={sectionStyle('disclosure', 9)}>
         <p className="pdp-disclosure">
+          {coreContent.disclosure?.body ? renderWebsiteRichText(coreContent.disclosure.body) : <>
           Prices, ratings, history, availability and delivery notes may be
           preview data until live provider feeds are connected. Final price,
           payment, delivery and returns are handled by the selected merchant.
           Glonni Cashback applies only to marked offers after successful
           tracking and merchant confirmation.
+          </>}
         </p>
         </div>
         {sectionOrder.filter((token) => token.startsWith('block:')).map((token) => <div key={token} style={{ order: sectionPositions.get(token) }}><CmsManagedSections pageKey="product" blockIds={[token.slice(6)]} offers={allOffers}/></div>)}

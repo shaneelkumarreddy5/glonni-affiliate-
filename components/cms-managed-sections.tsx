@@ -2,19 +2,22 @@ import { cache, type ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { getCatalogOffers, getCategories, type CatalogOffer } from '@/lib/catalog';
 import { HomeOfferRail } from '@/components/home-offer-rail';
+import { ScrollRail } from '@/components/scroll-rail';
+import { getStores } from '@/lib/catalog';
+import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { systemPageSlug, type SystemPageKey } from '@/lib/system-pages';
 import type { WebsiteDraftBlock, WebsiteLayoutSnapshot, WebsitePageKey } from '@/lib/website-layout';
 import styles from './cms-managed-sections.module.css';
 
 type ManagedBlock = WebsiteDraftBlock & { id: string };
-type LayoutSnapshot = { blocks?: ManagedBlock[]; section_order?: string[] };
+type LayoutSnapshot = { blocks?: ManagedBlock[]; section_order?: string[]; core_content?: WebsiteLayoutSnapshot['core_content'] };
 
 const loadPublishedLayout = cache(async (pageKey: SystemPageKey): Promise<WebsiteLayoutSnapshot> => {
   const supabase = await createClient();
   const { data: page } = await supabase.from('site_pages').select('id,published_layout').eq('slug', systemPageSlug(pageKey)).eq('status', 'published').maybeSingle();
   if (!page) return { blocks: [] };
   const snapshot = page.published_layout as LayoutSnapshot | null;
-  if (Array.isArray(snapshot?.blocks)) return { blocks: snapshot.blocks, section_order: Array.isArray(snapshot.section_order) ? snapshot.section_order : undefined };
+  if (Array.isArray(snapshot?.blocks)) return { blocks: snapshot.blocks, section_order: Array.isArray(snapshot.section_order) ? snapshot.section_order : undefined, core_content: snapshot.core_content && typeof snapshot.core_content === 'object' ? snapshot.core_content : {} };
   // Backwards-compatible path for previously published CMS blocks.
   const { data } = await supabase.from('site_page_blocks').select('id,block_type,title,body,cta_label,cta_href,image_url,config,device_visibility,is_active').eq('page_id', page.id).eq('is_active', true).order('display_order');
   const blocks = (data ?? []).map((item) => ({
@@ -96,7 +99,12 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
     return true;
   });
   const categoryBlocks = blocks.filter((block) => block.config.category_slug);
-  const categories = categoryBlocks.length ? await loadCatalogCategories() : [];
+  const needsCategories = categoryBlocks.length || blocks.some((block) => block.block_type === 'category_rail');
+  const needsStores = blocks.some((block) => block.block_type === 'store_directory');
+  const [categories, stores] = await Promise.all([
+    needsCategories ? loadCatalogCategories() : Promise.resolve([]),
+    needsStores ? getStores() : Promise.resolve([]),
+  ]);
   const categoryBranches = new Map(categoryBlocks.map((block) => [block.id, categoryBranchIds(block.config.category_slug!, categories)]));
   if (!blocks.length) return fallback ?? null;
 
@@ -116,6 +124,7 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
     }
 
     if (block.block_type === 'product_rail' || block.block_type === 'store_rail') {
+      if (block.block_type === 'product_rail' && config.source_mode === 'curated' && !config.product_ids?.length) return null;
       const filtered = allOffers.filter((offer) => {
         if ((block.block_type === 'store_rail' || config.store_slug) && offer.merchants?.slug !== config.store_slug) return false;
         if (config.category_slug && !categoryBranches.get(block.id)?.has(offer.products?.categories?.id ?? '')) return false;
@@ -136,13 +145,37 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
       if (!ordered.length) return null;
       const storeName = ordered[0]?.merchants?.name;
       return <section key={block.id} className={`${styles.productBlock} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`}>
-        <header><div><p className="eyebrow">{block.block_type === 'store_rail' ? `${storeName ?? 'STORE'} DEALS` : 'FEATURED PRODUCTS'}</p><h2>{block.title || (block.block_type === 'store_rail' ? `Deals at ${storeName ?? 'this store'}` : 'Featured products')}</h2>{block.body && <span>{block.body}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
-        <HomeOfferRail offers={ordered}/>
+        <header><div><p className="eyebrow">{block.block_type === 'store_rail' ? `${storeName ?? 'STORE'} DEALS` : 'FEATURED PRODUCTS'}</p><h2>{block.title || (block.block_type === 'store_rail' ? `Deals at ${storeName ?? 'this store'}` : 'Featured products')}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
+        <HomeOfferRail offers={ordered} shape={config.visual_shape ?? 'standard'}/>
+      </section>;
+    }
+
+    if (block.block_type === 'category_rail') {
+      const ids = config.category_ids ?? [];
+      const rank = new Map(ids.map((id, index) => [id, index]));
+      const selected = (ids.length ? categories.filter((category) => rank.has(category.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : categories)
+        .slice(0, Math.max(1, Math.min(50, Number(config.count ?? 10))));
+      if (!selected.length) return null;
+      return <section key={block.id} className={`${styles.catalogueRail} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`}>
+        <header><div><p className="eyebrow">CATEGORIES</p><h2>{block.title || 'Browse categories'}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
+        <ScrollRail className={styles.categoryCards} label={block.title || 'categories'}>{selected.map((category) => <a className={`${styles.catalogueCard} ${styles[`shape_${(config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`} href={`/category/${category.slug}`} key={category.id}><span className={styles.categoryImage}>{category.image_url ? <img src={category.image_url} alt=""/> : <b>{category.name.slice(0, 1)}</b>}</span><strong>{category.name}</strong><small>Explore category</small></a>)}</ScrollRail>
+      </section>;
+    }
+
+    if (block.block_type === 'store_directory') {
+      const ids = config.store_ids ?? [];
+      const rank = new Map(ids.map((id, index) => [id, index]));
+      const selected = (ids.length ? stores.filter((store) => rank.has(store.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : stores)
+        .slice(0, Math.max(1, Math.min(50, Number(config.count ?? 10))));
+      if (!selected.length) return null;
+      return <section key={block.id} className={`${styles.catalogueRail} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`}>
+        <header><div><p className="eyebrow">STORES</p><h2>{block.title || 'Shop by store'}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
+        <ScrollRail className={styles.storeCards} label={block.title || 'stores'}>{selected.map((store) => <a className={`${styles.catalogueCard} ${styles[`shape_${(config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`} href={`/store/${store.slug}?from=/`} key={store.id}><span className={styles.storeImage}>{store.logo_url ? <img src={store.logo_url} alt=""/> : <b>{store.name.slice(0, 1)}</b>}</span><strong>{store.name}</strong><small>Shop this store</small></a>)}</ScrollRail>
       </section>;
     }
 
     return <section key={block.id} className={`${styles.block} ${styles.genericBlock}`} style={{ '--accent': accent, '--background': background } as React.CSSProperties} data-device={visibility}>
-      <div className={styles.copy}>{block.title && <h2>{block.title}</h2>}{block.body && <p>{block.body}</p>}{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label}</a>}</div>
+      <div className={styles.copy}>{block.title && <h2>{block.title}</h2>}{block.body && <p className={styles.richText}>{renderWebsiteRichText(block.body)}</p>}{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label}</a>}</div>
       {block.image_url && <img src={block.image_url} alt=""/>}
     </section>;
   })}</div>;

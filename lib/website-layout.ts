@@ -1,5 +1,6 @@
 export type WebsitePageKey = 'home' | 'stores' | 'product';
-export type WebsiteBlockType = 'hero' | 'banner' | 'product_rail' | 'store_rail';
+export type WebsiteBlockType = 'hero' | 'banner' | 'product_rail' | 'store_rail' | 'category_rail' | 'store_directory';
+export type WebsiteVisualShape = 'standard' | 'wide' | 'strip' | 'square' | 'rectangle_horizontal' | 'rectangle_vertical';
 export type WebsiteSlot =
   | 'hero' | 'after_hero' | 'after_categories' | 'after_stores'
   | 'after_best_deals' | 'after_trending' | 'after_price_drops' | 'before_footer'
@@ -24,12 +25,15 @@ export type WebsiteBlockConfig = {
   slot?: WebsiteSlot;
   store_slug?: string;
   category_slug?: string;
+  category_ids?: string[];
+  store_ids?: string[];
   source_mode?: 'all' | 'curated';
   product_ids?: string[];
   count?: number;
   sort?: 'best_deal' | 'trending' | 'price_drop' | 'newest';
   mobile_image_url?: string;
-  banner_size?: 'wide' | 'strip' | 'square';
+  banner_size?: Exclude<WebsiteVisualShape, 'standard'>;
+  visual_shape?: WebsiteVisualShape;
   accent?: string;
   background?: string;
   starts_at?: string;
@@ -51,7 +55,8 @@ export type WebsiteDraftBlock = {
   is_active: boolean;
 };
 
-export type WebsiteLayoutSnapshot = { blocks: WebsiteDraftBlock[]; section_order?: string[] };
+export type WebsiteCoreContent = { title?: string; body?: string; count?: number; visual_shape?: WebsiteVisualShape; product_ids?: string[]; category_ids?: string[]; store_ids?: string[] };
+export type WebsiteLayoutSnapshot = { blocks: WebsiteDraftBlock[]; section_order?: string[]; core_content?: Record<string, WebsiteCoreContent> };
 
 export const coreSectionsByPage: Record<WebsitePageKey, WebsiteCoreSection[]> = {
   home: [
@@ -122,11 +127,13 @@ export function defaultWebsiteSectionOrder(page: WebsitePageKey, blocks: Website
 
 export function resolveWebsiteSectionOrder(page: WebsitePageKey, blocks: WebsiteDraftBlock[], savedOrder?: string[]) {
   const fallback = defaultWebsiteSectionOrder(page, blocks);
-  if (!savedOrder?.length) return fallback;
+  if (!savedOrder) return fallback;
   const expected = new Set(fallback);
   const order: string[] = [];
   for (const token of savedOrder) if (expected.has(token) && !order.includes(token)) order.push(token);
-  for (const token of fallback) if (!order.includes(token)) order.push(token);
+  // A saved order is an explicit page composition: missing core entries were removed.
+  // Always append only newly-added custom blocks so an incomplete old draft stays useful.
+  for (const token of blocks.map((block) => `block:${block.id}`)) if (!order.includes(token)) order.push(token);
   return order;
 }
 

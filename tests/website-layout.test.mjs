@@ -22,13 +22,17 @@ test('legacy website slots map custom sections beside their previous anchors', (
   ]);
 });
 
-test('saved drag order is preserved while missing or duplicate entries are repaired', () => {
+test('saved page composition is preserved and only newly-added custom sections are appended', () => {
   const blocks = [block('one', 'after_categories')];
   const order = resolveWebsiteSectionOrder('home', blocks, ['core:stores', 'block:one', 'core:stores', 'unknown']);
   assert.equal(order[0], 'core:stores');
   assert.equal(order[1], 'block:one');
+  assert.deepEqual(order, ['core:stores', 'block:one']);
   assert.equal(new Set(order).size, order.length);
-  assert.equal(order.length, 8);
+});
+
+test('an explicitly empty saved composition removes every built-in section', () => {
+  assert.deepEqual(resolveWebsiteSectionOrder('home', [], []), []);
 });
 
 test('drop targets place the complete section before, after, or at the chosen point', () => {

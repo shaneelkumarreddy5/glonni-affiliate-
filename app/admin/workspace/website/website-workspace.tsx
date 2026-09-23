@@ -1,32 +1,71 @@
 'use client';
 
-import { Fragment, useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronRight, GripVertical, ImagePlus, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Upload, X } from 'lucide-react';
+import { Fragment, useMemo, useRef, useState } from 'react';
+import { Bold, Check, ChevronDown, ChevronRight, GripVertical, ImagePlus, Italic, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Underline, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { coreSectionsByPage, insertWebsiteSection, moveWebsiteSection, websitePageOptions, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlot } from '@/lib/website-layout';
+import { renderWebsiteRichText } from '@/lib/website-rich-text';
+import { coreSectionsByPage, insertWebsiteSection, moveWebsiteSection, websitePageOptions, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
 import { publishWebsiteLayout, saveWebsiteDraft } from './actions';
 import styles from './website-workspace.module.css';
 
 export type WebsiteWorkspaceStore = { id: string; name: string; slug: string; logoUrl: string | null };
 export type WebsiteWorkspaceProduct = { productId: string; offerId: string; slug: string; title: string; brand: string | null; imageUrl: string | null; categoryId: string; categoryName: string; storeSlug: string; storeName: string; price: number | null; listPrice: number | null; cashback: number | null; rating: number | null; ratingCount: number | null; updatedAt: string | null };
-type CategoryOption = { id: string; name: string; slug: string; parentId: string | null };
+type CategoryOption = { id: string; name: string; slug: string; parentId: string | null; imageUrl?: string | null };
 type Device = 'desktop' | 'tablet' | 'mobile';
-type Props = { initialPage: WebsitePageKey; initialLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]>; initialOrders: Record<WebsitePageKey, string[]>; publishedLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]>; publishedOrders: Record<WebsitePageKey, string[]>; pageStatuses: Partial<Record<WebsitePageKey, string>>; stores: WebsiteWorkspaceStore[]; products: WebsiteWorkspaceProduct[]; categories: CategoryOption[]; canEdit: boolean };
+type CoreContentMap = Record<WebsitePageKey, Record<string, WebsiteCoreContent>>;
+type Props = { initialPage: WebsitePageKey; initialLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]>; initialOrders: Record<WebsitePageKey, string[]>; initialCoreContent: CoreContentMap; publishedLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]>; publishedOrders: Record<WebsitePageKey, string[]>; publishedCoreContent: CoreContentMap; pageStatuses: Partial<Record<WebsitePageKey, string>>; stores: WebsiteWorkspaceStore[]; products: WebsiteWorkspaceProduct[]; categories: CategoryOption[]; canEdit: boolean };
+
+function RichTextField({ value, onChange, placeholder, maxLength = 1800 }: { value: string; onChange: (value: string) => void; placeholder: string; maxLength?: number }) {
+  const input = useRef<HTMLTextAreaElement>(null);
+  function wrap(open: string, close: string) {
+    const element = input.current;
+    if (!element) return;
+    const start = element.selectionStart;
+    const end = element.selectionEnd;
+    const selected = value.slice(start, end);
+    const next = `${value.slice(0, start)}${open}${selected}${close}${value.slice(end)}`;
+    onChange(next);
+    requestAnimationFrame(() => {
+      element.focus();
+      element.setSelectionRange(start + open.length, start + open.length + selected.length);
+    });
+  }
+  return <div className={styles.richEditor}>
+    <div className={styles.richToolbar} aria-label="Text formatting">
+      <button type="button" title="Bold" aria-label="Bold selected text" onMouseDown={(event) => event.preventDefault()} onClick={() => wrap('**', '**')}><Bold/></button>
+      <button type="button" title="Italic" aria-label="Italic selected text" onMouseDown={(event) => event.preventDefault()} onClick={() => wrap('*', '*')}><Italic/></button>
+      <button type="button" title="Underline" aria-label="Underline selected text" onMouseDown={(event) => event.preventDefault()} onClick={() => wrap('__', '__')}><Underline/></button>
+      <label title="Text color" aria-label="Choose text color"><span>A</span><input type="color" defaultValue="#1554d1" onChange={(event) => wrap(`[color=${event.target.value}]`, '[/color]')}/></label>
+      <small>Select text, then choose a style.</small>
+    </div>
+    <textarea ref={input} maxLength={maxLength} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder}/>
+  </div>;
+}
+
+type PickerItem = { id: string; label: string; detail?: string; image?: string | null };
+function CataloguePicker({ title, items, selectedIds, search, onSearch, onToggle }: { title: string; items: PickerItem[]; selectedIds: string[]; search: string; onSearch: (value: string) => void; onToggle: (id: string) => void }) {
+  return <details className={styles.productPicker}>
+    <summary><b>{title}</b><small>{selectedIds.length} selected</small></summary>
+    <input value={search} onChange={(event) => onSearch(event.target.value)} placeholder={`Search ${title.toLowerCase()}…`} aria-label={`Search ${title.toLowerCase()}`}/>
+    <div>{items.slice(0, 60).map((item) => <label key={item.id}><input type="checkbox" checked={selectedIds.includes(item.id)} onChange={() => onToggle(item.id)}/>{item.image ? <img src={item.image} alt=""/> : <span className={styles.pickerLetter}>{item.label.slice(0, 1)}</span>}<span><b>{item.label}</b><small>{item.detail}</small></span></label>)}{!items.length && <small className={styles.noProducts}>No catalogue items match this search.</small>}</div>
+  </details>;
+}
 
 function newBlock(type: WebsiteBlockType, page: WebsitePageKey, storeSlug?: string): WebsiteDraftBlock {
   const slot = page === 'home' ? 'after_price_drops' : page === 'stores' ? 'store_before_products' : 'after_summary';
-  const title = type === 'hero' ? 'Your featured campaign' : type === 'banner' ? 'New promotion' : type === 'store_rail' ? 'Top deals at this store' : 'Featured products';
-  const config: WebsiteDraftBlock['config'] = { slot: slot as WebsiteSlot, count: 10, slide_count: type === 'hero' || type === 'banner' ? 1 : undefined, sort: 'best_deal', source_mode: 'all', banner_size: type === 'hero' || type === 'banner' ? 'wide' : undefined, accent: '#1554d1', background: '#f2f6ff' };
+  const title = type === 'hero' ? 'Your featured campaign' : type === 'banner' ? 'New promotion' : type === 'store_rail' ? 'Top deals at this store' : type === 'category_rail' ? 'Browse categories' : type === 'store_directory' ? 'Shop by store' : 'Featured products';
+  const config: WebsiteDraftBlock['config'] = { slot: slot as WebsiteSlot, count: 10, slide_count: type === 'hero' || type === 'banner' ? 1 : undefined, sort: 'best_deal', source_mode: type === 'product_rail' ? 'curated' : 'all', product_ids: [], banner_size: type === 'hero' || type === 'banner' ? 'wide' : undefined, visual_shape: 'standard', accent: '#1554d1', background: '#f2f6ff' };
   if (type === 'store_rail') config.store_slug = storeSlug;
   if (page === 'stores' && storeSlug) config.store_slug = storeSlug;
   return { id: crypto.randomUUID(), block_type: type, title, body: '', cta_label: type.includes('rail') ? 'View all deals' : 'Shop now', cta_href: type === 'store_rail' && storeSlug ? `/store/${storeSlug}` : '/deals', image_url: '', config, device_visibility: 'all', is_active: true };
 }
 
 function titleForType(type: WebsiteBlockType) {
-  return type === 'hero' ? 'Hero banner' : type === 'banner' ? 'Promotion banner' : type === 'store_rail' ? 'Store deals rail' : 'Product collection';
+  return type === 'hero' ? 'Hero banner' : type === 'banner' ? 'Promotion banner' : type === 'store_rail' ? 'Store deals rail' : type === 'category_rail' ? 'Category cards' : type === 'store_directory' ? 'Store cards' : 'Product collection';
 }
 
 function money(value: number | null) { return value == null ? 'Check price' : `₹${Math.round(value).toLocaleString('en-IN')}`; }
+function renderRichPreview(value: string) { return <>{renderWebsiteRichText(value)}</>; }
 function toLocalDateTime(value?: string) {
   if (!value) return '';
   const date = new Date(value);
@@ -63,7 +102,7 @@ function categoryBranch(categorySlug: string | undefined, categories: CategoryOp
   return branch;
 }
 
-export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, publishedLayouts: initialPublishedLayouts, publishedOrders: initialPublishedOrders, pageStatuses, stores, products, categories, canEdit }: Props) {
+export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, initialCoreContent, publishedLayouts: initialPublishedLayouts, publishedOrders: initialPublishedOrders, publishedCoreContent: initialPublishedCoreContent, pageStatuses, stores, products, categories, canEdit }: Props) {
   const [pageKey, setPageKey] = useState<WebsitePageKey>(initialPage);
   const [layouts, setLayouts] = useState(initialLayouts);
   const [savedLayouts, setSavedLayouts] = useState(initialLayouts);
@@ -71,6 +110,9 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, p
   const [orders, setOrders] = useState(initialOrders);
   const [savedOrders, setSavedOrders] = useState(initialOrders);
   const [publishedOrders, setPublishedOrders] = useState(initialPublishedOrders);
+  const [coreContent, setCoreContent] = useState(initialCoreContent);
+  const [savedCoreContent, setSavedCoreContent] = useState(initialCoreContent);
+  const [publishedCoreContent, setPublishedCoreContent] = useState(initialPublishedCoreContent);
   const [statuses, setStatuses] = useState(pageStatuses);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCoreKey, setSelectedCoreKey] = useState<string | null>(null);
@@ -81,6 +123,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, p
   const [previewStoreSlug, setPreviewStoreSlug] = useState(stores[0]?.slug ?? '');
   const [previewProductId, setPreviewProductId] = useState(products[0]?.productId ?? '');
   const [productSearch, setProductSearch] = useState('');
+  const [catalogueSearch, setCatalogueSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -89,11 +132,27 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, p
   const sectionOrder = orders[pageKey] ?? [];
   const coreSections = coreSectionsByPage[pageKey];
   const selectedCore = coreSections.find((section) => section.key === selectedCoreKey) ?? null;
-  const dirty = JSON.stringify(blocks) !== JSON.stringify(savedLayouts[pageKey] ?? []) || JSON.stringify(sectionOrder) !== JSON.stringify(savedOrders[pageKey] ?? []);
-  const hasUnpublishedDraft = JSON.stringify(savedLayouts[pageKey] ?? []) !== JSON.stringify(publishedLayouts[pageKey] ?? []) || JSON.stringify(savedOrders[pageKey] ?? []) !== JSON.stringify(publishedOrders[pageKey] ?? []);
+  const currentCoreContent = coreContent[pageKey] ?? {};
+  const dirty = JSON.stringify(blocks) !== JSON.stringify(savedLayouts[pageKey] ?? []) || JSON.stringify(sectionOrder) !== JSON.stringify(savedOrders[pageKey] ?? []) || JSON.stringify(currentCoreContent) !== JSON.stringify(savedCoreContent[pageKey] ?? {});
+  const hasUnpublishedDraft = JSON.stringify(savedLayouts[pageKey] ?? []) !== JSON.stringify(publishedLayouts[pageKey] ?? []) || JSON.stringify(savedOrders[pageKey] ?? []) !== JSON.stringify(publishedOrders[pageKey] ?? []) || JSON.stringify(savedCoreContent[pageKey] ?? {}) !== JSON.stringify(publishedCoreContent[pageKey] ?? {});
   const activeStore = stores.find((store) => store.slug === previewStoreSlug) ?? stores[0];
   const activeProduct = products.find((product) => product.productId === previewProductId) ?? products[0];
   const pageOption = websitePageOptions.find((page) => page.key === pageKey)!;
+  function updateCoreContent(key: string, patch: Partial<WebsiteCoreContent>) {
+    setNotice(null);
+    setCoreContent((current) => ({ ...current, [pageKey]: { ...current[pageKey], [key]: { ...(current[pageKey]?.[key] ?? {}), ...patch } } }));
+  }
+  function toggleCorePick(key: string, field: 'product_ids' | 'category_ids' | 'store_ids', id: string) {
+    const values = currentCoreContent[key]?.[field] ?? [];
+    updateCoreContent(key, { [field]: values.includes(id) ? values.filter((item) => item !== id) : [...values, id] });
+  }
+  function removeCoreSection(key: string) {
+    setOrders((current) => ({ ...current, [pageKey]: (current[pageKey] ?? []).filter((token) => token !== `core:${key}`) }));
+    setCoreContent((current) => { const next = { ...current[pageKey] }; delete next[key]; return { ...current, [pageKey]: next }; });
+    setSelectedCoreKey(null);
+    setCatalogueSearch('');
+    setNotice(null);
+  }
 
   const orderedOffers = useMemo(() => {
     const byProduct = new Map<string, WebsiteWorkspaceProduct>();
@@ -122,9 +181,25 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, p
     return list;
   }, [products, selected, productSearch, categories]);
 
+  const coreProductChoices = useMemo(() => {
+    const search = catalogueSearch.trim().toLowerCase();
+    const unique = new Map<string, WebsiteWorkspaceProduct>();
+    for (const product of orderedOffers) if (!search || `${product.title} ${product.brand ?? ''} ${product.storeName}`.toLowerCase().includes(search)) unique.set(product.productId, product);
+    return [...unique.values()];
+  }, [orderedOffers, catalogueSearch]);
+  const matchingCategoryChoices = categories.filter((category) => formatCategory(category, categories).toLowerCase().includes(catalogueSearch.trim().toLowerCase())).map((category) => ({ id: category.id, label: formatCategory(category, categories), detail: category.parentId ? 'Subcategory · opens its own category page' : 'Main category · opens its own category page', image: category.imageUrl }));
+  const matchingStoreChoices = stores.filter((store) => store.name.toLowerCase().includes(catalogueSearch.trim().toLowerCase())).map((store) => ({ id: store.id, label: store.name, detail: `Store page: /store/${store.slug}`, image: store.logoUrl }));
+  const matchingCoreProductChoices = coreProductChoices.map((product) => ({ id: product.productId, label: product.title, detail: `${product.storeName} · ${product.categoryName || 'Uncategorised'} · ${money(product.price)}`, image: product.imageUrl }));
+
   function updateBlock(id: string, update: (block: WebsiteDraftBlock) => WebsiteDraftBlock) {
     setNotice(null);
     setLayouts((current) => ({ ...current, [pageKey]: current[pageKey].map((block) => block.id === id ? update(block) : block) }));
+  }
+  function toggleBlockPick(id: string, field: 'product_ids' | 'category_ids' | 'store_ids', itemId: string) {
+    updateBlock(id, (block) => {
+      const values = block.config[field] ?? [];
+      return { ...block, config: { ...block.config, [field]: values.includes(itemId) ? values.filter((value) => value !== itemId) : [...values, itemId] } };
+    });
   }
 
   function updateBannerSlide(blockId: string, index: number, patch: Partial<WebsiteBannerSlide>) {
@@ -155,8 +230,13 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, p
 
   function addSection(type: WebsiteBlockType) {
     if (type === 'hero' && pageKey !== 'home') return;
-    if (type === 'store_rail' && !stores.length) {
-      setNotice({ kind: 'error', text: 'Add and activate a store in Stores & Brands before creating a store rail.' });
+    if ((type === 'store_rail' || type === 'store_directory') && !stores.length) {
+      setNotice({ kind: 'error', text: 'Add and activate a store in Stores & Brands before creating this section.' });
+      setAddOpen(false);
+      return;
+    }
+    if (type === 'category_rail' && !categories.length) {
+      setNotice({ kind: 'error', text: 'Add active categories in the catalogue before creating a category section.' });
       setAddOpen(false);
       return;
     }
@@ -195,17 +275,20 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, p
     }
     setBusy(true); setNotice(null);
     try {
-      const payload = { blocks, section_order: sectionOrder };
+      const payload = { blocks, section_order: sectionOrder, core_content: currentCoreContent };
       const result = publish ? await publishWebsiteLayout(pageKey, payload) : await saveWebsiteDraft(pageKey, payload);
       if (!result.ok) setNotice({ kind: 'error', text: result.error });
       else {
         const copied = blocks.map((block) => ({ ...block, config: { ...block.config, product_ids: block.config.product_ids ? [...block.config.product_ids] : undefined, slides: block.config.slides?.map((slide) => ({ ...slide })) } }));
         setSavedLayouts((current) => ({ ...current, [pageKey]: copied }));
         setSavedOrders((current) => ({ ...current, [pageKey]: [...sectionOrder] }));
+        const copiedCore = JSON.parse(JSON.stringify(currentCoreContent)) as Record<string, WebsiteCoreContent>;
+        setSavedCoreContent((current) => ({ ...current, [pageKey]: copiedCore }));
         if (publish) {
           setStatuses((current) => ({ ...current, [pageKey]: 'published' }));
           setPublishedLayouts((current) => ({ ...current, [pageKey]: copied }));
           setPublishedOrders((current) => ({ ...current, [pageKey]: [...sectionOrder] }));
+          setPublishedCoreContent((current) => ({ ...current, [pageKey]: copiedCore }));
         }
         setNotice({ kind: 'success', text: result.message });
       }
@@ -267,32 +350,52 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, p
         {slide.image_url && <img src={slide.image_url} alt=""/>}<div><small>{block.block_type === 'hero' ? 'FEATURED' : 'PROMOTION'} · {index + 1}/{slides.length}</small><b>{slide.title || 'Campaign banner'}</b>{slide.body && <span>{slide.body}</span>}{slide.cta_label && <em>{slide.cta_label} ↗</em>}</div>
       </article>)}</div>;
     }
+    if (block.block_type === 'category_rail') {
+      const ids = block.config.category_ids ?? [];
+      const rank = new Map(ids.map((id, index) => [id, index]));
+      const list = (ids.length ? categories.filter((category) => rank.has(category.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : categories).slice(0, block.config.count ?? 10);
+      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED CATEGORIES · EACH OPENS ITS CATEGORY PAGE</small><b>{block.title}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={`${styles.previewCards} ${styles[`shape_${(block.config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`}>{list.map((category) => <article key={category.id} className={styles.previewCatalogueCard}><span>{category.imageUrl ? <img src={category.imageUrl} alt=""/> : category.name.slice(0, 1)}</span><b>{category.name}</b><small>Opens /category/{category.slug}</small></article>)}</div></section>;
+    }
+    if (block.block_type === 'store_directory') {
+      const ids = block.config.store_ids ?? [];
+      const rank = new Map(ids.map((id, index) => [id, index]));
+      const list = (ids.length ? stores.filter((store) => rank.has(store.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : stores).slice(0, block.config.count ?? 10);
+      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED STORES · EACH OPENS ITS STORE PAGE</small><b>{block.title}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={`${styles.previewCards} ${styles[`shape_${(block.config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`}>{list.map((store) => <article key={store.id} className={styles.previewCatalogueCard}><span>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}</span><b>{store.name}</b><small>Opens /store/{store.slug}</small></article>)}</div></section>;
+    }
     const productsHere = blockProducts(block);
     if (!productsHere.length) return <div className={styles.previewEmpty} key={block.id}><b>{block.title || 'Product section'}</b><span>No matching active catalogue offers yet. Add an active store or choose another filter.</span></div>;
-    return <section className={styles.previewRail} key={block.id}><header><div><small>{block.block_type === 'store_rail' ? `STORE DEALS · ${stores.find((store) => store.slug === block.config.store_slug)?.name ?? 'Selected store'}` : 'CURATED CATALOGUE'}</small><b>{block.title}</b></div><span>View all ↗</span></header><div className={styles.previewCards}>{productsHere.map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><small>{product.storeName} · {product.brand ?? product.categoryName}</small><b>{product.title}</b><strong>{money(product.price)}</strong>{product.cashback ? <em>₹{Math.round(product.cashback).toLocaleString('en-IN')} cashback</em> : null}</article>)}</div></section>;
+    return <section className={styles.previewRail} key={block.id}><header><div><small>{block.block_type === 'store_rail' ? `STORE DEALS · ${stores.find((store) => store.slug === block.config.store_slug)?.name ?? 'Selected store'}` : 'CURATED CATALOGUE · PRODUCT CARDS OPEN PDP'}</small><b>{block.title}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={`${styles.previewCards} ${styles[`shape_${(block.config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`}>{productsHere.map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><small>{product.storeName} · {product.brand ?? product.categoryName}</small><b>{product.title}</b><strong>{money(product.price)}</strong>{product.cashback ? <em>₹{Math.round(product.cashback).toLocaleString('en-IN')} cashback</em> : null}<small>Opens /product/{product.slug}</small></article>)}</div></section>;
   }
 
-  function cataloguePreview(title: string, caption: string, kind: 'categories' | 'stores' | 'products') {
-    return <section className={styles.lockedPreview}><header><div><small>CONNECTED LIVE CONTENT</small><b>{title}</b></div><span>Global card design</span></header>{kind === 'products' ? <div className={styles.fakeProducts}>{orderedOffers.slice(0, 4).map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><b>{product.title}</b><small>{product.storeName} · {money(product.price)}</small></article>)}</div> : kind === 'categories' ? <div className={styles.fakeCategories}>{categories.filter((category) => !category.parentId).slice(0, 7).map((category) => <span key={category.id}>{category.name}</span>)}</div> : <div className={styles.fakeStores}>{stores.slice(0, 7).map((store) => <span key={store.id}>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}{store.name}</span>)}</div>}<small>{caption}</small></section>;
+  function cataloguePreview(key: string, defaultTitle: string, caption: string, kind: 'categories' | 'stores' | 'products') {
+    const content = currentCoreContent[key] ?? {};
+    const picked = kind === 'categories' ? content.category_ids : kind === 'stores' ? content.store_ids : content.product_ids;
+    const rank = new Map((picked ?? []).map((id, index) => [id, index]));
+    const shape = content.visual_shape ?? 'standard';
+    const title = content.title || defaultTitle;
+    const productsPicked = kind === 'products' && picked?.length ? orderedOffers.filter((product) => rank.has(product.productId)).sort((a, b) => (rank.get(a.productId) ?? 0) - (rank.get(b.productId) ?? 0)) : orderedOffers;
+    const categoriesPicked = kind === 'categories' ? categories.filter((category) => !category.parentId && (!picked?.length || rank.has(category.id))).sort((a,b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : [];
+    const storesPicked = kind === 'stores' ? stores.filter((store) => !picked?.length || rank.has(store.id)).sort((a,b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : [];
+    return <section className={styles.lockedPreview}><header><div><small>CONNECTED LIVE CONTENT</small><b>{title}</b></div><span>{shape === 'standard' ? 'Card shape: standard' : `Card shape: ${shape.replaceAll('_', ' ')}`}</span></header>{content.body && <p className={styles.previewRich}>{renderRichPreview(content.body)}</p>}{kind === 'products' ? <div className={`${styles.fakeProducts} ${styles[`shape_${shape}`]}`}>{productsPicked.slice(0, content.count ?? 4).map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><b>{product.title}</b><small>{product.storeName} · {money(product.price)}</small></article>)}</div> : kind === 'categories' ? <div className={`${styles.fakeCategories} ${styles[`shape_${shape}`]}`}>{categoriesPicked.slice(0, content.count ?? 7).map((category) => <span key={category.id}>{category.name}</span>)}</div> : <div className={`${styles.fakeStores} ${styles[`shape_${shape}`]}`}>{storesPicked.slice(0, content.count ?? 7).map((store) => <span key={store.id}>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}{store.name}</span>)}</div>}<small>{caption}</small></section>;
   }
 
   function previewCore(key: string) {
     if (pageKey === 'home') {
       if (key === 'hero') return <section className={styles.defaultHero}><div><small>FEATURED DEALS</small><b>Compare before you shop.</b><span>Find the right deal across connected stores.</span><em>Explore deals →</em></div><div><small>SEASONAL PICKS</small><b>Fresh finds for every cart.</b><span>Discover products for every day.</span></div></section>;
-      if (key === 'categories') return cataloguePreview('What are you shopping for?', 'Category cards keep their existing shared shape and size.', 'categories');
-      if (key === 'stores') return cataloguePreview('Shop by store', 'Store cards keep their existing shared shape and size.', 'stores');
-      if (key === 'best_deals') return cataloguePreview('Best deals right now', 'Product cards keep their existing shared shape and size.', 'products');
-      if (key === 'trending') return cataloguePreview('Trending picks', 'Live catalogue offers in the standard product cards.', 'products');
-      if (key === 'price_drops') return cataloguePreview('Worth a closer look', 'Live price-drop offers in the standard product cards.', 'products');
+      if (key === 'categories') return cataloguePreview(key, 'What are you shopping for?', 'Choose catalogue categories; cards open their category page.', 'categories');
+      if (key === 'stores') return cataloguePreview(key, 'Shop by store', 'Choose catalogue stores; cards open their store page.', 'stores');
+      if (key === 'best_deals') return cataloguePreview(key, 'Best deals right now', 'Choose products; each product card opens its product page.', 'products');
+      if (key === 'trending') return cataloguePreview(key, 'Trending picks', 'Choose products; each product card opens its product page.', 'products');
+      if (key === 'price_drops') return cataloguePreview(key, 'Worth a closer look', 'Choose products; each product card opens its product page.', 'products');
       return <section className={styles.coreTextPreview}><b>Glonni benefits</b><span>Trusted shopping · compare stores · eligible cashback · support</span></section>;
     }
     if (pageKey === 'stores') {
       if (key === 'store_intro') return <section className={styles.storeIntro}><small>SHOP BY STORE</small><b>{activeStore?.name ?? 'Choose a store'}</b><span>Connected store identity and current offer summary.</span><em>{orderedOffers.filter((item) => item.storeSlug === activeStore?.slug).length} available offers</em></section>;
-      if (key === 'store_products') return <>{<section className={styles.lockedProductsHeader}><small>{activeStore?.name?.toUpperCase() ?? 'STORE'} PRODUCTS</small><b>Browse and compare</b><span>Search, filters and the existing product-card design stay connected.</span></section>}{cataloguePreview(`Products from ${activeStore?.name ?? 'this store'}`, 'Approved offers from this store.', 'products')}</>;
+      if (key === 'store_products') return <>{<section className={styles.lockedProductsHeader}><small>{activeStore?.name?.toUpperCase() ?? 'STORE'} PRODUCTS</small><b>Browse and compare</b><span>Search, filters and the existing product-card design stay connected.</span></section>}{cataloguePreview('store_products', `Products from ${activeStore?.name ?? 'this store'}`, 'Approved offers from this store.', 'products')}</>;
       return <section className={styles.coreTextPreview}><b>{key === 'store_policies' ? 'Store policies' : 'Store FAQs'}</b><span>Connected terms and active store-specific support answers.</span></section>;
     }
     if (key === 'product_summary') return <section className={styles.productIntro}>{activeProduct?.imageUrl && <img src={activeProduct.imageUrl} alt=""/>}<div><small>{activeProduct?.brand ?? 'GLONNI'} · {activeProduct?.categoryName ?? 'PRODUCT'}</small><b>{activeProduct?.title ?? 'Choose a product'}</b><span>Canonical product details and selected offers.</span><em>{money(activeProduct?.price ?? null)} · compare connected stores</em></div></section>;
-    if (key === 'offer_comparison') return cataloguePreview('Compare prices across stores', 'Live prices, cashback and merchant offers.', 'products');
+    if (key === 'offer_comparison') return cataloguePreview('offer_comparison', 'Compare prices across stores', 'Live prices, cashback and merchant offers.', 'products');
     return <section className={styles.coreTextPreview}><b>{coreSections.find((section) => section.key === key)?.title ?? key}</b><span>{coreSections.find((section) => section.key === key)?.note}</span></section>;
   }
 
@@ -332,13 +435,13 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, p
             <article draggable={canEdit} className={`${styles.sectionCard} ${draggedId === item.token ? styles.dragging : ''} ${selectedId === item.block?.id && !selectedCoreKey || selectedCoreKey === item.core?.key ? styles.selected : ''} ${item.block && !item.block.is_active ? styles.hiddenCard : ''}`} onDragStart={(event) => { if (!canEdit) return; setDraggedId(item.token); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', item.token); }} onDragEnd={() => setDraggedId(null)} onDragOver={(event) => { if (canEdit) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }} onDrop={(event) => { if (!canEdit) return; event.preventDefault(); event.stopPropagation(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, index); setDraggedId(null); }}>
               <button type="button" className={styles.dragHandle} aria-label={`Drag ${item.core?.title ?? item.block?.title ?? 'section'}`} title="Drag to move this whole section"><GripVertical/></button>
               <button type="button" className={styles.sectionSelect} onClick={() => { setSelectedId(item.block?.id ?? null); setSelectedCoreKey(item.core?.key ?? null); }}><span className={styles.sectionThumb}>{item.block ? item.block.block_type.includes('rail') ? <span className={styles.thumbCards}>▥</span> : item.block.image_url ? <img src={item.block.image_url} alt=""/> : <ImagePlus/> : <LayoutTemplate/>}</span><span><b>{item.core?.title ?? item.block?.title ?? titleForType(item.block!.block_type)}</b><small>{item.core?.note ?? `${titleForType(item.block!.block_type)} · ${item.block!.config.count ?? item.block!.config.slide_count ?? 1} ${item.block!.block_type === 'hero' || item.block!.block_type === 'banner' ? 'slides' : 'items'}`}</small></span></button>
-              {item.block ? <button type="button" className={styles.miniToggle} aria-label={`${item.block.is_active ? 'Hide' : 'Show'} ${item.block.title}`} aria-pressed={item.block.is_active} onClick={() => updateBlock(item.block!.id, (current) => ({ ...current, is_active: !current.is_active }))}><i/></button> : <span className={styles.globalTag}>GLOBAL</span>}
+              {item.block ? <button type="button" className={styles.miniToggle} aria-label={`${item.block.is_active ? 'Hide' : 'Show'} ${item.block.title}`} aria-pressed={item.block.is_active} onClick={() => updateBlock(item.block!.id, (current) => ({ ...current, is_active: !current.is_active }))}><i/></button> : <span className={styles.editableTag}>EDITABLE</span>}
             </article>
           </Fragment>)}
           <button className={`${styles.dropMarker} ${draggedId ? styles.dropReady : ''}`} type="button" disabled={!canEdit} onClick={() => addAt(orderedItems.length)} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, orderedItems.length); setDraggedId(null); }} aria-label="Add a section at the end of the page"><i/><span>＋ Add here</span><small>Insert at the end of the page</small></button>
         </div>
         <div className={styles.addSectionWrap}>
-          {addOpen && <div className={styles.addMenu} role="menu"><button type="button" onClick={() => addSection('hero')} disabled={pageKey !== 'home'}><span>▣</span><b>Hero banner section</b><small>Add at the selected position · choose slide count</small></button><button type="button" onClick={() => addSection('banner')}><span>▱</span><b>Promotion section</b><small>Wide, strip or square · choose slide count</small></button><button type="button" onClick={() => addSection('store_rail')}><span>▥</span><b>Store deals rail</b><small>Choose a store and number of products</small></button><button type="button" onClick={() => addSection('product_rail')}><span>▤</span><b>Product collection</b><small>Choose products and display count</small></button></div>}
+          {addOpen && <div className={styles.addMenu} role="menu"><button type="button" onClick={() => addSection('hero')} disabled={pageKey !== 'home'}><span>▣</span><b>Hero banner section</b><small>Add here · choose slide count and shape</small></button><button type="button" onClick={() => addSection('banner')}><span>▱</span><b>Promotion cards</b><small>Add here · wide, strip, square or rectangle</small></button><button type="button" onClick={() => addSection('product_rail')}><span>▤</span><b>Product cards</b><small>Choose exact products from the catalogue</small></button><button type="button" onClick={() => addSection('category_rail')}><span>⌑</span><b>Category cards</b><small>Choose any categories or subcategories</small></button><button type="button" onClick={() => addSection('store_directory')}><span>▥</span><b>Store cards</b><small>Choose connected stores to feature</small></button><button type="button" onClick={() => addSection('store_rail')}><span>↗</span><b>Deals from one store</b><small>Choose a store and number of products</small></button></div>}
           <button className={styles.addSectionButton} type="button" disabled={!canEdit} onClick={() => setAddOpen((open) => !open)}><Plus/> Add section <ChevronDown size={15}/></button>
           <p>Choose “Add here” for exact placement. Drag any section by its grip to move it intactly.</p>
         </div>
@@ -357,22 +460,35 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, p
       </section>
 
       <aside className={styles.inspector} aria-label="Section settings">
-        {!selected && !selectedCore ? <div className={styles.inspectorEmpty}><LayoutTemplate/><b>Select a section to edit</b><span>Drag any section using its grip, or choose “Add here” to place a new section exactly where you want it.</span><div><b>Shared catalogue card design</b><small>Category, store and product card shapes and sizes remain consistent across the site.</small></div></div> : selectedCore ? <>
-          <header className={styles.inspectorHeader}><div><small>GLOBAL SECTION · MOVABLE</small><b>{selectedCore.title}</b></div><button type="button" onClick={() => setSelectedCoreKey(null)} aria-label="Close section settings"><X/></button></header>
-          <div className={styles.inspectorBody}><p className={styles.globalSectionNote}>{selectedCore.note}</p><div className={styles.globalSectionNote}><b>Position is yours to control.</b><span>Drag this section by its grip in the left list. Its catalogue data and established card shape stay intact.</span></div></div>
+        {!selected && !selectedCore ? <div className={styles.inspectorEmpty}><LayoutTemplate/><b>Select a section to edit</b><span>Drag any section using its grip, or choose “Add here” to place a new section exactly where you want it.</span><div><b>Pick what each card opens</b><small>Products open product pages, categories open category pages, and stores open store pages.</small></div></div> : selectedCore ? <>
+          <header className={styles.inspectorHeader}><div><small>EDITABLE PAGE SECTION</small><b>{selectedCore.title}</b></div><button type="button" onClick={() => setSelectedCoreKey(null)} aria-label="Close section settings"><X/></button></header>
+          <div className={styles.inspectorBody}>
+            <label>Section heading<input maxLength={120} value={currentCoreContent[selectedCore.key]?.title ?? selectedCore.title} onChange={(event) => updateCoreContent(selectedCore.key, { title: event.target.value })}/></label>
+            <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={currentCoreContent[selectedCore.key]?.body ?? ''} onChange={(body) => updateCoreContent(selectedCore.key, { body })} placeholder="Optional description"/></div>
+            {pageKey === 'home' && ['categories', 'stores', 'best_deals', 'trending', 'price_drops'].includes(selectedCore.key) && <>
+              <div className={styles.twoFields}><label>Number of cards<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? (selectedCore.key === 'categories' || selectedCore.key === 'stores' ? 10 : 10)} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>
+                <label>Card shape<select value={currentCoreContent[selectedCore.key]?.visual_shape ?? 'standard'} onChange={(event) => updateCoreContent(selectedCore.key, { visual_shape: event.target.value as WebsiteVisualShape })}><option value="standard">Standard</option><option value="wide">Wide</option><option value="strip">Promotional strip</option><option value="square">Square</option><option value="rectangle_horizontal">Rectangle · horizontal</option><option value="rectangle_vertical">Rectangle · vertical</option></select></label></div>
+              {selectedCore.key === 'categories' && <CataloguePicker title="Choose categories and subcategories" items={matchingCategoryChoices} selectedIds={currentCoreContent[selectedCore.key]?.category_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'category_ids', id)}/>}
+              {selectedCore.key === 'stores' && <CataloguePicker title="Choose stores" items={matchingStoreChoices} selectedIds={currentCoreContent[selectedCore.key]?.store_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'store_ids', id)}/>}
+              {['best_deals', 'trending', 'price_drops'].includes(selectedCore.key) && <CataloguePicker title="Choose products" items={matchingCoreProductChoices} selectedIds={currentCoreContent[selectedCore.key]?.product_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'product_ids', id)}/>}
+              <small className={styles.sourceNote}><Check/> Each selected card keeps its own destination: product page, category page or store page.</small>
+            </>}
+            <div className={styles.globalSectionNote}><b>Move it intactly</b><span>Drag the grip in the left list. This edits only the section on this page.</span></div>
+          </div>
+          <footer className={styles.inspectorFooter}><button type="button" className={styles.deleteButton} onClick={() => removeCoreSection(selectedCore.key)}><Trash2/> Remove section</button><span>Removes this section from the page layout only.</span></footer>
         </> : selected ? <>
           <header className={styles.inspectorHeader}><div><small>SECTION SETTINGS</small><b>{selected.title || titleForType(selected.block_type)}</b></div><button type="button" onClick={() => setSelectedId(null)} aria-label="Close section settings"><X/></button></header>
           <div className={styles.inspectorBody}>
             {(selected.block_type === 'hero' || selected.block_type === 'banner') ? <>
               <div className={styles.bannerSectionTitle}><b>Banner content</b><small>Shape and size apply to this section; every slide keeps its own content.</small></div>
               <label>Number of slides<input type="number" min={1} max={10} value={selected.config.slide_count ?? 1} onChange={(event) => setBannerSlideCount(selected.id, Number(event.target.value))}/></label>
-              <label>Banner shape<select value={selected.config.banner_size ?? 'wide'} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, banner_size: event.target.value as 'wide' | 'strip' | 'square' } }))}><option value="wide">Wide</option><option value="strip">Promotional strip</option><option value="square">Square card</option></select></label>
+              <label>Banner shape<select value={selected.config.banner_size ?? 'wide'} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, banner_size: event.target.value as WebsiteDraftBlock['config']['banner_size'] } }))}><option value="wide">Wide</option><option value="strip">Promotional strip</option><option value="square">Square card</option><option value="rectangle_horizontal">Rectangle · horizontal</option><option value="rectangle_vertical">Rectangle · vertical</option></select></label>
               {Array.from({ length: selected.config.slide_count ?? 1 }, (_, slideIndex) => {
                 const extra = selected.config.slides?.[slideIndex - 1];
                 const values = slideIndex === 0 ? { title: selected.title, body: selected.body, image_url: selected.image_url, cta_label: selected.cta_label, cta_href: selected.cta_href } : extra ?? { title: '', body: '', image_url: '', cta_label: '', cta_href: '' };
                 return <section className={styles.slideEditor} key={`${selected.id}-slide-editor-${slideIndex}`}><header><b>Slide {slideIndex + 1}</b><small>{slideIndex === 0 ? 'First slide' : 'Additional slide'}</small></header>
                   <label>Heading<input maxLength={120} value={values.title} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { title: event.target.value })} placeholder="e.g. Diwali essentials"/></label>
-                  <label>Supporting text<textarea maxLength={1800} value={values.body} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { body: event.target.value })} placeholder="Add a short customer-friendly description"/></label>
+                  <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={values.body} onChange={(body) => updateBannerSlide(selected.id, slideIndex, { body })} placeholder="Add a short customer-friendly description"/></div>
                   {slideIndex === 0 ? <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === 'image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label> : <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === `slide-${slideIndex}` ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0], slideIndex)} disabled={Boolean(uploading)}/></label></span></label>}
                   <div className={styles.twoFields}><label>Button label<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Shop now"/></label><label>Button link<input maxLength={500} value={values.cta_href} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_href: event.target.value })} placeholder="/deals or https://…"/></label></div>
                 </section>;
@@ -381,9 +497,17 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, p
               <div className={styles.twoFields}><label>Starts (optional)<input type="datetime-local" value={toLocalDateTime(selected.config.starts_at)} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, starts_at: fromLocalDateTime(event.target.value) } }))}/></label><label>Ends (optional)<input type="datetime-local" value={toLocalDateTime(selected.config.ends_at)} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, ends_at: fromLocalDateTime(event.target.value) } }))}/></label></div>
             </> : <>
               <label>Section heading<input maxLength={120} value={selected.title} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, title: event.target.value }))} placeholder="e.g. Diwali essentials"/></label>
-              <label>Supporting text<textarea maxLength={1800} value={selected.body} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, body: event.target.value }))} placeholder="Add a short customer-friendly description"/></label>
+              <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={selected.body} onChange={(body) => updateBlock(selected.id, (block) => ({ ...block, body }))} placeholder="Add a short customer-friendly description"/></div>
+            </>}
+            {(selected.block_type === 'category_rail' || selected.block_type === 'store_directory') && <>
+              <label>Card shape<select value={selected.config.visual_shape ?? 'standard'} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, visual_shape: event.target.value as WebsiteVisualShape } }))}><option value="standard">Standard</option><option value="wide">Wide</option><option value="strip">Promotional strip</option><option value="square">Square</option><option value="rectangle_horizontal">Rectangle · horizontal</option><option value="rectangle_vertical">Rectangle · vertical</option></select></label>
+              <label>Number of cards<input type="number" min={1} max={50} value={selected.config.count ?? 10} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) } }))}/></label>
+              {selected.block_type === 'category_rail' && <CataloguePicker title="Choose categories and subcategories" items={matchingCategoryChoices} selectedIds={selected.config.category_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleBlockPick(selected.id, 'category_ids', id)}/>}
+              {selected.block_type === 'store_directory' && <CataloguePicker title="Choose stores" items={matchingStoreChoices} selectedIds={selected.config.store_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleBlockPick(selected.id, 'store_ids', id)}/>}
+              <small className={styles.sourceNote}><Check/> Selecting a card links to that exact category or store page. You can add the same category or store section again elsewhere.</small>
             </>}
             {(selected.block_type === 'product_rail' || selected.block_type === 'store_rail') && <>
+              <label>Card shape<select value={selected.config.visual_shape ?? 'standard'} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, visual_shape: event.target.value as WebsiteVisualShape } }))}><option value="standard">Standard</option><option value="wide">Wide</option><option value="strip">Promotional strip</option><option value="square">Square</option><option value="rectangle_horizontal">Rectangle · horizontal</option><option value="rectangle_vertical">Rectangle · vertical</option></select></label>
               {selected.block_type === 'store_rail' && <label>Store<select value={selected.config.store_slug ?? ''} onChange={(event) => updateBlock(selected.id, (block) => { const previousHref = block.config.store_slug ? `/store/${block.config.store_slug}` : '/deals'; const nextSlug = event.target.value; return { ...block, cta_href: block.cta_href === previousHref || block.cta_href === '/deals' ? `/store/${nextSlug}` : block.cta_href, config: { ...block.config, store_slug: nextSlug } }; })}><option value="">Choose a connected store</option>{stores.map((store) => <option value={store.slug} key={store.id}>{store.name}</option>)}</select></label>}
               {selected.block_type === 'product_rail' && <>
                 <label>Product source<select value={selected.config.source_mode ?? 'all'} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, source_mode: event.target.value as 'all' | 'curated' } }))}><option value="all">All matching active products</option><option value="curated">Choose specific products</option></select></label>
@@ -391,10 +515,10 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, p
               </>}
               <label>Filter by category (optional)<select value={selected.config.category_slug ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, category_slug: event.target.value || undefined } }))}><option value="">All categories</option>{categories.map((category) => <option value={category.slug} key={category.id}>{formatCategory(category, categories)}</option>)}</select></label>
               <div className={styles.twoFields}><label>Number of products<input type="number" min={1} max={50} value={selected.config.count ?? 10} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) } }))}/></label><label>Sort by<select value={selected.config.sort ?? 'best_deal'} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, sort: event.target.value as 'best_deal' | 'trending' | 'price_drop' | 'newest' } }))}><option value="best_deal">Best effective price</option><option value="trending">Top rated first</option><option value="price_drop">Highest discount first</option><option value="newest">Recently updated</option></select></label></div>
-              {selected.block_type === 'product_rail' && selected.config.source_mode === 'curated' && <section className={styles.productPicker}><header><b>Choose products</b><small>{selected.config.product_ids?.length ?? 0} selected</small></header><input value={productSearch} onChange={(event) => setProductSearch(event.target.value)} placeholder="Search active products…" aria-label="Search catalogue products"/><div>{choices.slice(0, 24).map((product) => { const ids = selected.config.product_ids ?? []; const checked = ids.includes(product.productId); return <label key={product.productId}><input type="checkbox" checked={checked} onChange={() => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, product_ids: checked ? (block.config.product_ids ?? []).filter((id) => id !== product.productId) : [...(block.config.product_ids ?? []), product.productId] } }))}/><img src={product.imageUrl ?? ''} alt=""/><span><b>{product.title}</b><small>{product.storeName} · {product.categoryName || 'Uncategorised'} · {money(product.price)}</small></span></label>; })}{!choices.length && <small className={styles.noProducts}>No active catalogue products match these filters.</small>}</div></section>}
+              {selected.block_type === 'product_rail' && selected.config.source_mode === 'curated' && <CataloguePicker title="Choose products" items={choices.map((product) => ({ id: product.productId, label: product.title, detail: `${product.storeName} · ${product.categoryName || 'Uncategorised'} · ${money(product.price)} · /product/${product.slug}`, image: product.imageUrl }))} selectedIds={selected.config.product_ids ?? []} search={productSearch} onSearch={setProductSearch} onToggle={(id) => toggleBlockPick(selected.id, 'product_ids', id)}/>}
               <small className={styles.sourceNote}><Check/> Sections show products only when their store offer is active and approved in the customer catalogue.</small>
             </>}
-            {(selected.block_type === 'product_rail' || selected.block_type === 'store_rail') && <>
+            {(selected.block_type === 'product_rail' || selected.block_type === 'store_rail' || selected.block_type === 'category_rail' || selected.block_type === 'store_directory') && <>
               <label>Button label (optional)<input maxLength={60} value={selected.cta_label} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, cta_label: event.target.value }))} placeholder="e.g. View all deals"/></label>
               {selected.cta_label && <label>Button destination<input maxLength={500} value={selected.cta_href} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, cta_href: event.target.value }))} placeholder="/deals or https://…"/></label>}
             </>}

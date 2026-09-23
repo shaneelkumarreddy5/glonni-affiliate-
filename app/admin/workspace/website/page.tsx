@@ -12,7 +12,7 @@ type DraftVersion = { page_id: string; version_number: number; snapshot: unknown
 const parseSnapshot = (snapshot: unknown): WebsiteLayoutSnapshot => {
   if (!snapshot || typeof snapshot !== 'object') return { blocks: emptyBlocks };
   const value = snapshot as Partial<WebsiteLayoutSnapshot>;
-  return { blocks: Array.isArray(value.blocks) ? value.blocks as WebsiteDraftBlock[] : emptyBlocks, section_order: Array.isArray(value.section_order) ? value.section_order : undefined };
+  return { blocks: Array.isArray(value.blocks) ? value.blocks as WebsiteDraftBlock[] : emptyBlocks, section_order: Array.isArray(value.section_order) ? value.section_order : undefined, core_content: value.core_content && typeof value.core_content === 'object' ? value.core_content : {} };
 };
 
 export default async function WebsiteWorkspacePage() {
@@ -38,6 +38,8 @@ export default async function WebsiteWorkspacePage() {
   const publishedLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]> = { home: [], stores: [], product: [] };
   const orders: Record<WebsitePageKey, string[]> = { home: resolveWebsiteSectionOrder('home', []), stores: resolveWebsiteSectionOrder('stores', []), product: resolveWebsiteSectionOrder('product', []) };
   const publishedOrders: Record<WebsitePageKey, string[]> = { home: resolveWebsiteSectionOrder('home', []), stores: resolveWebsiteSectionOrder('stores', []), product: resolveWebsiteSectionOrder('product', []) };
+  const coreContent: Record<WebsitePageKey, NonNullable<WebsiteLayoutSnapshot['core_content']>> = { home: {}, stores: {}, product: {} };
+  const publishedCoreContent: Record<WebsitePageKey, NonNullable<WebsiteLayoutSnapshot['core_content']>> = { home: {}, stores: {}, product: {} };
   const statuses: Partial<Record<WebsitePageKey, string>> = {};
   for (const page of websitePageOptions) {
     const row = pageBySlug.get(page.slug);
@@ -45,10 +47,12 @@ export default async function WebsiteWorkspacePage() {
     statuses[page.key] = row.status;
     const publishedSnapshot = parseSnapshot(row.published_layout);
     publishedLayouts[page.key] = publishedSnapshot.blocks;
+    publishedCoreContent[page.key] = publishedSnapshot.core_content ?? {};
     publishedOrders[page.key] = resolveWebsiteSectionOrder(page.key, publishedSnapshot.blocks, publishedSnapshot.section_order);
     const savedDraft = latestVersion.get(row.id)?.snapshot;
     const draftSnapshot = savedDraft ? parseSnapshot(savedDraft) : publishedSnapshot;
     layouts[page.key] = draftSnapshot.blocks;
+    coreContent[page.key] = draftSnapshot.core_content ?? {};
     orders[page.key] = resolveWebsiteSectionOrder(page.key, draftSnapshot.blocks, draftSnapshot.section_order);
   }
 
@@ -75,6 +79,6 @@ export default async function WebsiteWorkspacePage() {
   return <main className="admin-v2"><AdminSidebar/><section className="admin-main website-workspace-main"><main className="admin-content website-workspace-content">
     <div className="website-compact-header"><h1>Website</h1><a className="website-open-link" href="/" target="_blank" rel="noreferrer">Open customer site ↗</a></div>
     {!canEdit && <div className="website-access-note" role="status">{assurance?.currentLevel !== 'aal2' ? 'Complete two-step verification to edit or publish. Your account must be an active Owner, Admin, or Editor.' : 'An active Owner, Admin, or Editor account is required to edit this workspace.'}</div>}
-    <WebsiteWorkspace initialPage="home" initialLayouts={layouts} initialOrders={orders} publishedLayouts={publishedLayouts} publishedOrders={publishedOrders} pageStatuses={statuses} stores={workspaceStores} products={workspaceProducts} categories={categories.map((category) => ({ id: category.id, name: category.name, slug: category.slug, parentId: category.parent_id }))} canEdit={canEdit}/>
+    <WebsiteWorkspace initialPage="home" initialLayouts={layouts} initialOrders={orders} initialCoreContent={coreContent} publishedLayouts={publishedLayouts} publishedOrders={publishedOrders} publishedCoreContent={publishedCoreContent} pageStatuses={statuses} stores={workspaceStores} products={workspaceProducts} categories={categories.map((category) => ({ id: category.id, name: category.name, slug: category.slug, parentId: category.parent_id, imageUrl: category.image_url }))} canEdit={canEdit}/>
   </main></section></main>;
 }

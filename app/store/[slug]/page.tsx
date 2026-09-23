@@ -14,6 +14,7 @@ import { safeReturnPath } from '@/lib/navigation';
 import { hasCashback } from '@/lib/rewards';
 import { createClient } from '@/lib/supabase/server';
 import { resolveWebsiteSectionOrder } from '@/lib/website-layout';
+import { renderWebsiteRichText } from '@/lib/website-rich-text';
 
 export const dynamic = 'force-dynamic';
 type StoreFilters = { from?: string; q?: string; category?: string; cashback?: string; price?: string };
@@ -67,11 +68,12 @@ export default async function StorePage({ params, searchParams }: { params: Prom
   const hasFilters = Boolean(filters.q || filters.category || filters.cashback || filters.price);
   const layout = await getPublishedWebsiteLayout('stores');
   const sectionOrder = resolveWebsiteSectionOrder('stores', layout.blocks, layout.section_order);
+  const coreContent = layout.core_content ?? {};
 
   const storeSections: Record<string, ReactNode> = {
-    'core:store_intro': <section className="store-hero store-profile-hero"><p className="eyebrow">SHOP BY STORE</p><div>{store.logo_url ? <span className="store-hero-logo"><img src={store.logo_url} alt=""/></span> : <span>{store.name.slice(0, 1)}</span>}<section><h1>{store.name} on Glonni</h1><p>Browse products available from {store.name}, then open a product to compare this store with every other connected seller.</p></section></div><aside><b>{new Set(allOffers.map((offer) => offer.products?.id).filter(Boolean)).size}</b><small>products</small><b>{allOffers.length}</b><small>offers</small><b>{rewards}</b><small>cashback-eligible</small></aside></section>,
+    'core:store_intro': <section className="store-hero store-profile-hero"><p className="eyebrow">SHOP BY STORE</p><div>{store.logo_url ? <span className="store-hero-logo"><img src={store.logo_url} alt=""/></span> : <span>{store.name.slice(0, 1)}</span>}<section><h1>{coreContent.store_intro?.title || `${store.name} on Glonni`}</h1><p>{coreContent.store_intro?.body ? renderWebsiteRichText(coreContent.store_intro.body) : `Browse products available from ${store.name}, then open a product to compare this store with every other connected seller.`}</p></section></div><aside><b>{new Set(allOffers.map((offer) => offer.products?.id).filter(Boolean)).size}</b><small>products</small><b>{allOffers.length}</b><small>offers</small><b>{rewards}</b><small>cashback-eligible</small></aside></section>,
     'core:store_products': <section className="vertical-section store-products-section">
-      <div className="section-title"><div><p className="eyebrow">{store.name.toUpperCase()} PRODUCTS</p><h2>Browse and compare</h2></div>{hasFilters && <Link className="clear-category-filters" href={`/store/${store.slug}?from=${encodeURIComponent(returnPath)}`}><RotateCcw size={14}/>Clear filters</Link>}</div>
+      <div className="section-title"><div><p className="eyebrow">{store.name.toUpperCase()} PRODUCTS</p><h2>{coreContent.store_products?.title || 'Browse and compare'}</h2>{coreContent.store_products?.body && <span>{renderWebsiteRichText(coreContent.store_products.body)}</span>}</div>{hasFilters && <Link className="clear-category-filters" href={`/store/${store.slug}?from=${encodeURIComponent(returnPath)}`}><RotateCcw size={14}/>Clear filters</Link>}</div>
       <form className="category-search" action={`/store/${store.slug}`}><Search size={18}/><input name="q" defaultValue={filters.q} aria-label={`Search ${store.name} products`} placeholder={`Search products and brands at ${store.name}`}/><input type="hidden" name="from" value={returnPath}/><button type="submit">Search</button></form>
       {storeCategories.length > 0 && <div className="store-category-select"><label htmlFor="store-category">Category</label><div><select id="store-category" name="category" defaultValue={filters.category ?? ''} form="store-filter-submit"><option value="">All categories</option>{storeCategories.map((category) => <option value={category.slug} key={category.id}>{`${'  '.repeat(category.treeDepth)}${category.treeDepth ? '↳ ' : ''}${category.name}`}</option>)}</select><form id="store-filter-submit" action={`/store/${store.slug}`}><input type="hidden" name="from" value={returnPath}/><button type="submit">Apply category</button></form></div></div>}
       <div className="category-filter-columns">
@@ -81,8 +83,8 @@ export default async function StorePage({ params, searchParams }: { params: Prom
       <div className="category-result-summary"><b>{products.length} {products.length === 1 ? 'product' : 'products'}</b><span>{hasFilters ? 'matching your filters' : `available from ${store.name}`}</span></div>
       {products.length ? <OfferGrid offers={products} contextHref={storeLink(store.slug, filters, {})}/> : <div className="empty-state store-products-empty"><Store size={30}/><h2>{hasFilters ? 'No products match these filters' : `No offers from ${store.name} yet`}</h2><p>{hasFilters ? 'Clear the filters or try a broader search.' : 'Approved products will appear here when they become available.'}</p>{hasFilters ? <Link href={`/store/${store.slug}?from=${encodeURIComponent(returnPath)}`} className="primary">Clear all filters</Link> : <Link href="/stores" className="primary">Browse other stores</Link>}</div>}
     </section>,
-    'core:store_policies': <CustomerPolicyAccordions storeName={store.name} policy={policyData}/>,
-    'core:store_faqs': <ContextualFaqs title={`${store.name} cashback rules & FAQs`} faqs={(faqs ?? []) as { id: string; question: string; answer: string; scope: string }[]}/>,
+    'core:store_policies': <CustomerPolicyAccordions storeName={store.name} policy={policyData} heading={coreContent.store_policies?.title} intro={coreContent.store_policies?.body}/>,
+    'core:store_faqs': <ContextualFaqs title={coreContent.store_faqs?.title || `${store.name} cashback rules & FAQs`} faqs={(faqs ?? []) as { id: string; question: string; answer: string; scope: string }[]}/>,
   };
 
   return <><Header/><main className="store-detail-page">

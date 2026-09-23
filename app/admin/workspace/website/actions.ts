@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { coreSectionsByPage, defaultWebsiteSectionOrder, slotsByPage, websitePageOptions, type WebsiteBannerSlide, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey } from '@/lib/website-layout';
+import { coreSectionsByPage, defaultWebsiteSectionOrder, slotsByPage, websitePageOptions, type WebsiteBannerSlide, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey, type WebsiteVisualShape } from '@/lib/website-layout';
 
 export type WebsiteActionResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -46,7 +46,7 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
     if (!raw || typeof raw !== 'object') return 'A section contains invalid data.';
     const item = raw as Record<string, unknown>;
     const type = item.block_type;
-    if (!['hero', 'banner', 'product_rail', 'store_rail'].includes(String(type))) return 'Choose a supported banner or product section.';
+    if (!['hero', 'banner', 'product_rail', 'store_rail', 'category_rail', 'store_directory'].includes(String(type))) return 'Choose a supported banner or catalogue section.';
     if (type === 'hero' && pageKey !== 'home') return 'Hero banners can only be added to the home page.';
     const id = String(item.id ?? '');
     if (!/^[0-9a-f-]{36}$/i.test(id)) return 'A section identifier is invalid. Remove it and add the section again.';
@@ -66,13 +66,16 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
 
     const storeSlug = String(rawConfig.store_slug ?? '').trim();
     const categorySlug = String(rawConfig.category_slug ?? '').trim();
+    const categoryIds = Array.isArray(rawConfig.category_ids) ? rawConfig.category_ids.filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50) : [];
+    const storeIds = Array.isArray(rawConfig.store_ids) ? rawConfig.store_ids.filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50) : [];
     const sourceMode = rawConfig.source_mode === 'curated' ? 'curated' : 'all';
     const sortValue = String(rawConfig.sort ?? 'best_deal');
     const sort = ['best_deal', 'trending', 'price_drop', 'newest'].includes(sortValue) ? sortValue as WebsiteDraftBlock['config']['sort'] : 'best_deal';
     const count = Math.max(1, Math.min(50, Number(rawConfig.count ?? 10) || 10));
     const productIds = Array.isArray(rawConfig.product_ids) ? rawConfig.product_ids.filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50) : [];
     const mobileImage = String(rawConfig.mobile_image_url ?? '').trim();
-    const bannerSize = ['wide', 'strip', 'square'].includes(String(rawConfig.banner_size)) ? rawConfig.banner_size as 'wide' | 'strip' | 'square' : 'wide';
+    const bannerSize = ['wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawConfig.banner_size)) ? rawConfig.banner_size as WebsiteDraftBlock['config']['banner_size'] : 'wide';
+    const visualShape = ['standard', 'wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawConfig.visual_shape)) ? rawConfig.visual_shape as WebsiteVisualShape : 'standard';
     const color = (candidate: unknown, fallback: string) => typeof candidate === 'string' && /^#[0-9a-f]{6}$/i.test(candidate) ? candidate : fallback;
     const startsAt = String(rawConfig.starts_at ?? '').trim();
     const endsAt = String(rawConfig.ends_at ?? '').trim();
@@ -109,12 +112,15 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
         slot: slot as WebsiteDraftBlock['config']['slot'],
         store_slug: storeSlug || undefined,
         category_slug: categorySlug || undefined,
+        category_ids: categoryIds,
+        store_ids: storeIds,
         source_mode: sourceMode,
         product_ids: productIds,
         count,
         sort,
         mobile_image_url: mobileImage || undefined,
         banner_size: bannerSize,
+        visual_shape: visualShape,
         accent: color(rawConfig.accent, '#1554d1'),
         background: color(rawConfig.background, '#f2f6ff'),
         starts_at: startsAt || undefined,
@@ -129,18 +135,38 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
 
 function normalizeOrder(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[], value: unknown) {
   if (!Array.isArray(value)) return defaultWebsiteSectionOrder(pageKey, blocks);
-  const expected = new Set([
+  const available = new Set([
     ...coreSectionsByPage[pageKey].map((section) => `core:${section.key}`),
     ...blocks.map((block) => `block:${block.id}`),
   ]);
   const order = value.filter((item): item is string => typeof item === 'string');
-  if (order.length !== expected.size || new Set(order).size !== order.length || order.some((item) => !expected.has(item))) {
-    return 'Every page section must appear exactly once in the layout.';
+  const requiredBlocks = new Set(blocks.map((block) => `block:${block.id}`));
+  if (new Set(order).size !== order.length || order.some((item) => !available.has(item)) || [...requiredBlocks].some((item) => !order.includes(item))) {
+    return 'Keep each added section once in the page, and remove built-in sections using their section controls.';
   }
   return order;
 }
 
-async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[], sectionOrder: string[]) {
+function normalizeCoreContent(pageKey: WebsitePageKey, value: unknown): Record<string, WebsiteCoreContent> | string {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const allowed = new Set(coreSectionsByPage[pageKey].map((section) => section.key));
+  const output: Record<string, WebsiteCoreContent> = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!allowed.has(key)) continue;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return 'A built-in section contains invalid content.';
+    const content = raw as Record<string, unknown>;
+    const title = String(content.title ?? '').trim();
+    const body = String(content.body ?? '').trim();
+    if (title.length > 120 || body.length > 1800) return 'A section heading or description is too long.';
+    const ids = (candidate: unknown) => Array.isArray(candidate) ? candidate.filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50) : [];
+    const count = Math.max(1, Math.min(50, Number(content.count ?? 10) || 10));
+    const visualShape = ['standard', 'wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(content.visual_shape)) ? content.visual_shape as WebsiteCoreContent['visual_shape'] : undefined;
+    output[key] = { title, body, count, visual_shape: visualShape, product_ids: ids(content.product_ids), category_ids: ids(content.category_ids), store_ids: ids(content.store_ids) };
+  }
+  return output;
+}
+
+async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[], sectionOrder: string[], coreContent: Record<string, WebsiteCoreContent>) {
   const context = await authorizeWebsiteChange();
   if (!context.ok) return context;
   const { supabase, user } = context;
@@ -151,7 +177,7 @@ async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[],
   const { data: versions, error: versionsError } = await supabase.from('site_page_versions').select('version_number').eq('page_id', page.id).eq('change_note', 'workspace_draft').order('version_number', { ascending: false }).limit(1);
   if (versionsError) return { ok: false, error: 'Could not load the current draft version. Try again.' } as const;
   const versionNumber = Number(versions?.[0]?.version_number ?? 0) + 1;
-  const snapshot: WebsiteLayoutSnapshot = { blocks, section_order: sectionOrder };
+  const snapshot: WebsiteLayoutSnapshot = { blocks, section_order: sectionOrder, core_content: coreContent };
   const { error } = await supabase.from('site_page_versions').insert({ page_id: page.id, version_number: versionNumber, snapshot, change_note: 'workspace_draft', created_by: user.id });
   if (error) return { ok: false, error: 'The website draft could not be saved. Check your connection and try again.' } as const;
   return { ok: true, supabase, user, page, snapshot } as const;
@@ -159,12 +185,14 @@ async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[],
 
 export async function saveWebsiteDraft(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {
   if (!['home', 'stores', 'product'].includes(pageKey)) return { ok: false, error: 'Choose a supported website page.' };
-  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown } : {};
+  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown } : {};
   const blocks = normalizeBlocks(pageKey, request.blocks);
   if (typeof blocks === 'string') return { ok: false, error: blocks };
   const sectionOrder = normalizeOrder(pageKey, blocks, request.section_order);
   if (typeof sectionOrder === 'string') return { ok: false, error: sectionOrder };
-  const saved = await saveVersion(pageKey, blocks, sectionOrder);
+  const coreContent = normalizeCoreContent(pageKey, request.core_content);
+  if (typeof coreContent === 'string') return { ok: false, error: coreContent };
+  const saved = await saveVersion(pageKey, blocks, sectionOrder, coreContent);
   if (!saved.ok) return { ok: false, error: saved.error };
   await saved.supabase.from('audit_events').insert({ actor_id: saved.user.id, event_type: 'website_layout_draft_saved', entity_type: 'site_page', entity_id: saved.page.id, source: 'admin_website_workspace', metadata: { page: pageKey, sections: sectionOrder.length } });
   revalidatePath('/admin/workspace/website');
@@ -173,12 +201,14 @@ export async function saveWebsiteDraft(pageKey: WebsitePageKey, payload: unknown
 
 export async function publishWebsiteLayout(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {
   if (!['home', 'stores', 'product'].includes(pageKey)) return { ok: false, error: 'Choose a supported website page.' };
-  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown } : {};
+  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown } : {};
   const blocks = normalizeBlocks(pageKey, request.blocks);
   if (typeof blocks === 'string') return { ok: false, error: blocks };
   const sectionOrder = normalizeOrder(pageKey, blocks, request.section_order);
   if (typeof sectionOrder === 'string') return { ok: false, error: sectionOrder };
-  const saved = await saveVersion(pageKey, blocks, sectionOrder);
+  const coreContent = normalizeCoreContent(pageKey, request.core_content);
+  if (typeof coreContent === 'string') return { ok: false, error: coreContent };
+  const saved = await saveVersion(pageKey, blocks, sectionOrder, coreContent);
   if (!saved.ok) return { ok: false, error: saved.error };
   const publishedAt = new Date().toISOString();
   const { error } = await saved.supabase.from('site_pages').update({
