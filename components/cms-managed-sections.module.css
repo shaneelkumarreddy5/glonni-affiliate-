@@ -20,3 +20,4 @@
 .slideDestinationList{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.slideDestinationList .slideCta{margin:0}
 .bannerSlides.mobileOnly{display:none}
 @media(max-width:700px){.bannerSlides.mobileOnly{display:flex}.bannerSlides.desktopOnly{display:none}.bannerSlides .bannerSlide.size_rectangle_horizontal{flex-basis:min(410px,94%);min-height:200px}.bannerSlides .bannerSlide.size_rectangle_vertical{flex-basis:min(290px,84%);min-height:330px}}
+.bannerSlides .promotionStrip.size_strip{flex:0 0 100%;min-height:82px;padding:14px 20px;border-radius:12px;grid-template-columns:minmax(0,1fr) auto}.bannerSlides .promotionStrip.bannerSlideWithItems{min-height:82px;flex-direction:row}.promotionStrip .slideDestinationList{margin-top:5px}

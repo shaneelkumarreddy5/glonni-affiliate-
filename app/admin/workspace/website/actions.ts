@@ -73,14 +73,14 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
     const count = Math.max(1, Math.min(50, Number(rawConfig.count ?? 10) || 10));
     const productIds = Array.isArray(rawConfig.product_ids) ? rawConfig.product_ids.filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50) : [];
     const mobileImage = String(rawConfig.mobile_image_url ?? '').trim();
-    const bannerSize: NonNullable<WebsiteDraftBlock['config']['banner_size']> = ['wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawConfig.banner_size)) ? rawConfig.banner_size as NonNullable<WebsiteDraftBlock['config']['banner_size']> : 'wide';
+    const bannerSize: NonNullable<WebsiteDraftBlock['config']['banner_size']> = type === 'banner' ? 'strip' : ['wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawConfig.banner_size)) ? rawConfig.banner_size as NonNullable<WebsiteDraftBlock['config']['banner_size']> : 'wide';
     const visualShape = ['standard', 'wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawConfig.visual_shape)) ? rawConfig.visual_shape as WebsiteVisualShape : 'standard';
     const color = (candidate: unknown, fallback: string) => typeof candidate === 'string' && /^#[0-9a-f]{6}$/i.test(candidate) ? candidate : fallback;
     const startsAt = String(rawConfig.starts_at ?? '').trim();
     const endsAt = String(rawConfig.ends_at ?? '').trim();
     const slideCount = Math.max(1, Math.min(10, Number(rawConfig.slide_count ?? 1) || 1));
     const rawShapes = Array.isArray(rawConfig.slide_shapes) ? rawConfig.slide_shapes : [];
-    const slideShapes = Array.from({ length: slideCount }, (_, index) => ['wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawShapes[index])) ? rawShapes[index] as NonNullable<WebsiteDraftBlock['config']['banner_size']> : bannerSize);
+    const slideShapes = Array.from({ length: slideCount }, (_, index) => type === 'banner' ? 'strip' : ['wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawShapes[index])) ? rawShapes[index] as NonNullable<WebsiteDraftBlock['config']['banner_size']> : bannerSize);
     const rawTargets = Array.isArray(rawConfig.slide_targets) ? rawConfig.slide_targets : [];
     const slideTargets: WebsiteSlideTarget[] = [];
     if (type === 'hero' || type === 'banner') for (let index = 0; index < slideCount; index++) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Bold, Check, ChevronDown, ChevronRight, ExternalLink, GripVertical, ImagePlus, Italic, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Underline, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
@@ -144,7 +144,7 @@ function HeroLinkComposer({ stores, products, categories, initialItem, blockType
 function newBlock(type: WebsiteBlockType, page: WebsitePageKey, storeSlug?: string): WebsiteDraftBlock {
   const slot = page === 'home' ? 'after_price_drops' : page === 'stores' ? 'store_before_products' : 'after_summary';
   const title = type === 'hero' ? 'Your featured campaign' : type === 'banner' ? '' : type === 'store_rail' ? 'Top deals at this store' : type === 'category_rail' ? 'Browse categories' : type === 'store_directory' ? 'Shop by store' : 'Featured products';
-  const config: WebsiteDraftBlock['config'] = { slot: slot as WebsiteSlot, count: 10, slide_count: type === 'hero' || type === 'banner' ? 1 : undefined, slide_targets: type === 'hero' || type === 'banner' ? [{ type: 'manual' }] : undefined, slide_items: type === 'hero' || type === 'banner' ? [[]] : undefined, sort: 'best_deal', source_mode: type === 'product_rail' || type === 'store_rail' ? 'curated' : 'all', product_ids: [], banner_size: type === 'hero' || type === 'banner' ? 'wide' : undefined, visual_shape: 'standard', accent: '#1554d1', background: '#f2f6ff' };
+  const config: WebsiteDraftBlock['config'] = { slot: slot as WebsiteSlot, count: 10, slide_count: type === 'hero' || type === 'banner' ? 1 : undefined, slide_targets: type === 'hero' || type === 'banner' ? [{ type: 'manual' }] : undefined, slide_items: type === 'hero' || type === 'banner' ? [[]] : undefined, sort: 'best_deal', source_mode: type === 'product_rail' || type === 'store_rail' ? 'curated' : 'all', product_ids: [], banner_size: type === 'hero' || type === 'banner' ? (type === 'banner' ? 'strip' : 'wide') : undefined, slide_shapes: type === 'banner' ? ['strip'] : type === 'hero' ? ['wide'] : undefined, visual_shape: 'standard', accent: '#1554d1', background: '#f2f6ff' };
   if (type === 'store_rail') config.store_slug = storeSlug;
   if (page === 'stores' && storeSlug) config.store_slug = storeSlug;
   return { id: crypto.randomUUID(), block_type: type, title, body: '', cta_label: type === 'banner' ? '' : type.includes('rail') ? 'View all deals' : 'Shop now', cta_href: type === 'banner' ? '' : type === 'store_rail' && storeSlug ? `/store/${storeSlug}` : '/deals', image_url: '', config, device_visibility: 'all', is_active: true };
@@ -237,6 +237,17 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const coreSections = coreSectionsByPage[pageKey];
   const selectedCore = coreSections.find((section) => section.key === selectedCoreKey) ?? null;
   const currentCoreContent = coreContent[pageKey] ?? {};
+  const stageScrollerRef = useRef<HTMLDivElement>(null);
+  const previewSectionRefs = useRef(new Map<string, HTMLDivElement>());
+  const selectedToken = selectedId ? `block:${selectedId}` : selectedCoreKey ? `core:${selectedCoreKey}` : null;
+  useEffect(() => {
+    if (!selectedToken) return;
+    const scroller = stageScrollerRef.current;
+    const target = previewSectionRefs.current.get(selectedToken);
+    if (!scroller || !target) return;
+    const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 16;
+    scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }, [selectedToken, pageKey, sectionOrder, device]);
   const dirty = JSON.stringify(blocks) !== JSON.stringify(savedLayouts[pageKey] ?? []) || JSON.stringify(sectionOrder) !== JSON.stringify(savedOrders[pageKey] ?? []) || JSON.stringify(currentCoreContent) !== JSON.stringify(savedCoreContent[pageKey] ?? {});
   const hasUnpublishedDraft = JSON.stringify(savedLayouts[pageKey] ?? []) !== JSON.stringify(publishedLayouts[pageKey] ?? []) || JSON.stringify(savedOrders[pageKey] ?? []) !== JSON.stringify(publishedOrders[pageKey] ?? []) || JSON.stringify(savedCoreContent[pageKey] ?? {}) !== JSON.stringify(publishedCoreContent[pageKey] ?? {});
   const activeStore = stores.find((store) => store.slug === previewStoreSlug) ?? stores[0];
@@ -395,7 +406,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       const slideTargets = [...(block.config.slide_targets ?? [])].slice(0, count);
       while (slideTargets.length < count) slideTargets.push({ type: 'manual' });
       const slideShapes = [...(block.config.slide_shapes ?? [])].slice(0, count);
-      while (slideShapes.length < count) slideShapes.push(block.config.banner_size ?? 'wide');
+      while (slideShapes.length < count) slideShapes.push(block.block_type === 'banner' ? 'strip' : block.config.banner_size ?? 'wide');
       const slideItems = [...(block.config.slide_items ?? [])].slice(0, count);
       while (slideItems.length < count) slideItems.push([]);
       return { ...block, config: { ...block.config, slide_count: count, slides, slide_targets: slideTargets, slide_shapes: slideShapes, slide_items: slideItems } };
@@ -545,14 +556,15 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     if (!block.is_active || (block.config.starts_at && Date.parse(block.config.starts_at) > Date.now()) || (block.config.ends_at && Date.parse(block.config.ends_at) < Date.now())) return null;
     if (block.block_type === 'hero' || block.block_type === 'banner') {
       const slides = [{ title: block.title, body: block.body, image_url: block.image_url, cta_label: block.cta_label, cta_href: block.cta_href }, ...(block.config.slides ?? [])].slice(0, Math.max(1, Math.min(10, Number(block.config.slide_count ?? 1))));
-      return <div className={styles.previewBannerTrack} key={block.id}>{slides.map((slide, index) => {
+      return <div className={`${styles.previewBannerTrack} ${block.block_type === 'banner' ? styles.previewPromotionTrack : ''}`} key={block.id}>{slides.map((slide, index) => {
         const target = block.config.slide_targets?.[index];
         const linkedItem = slideItem(target);
         const resolvedItems = resolveWebsiteSlideItems(block.config.slide_items?.[index] ?? [], stores.map((store) => ({ id: store.id, name: store.name, slug: store.slug })), categories, products.map((product) => ({ id: product.productId, title: product.title, slug: product.slug, categoryId: product.categoryId, storeSlug: product.storeSlug, price: product.price, cashback: product.cashback, brand: product.brand })));
         const destination = resolvedItems.length === 1 ? resolvedItems[0].href : resolvedItems.length > 1 ? undefined : target && target.type !== 'manual' ? linkedItem?.href : slide.cta_href;
         const image = slide.image_url;
         if (!slide.title && !slide.body && !image && !slide.cta_label && !destination && !resolvedItems.length) return null;
-        return <article key={`${block.id}-preview-${index}`} className={`${styles.previewBanner} ${styles[`size_${block.config.slide_shapes?.[index] ?? block.config.banner_size ?? 'wide'}`]}`} style={{ background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
+        const shape = block.block_type === 'banner' ? 'strip' : block.config.slide_shapes?.[index] ?? block.config.banner_size ?? 'wide';
+        return <article key={`${block.id}-preview-${index}`} className={`${styles.previewBanner} ${styles[`size_${shape}`]}`} style={{ background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
           {image && <img src={image} alt=""/>}<div>{slide.title && <b>{slide.title}</b>}{slide.body && <span>{renderRichPreview(slide.body)}</span>}{resolvedItems.length ? <div className={styles.previewSlideLinks}>{resolvedItems.map((item) => <a href={item.href} key={`${item.type}-${item.id}`} target="_blank" rel="noreferrer"><span><b>{resolvedItems.length === 1 && slide.cta_label ? slide.cta_label : item.name}</b><small>{item.type === 'store' ? 'Store page' : item.type === 'category' ? 'Category page' : item.type === 'product' ? 'Product page' : 'Manual link'}</small></span></a>)}</div> : destination && slide.cta_label ? <a className={styles.previewDestination} href={destination} target="_blank" rel="noreferrer">{slide.cta_label}</a> : null}</div>
         </article>;
       })}</div>;
@@ -588,7 +600,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
 
   function previewCore(key: string) {
     if (pageKey === 'home') {
-      if (key === 'hero') return <section className={styles.defaultHero}><div><small>FEATURED DEALS</small><b>Compare before you shop.</b><span>Find the right deal across connected stores.</span><em>Explore deals →</em></div><div><small>SEASONAL PICKS</small><b>Fresh finds for every cart.</b><span>Discover products for every day.</span></div></section>;
+      if (key === 'hero') return <section className={styles.defaultHero}><div><small>FEATURED DEALS</small><b>{currentCoreContent.hero?.title || 'Compare before you shop.'}</b><span>{currentCoreContent.hero?.body ? renderRichPreview(currentCoreContent.hero.body) : 'Find the right deal across connected stores.'}</span><em>Explore deals →</em></div><div><small>SEASONAL PICKS</small><b>Fresh finds for every cart.</b><span>Discover products for every day.</span></div></section>;
       if (key === 'categories') return cataloguePreview(key, 'What are you shopping for?', 'Choose catalogue categories; cards open their category page.', 'categories');
       if (key === 'stores') return cataloguePreview(key, 'Shop by store', 'Choose catalogue stores; cards open their store page.', 'stores');
       if (key === 'best_deals') return cataloguePreview(key, 'Best deals right now', 'Choose products; each product card opens its product page.', 'products');
@@ -652,7 +664,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           <button className={`${styles.dropMarker} ${draggedId ? styles.dropReady : ''}`} type="button" disabled={!canEdit} onClick={() => addAt(orderedItems.length)} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, orderedItems.length); setDraggedId(null); }} aria-label="Add a section at the end of the page"><i/><span>＋ Add here</span><small>Insert at the end of the page</small></button>
         </div>
         <div className={styles.addSectionWrap}>
-          {addOpen && <div className={styles.addMenu} role="menu"><button type="button" onClick={() => addSection('hero')} disabled={pageKey !== 'home'}><span>▣</span><b>Hero banner section</b><small>Add here · choose slide count and shape</small></button><button type="button" onClick={() => addSection('banner')}><span>▱</span><b>Promotion cards</b><small>Add here · wide, strip, square or rectangle</small></button><button type="button" onClick={() => addSection('product_rail')}><span>▤</span><b>Product cards</b><small>Choose exact products from the catalogue</small></button><button type="button" onClick={() => addSection('category_rail')}><span>⌑</span><b>Category cards</b><small>Choose any categories or subcategories</small></button><button type="button" onClick={() => addSection('store_directory')}><span>▥</span><b>Store cards</b><small>Choose connected stores to feature</small></button><button type="button" onClick={() => addSection('store_rail')}><span>↗</span><b>Deals from one store</b><small>Choose a store and number of products</small></button></div>}
+          {addOpen && <div className={styles.addMenu} role="menu"><button type="button" onClick={() => addSection('hero')} disabled={pageKey !== 'home'}><span>▣</span><b>Hero banner section</b><small>Add here · choose slide count and shape</small></button><button type="button" onClick={() => addSection('banner')}><span>▱</span><b>Promotion strips</b><small>Add here · compact curved full-width strips</small></button><button type="button" onClick={() => addSection('product_rail')}><span>▤</span><b>Product cards</b><small>Choose exact products from the catalogue</small></button><button type="button" onClick={() => addSection('category_rail')}><span>⌑</span><b>Category cards</b><small>Choose any categories or subcategories</small></button><button type="button" onClick={() => addSection('store_directory')}><span>▥</span><b>Store cards</b><small>Choose connected stores to feature</small></button><button type="button" onClick={() => addSection('store_rail')}><span>↗</span><b>Deals from one store</b><small>Choose a store and number of products</small></button></div>}
           <button className={styles.addSectionButton} type="button" disabled={!canEdit} onClick={() => setAddOpen((open) => !open)}><Plus/> Add section <ChevronDown size={15}/></button>
           <p>Choose “Add here” for exact placement. Drag any section by its grip to move it intactly.</p>
         </div>
@@ -660,10 +672,17 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
 
       <section className={styles.previewStage} aria-label="Live customer page preview">
         <header className={styles.stageHeader}><b>Preview · {pageOption.label}{pageKey === 'stores' && activeStore ? ` · ${activeStore.name}` : pageKey === 'product' && activeProduct ? ` · ${activeProduct.title}` : ''}</b><span className={styles.previewBadge}><i/>INTERACTIVE</span></header>
-        <div className={styles.stageScroller}>
+        <div className={styles.stageScroller} ref={stageScrollerRef}>
           <div className={`${styles.customerPage} ${widthClass}`}>
             <header className={styles.customerHeader}><b>Glonni</b><span>Search products, brands and stores…</span><small>Stores　 Deals　 Profile</small></header>
-            {sectionOrder.map((token) => <Fragment key={token}>{previewOrderedSection(token)}</Fragment>)}
+            {sectionOrder.map((token) => {
+              const content = previewOrderedSection(token);
+              const selectedBlock = token.startsWith('block:') ? blocks.find((block) => block.id === token.slice(6)) : null;
+              const emptyPromotion = token === selectedToken && selectedBlock?.block_type === 'banner' && !selectedBlock.title && !selectedBlock.body && !selectedBlock.image_url && !selectedBlock.config.slides?.some((slide) => slide.title || slide.body || slide.image_url);
+              return <div key={token} ref={(node) => { if (node) previewSectionRefs.current.set(token, node); else previewSectionRefs.current.delete(token); }} className={`${styles.previewSectionTarget} ${token === selectedToken ? styles.previewSectionTargetActive : ''}`} data-preview-section={token}>
+                {content ?? (token === selectedToken && selectedBlock ? <div className={styles.previewSelectionPlaceholder}><b>{emptyPromotion ? 'Promotion strip · ready to edit' : selectedBlock.title || titleForType(selectedBlock.block_type)}</b><span>{emptyPromotion ? 'Add your own image, heading or supporting text. This blank draft stays off the customer site until it has content.' : !selectedBlock.is_active ? 'This section is paused. Turn it on to show it to customers.' : 'This section has no content in the current preview. Check its device and schedule settings or add content.'}</span></div> : null)}
+              </div>;
+            })}
             <footer className={styles.previewFooter}>Glonni · Shop with clear offers and cashback terms</footer>
           </div>
         </div>
@@ -674,7 +693,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           <header className={styles.inspectorHeader}><div><small>PAGE SECTION</small><b>{selectedCore.title}</b></div><button type="button" onClick={() => setSelectedCoreKey(null)} aria-label="Close section settings"><X/></button></header>
           <div className={styles.inspectorBody}>
             {pageKey === 'home' && selectedCore.key === 'hero' && <div className={styles.heroConvert}><b>Main hero uses fixed built-in slides.</b><span>Convert it to editable slides to add whole stores, categories, subcategories and products here too. Its current three messages are kept.</span><button type="button" onClick={convertCoreHero}><Plus/> Make hero slides editable</button></div>}
-            <label>Section heading<input maxLength={120} value={currentCoreContent[selectedCore.key]?.title ?? selectedCore.title} onChange={(event) => updateCoreContent(selectedCore.key, { title: event.target.value })}/></label>
+            <label>{pageKey === 'home' && selectedCore.key === 'hero' ? 'Main hero heading' : 'Section heading'}<input maxLength={120} value={currentCoreContent[selectedCore.key]?.title ?? (pageKey === 'home' && selectedCore.key === 'hero' ? '' : selectedCore.title)} placeholder={pageKey === 'home' && selectedCore.key === 'hero' ? 'Compare before you shop.' : undefined} onChange={(event) => updateCoreContent(selectedCore.key, { title: event.target.value })}/></label>
             <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={currentCoreContent[selectedCore.key]?.body ?? ''} onChange={(body) => updateCoreContent(selectedCore.key, { body })} placeholder="Optional description"/></div>
             {pageKey === 'home' && ['categories', 'stores', 'best_deals', 'trending', 'price_drops'].includes(selectedCore.key) && <>
               <div className={styles.twoFields}><label>Number of cards<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? (selectedCore.key === 'categories' || selectedCore.key === 'stores' ? 10 : 10)} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>
@@ -699,7 +718,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
                 const values = slideIndex === 0 ? { title: selected.title, body: selected.body, image_url: selected.image_url, cta_label: selected.cta_label, cta_href: selected.cta_href } : extra ?? { title: '', body: '', image_url: '', cta_label: '', cta_href: '' };
                 const slideItems = selected.config.slide_items?.[slideIndex] ?? [];
                 return <section className={styles.slideEditor} key={`${selected.id}-slide-editor-${slideIndex}`}><header><b>{selected.block_type === 'banner' ? 'Promotion card' : 'Slide'} {slideIndex + 1}</b><button type="button" className={styles.deleteSlide} onClick={() => deleteBannerSlide(selected.id, slideIndex)} aria-label={(selected.config.slide_count ?? 1) > 1 ? `Delete ${selected.block_type === 'banner' ? 'promotion card' : 'slide'} ${slideIndex + 1}` : `Delete only ${selected.block_type === 'banner' ? 'promotion card' : 'slide'} and banner section`}><Trash2/> {(selected.config.slide_count ?? 1) > 1 ? selected.block_type === 'banner' ? 'Delete card' : 'Delete slide' : selected.block_type === 'banner' ? 'Delete card & section' : 'Delete slide & section'}</button></header>
-                  <label>Card shape<select value={selected.config.slide_shapes?.[slideIndex] ?? selected.config.banner_size ?? 'wide'} onChange={(event) => setBannerSlideShape(selected.id, slideIndex, event.target.value as NonNullable<WebsiteDraftBlock['config']['banner_size']>)}><option value="wide">Full-width banner</option><option value="strip">Promotional strip</option><option value="square">Square card</option><option value="rectangle_horizontal">Horizontal rectangle card</option><option value="rectangle_vertical">Vertical rectangle card</option></select></label>
+                  {selected.block_type === 'banner' ? <div className={styles.promotionShapeNote}><span>Card shape</span><b>Curved full-width strip</b><small>Promotion banners use this compact strip layout on every device.</small></div> : <label>Card shape<select value={selected.config.slide_shapes?.[slideIndex] ?? selected.config.banner_size ?? 'wide'} onChange={(event) => setBannerSlideShape(selected.id, slideIndex, event.target.value as NonNullable<WebsiteDraftBlock['config']['banner_size']>)}><option value="wide">Full-width banner</option><option value="strip">Promotional strip</option><option value="square">Square card</option><option value="rectangle_horizontal">Horizontal rectangle card</option><option value="rectangle_vertical">Vertical rectangle card</option></select></label>}
                   <div className={styles.slideContents}><div><b>Link destinations on this slide</b><small>Add a store, category, subcategory, product, or manual URL. Each item creates only a link; it never expands into product cards.</small></div>{slideItems.length < 12 && <button type="button" onClick={() => setHeroComposer({ blockId: selected.id, slideIndex })}><Plus/> Add item</button>}</div>
                   {slideItems.map((item, itemIndex) => {
                     const linked = item.type === 'manual' ? { label: item.label ?? item.href ?? item.id, href: item.href ?? item.id } : slideItem({ type: item.type, id: item.id });

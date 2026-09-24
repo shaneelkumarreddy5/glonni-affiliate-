@@ -136,7 +136,7 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
             href = websiteItemHref('store', store.slug);
           }
         }
-        if (!slide.title && !slide.body && !slide.image_url && !slide.cta_label) return [];
+        if (!slide.title && !slide.body && !slide.image_url && !slide.cta_label && !href && !catalogueItems.length) return [];
         return [{ slide, index, href, image: slide.image_url, catalogueItems }];
       });
       if (!visibleSlides.length) return null;
@@ -144,7 +144,8 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
         {visibleSlides.map(({ slide, index, href, image, catalogueItems }) => {
         const destinationLinks = catalogueItems.length > 1 ? catalogueItems : [];
         const content = <>{image && <picture className={styles.bannerPicture}>{index === 0 && config.mobile_image_url && <source media="(max-width: 700px)" srcSet={config.mobile_image_url}/>}<img src={image} alt=""/></picture>}<div className={styles.copy}>{slide.title && <h2>{slide.title}</h2>}{slide.body && <p>{renderWebsiteRichText(slide.body)}</p>}{href && slide.cta_label && <span className={styles.slideCta}>{slide.cta_label}</span>}{destinationLinks.length > 0 && <div className={styles.slideDestinationList}>{destinationLinks.map((item) => <a key={`${item.type}-${item.id}`} href={item.href} className={styles.slideCta}>{item.name}</a>)}</div>}</div></>;
-          const slideClass = `${styles.block} ${styles.bannerBlock} ${styles.bannerSlide} ${destinationLinks.length ? styles.bannerSlideWithItems : ''} ${styles[block.block_type] ?? ''} ${styles[`size_${config.slide_shapes?.[index] ?? config.banner_size ?? 'wide'}`] ?? ''}`;
+          const shape = block.block_type === 'banner' ? 'strip' : config.slide_shapes?.[index] ?? config.banner_size ?? 'wide';
+          const slideClass = `${styles.block} ${styles.bannerBlock} ${styles.bannerSlide} ${block.block_type === 'banner' ? styles.promotionStrip : ''} ${destinationLinks.length ? styles.bannerSlideWithItems : ''} ${styles[block.block_type] ?? ''} ${styles[`size_${shape}`] ?? ''}`;
           const slideStyle = { '--accent': accent, '--background': background } as React.CSSProperties;
           return href ? <a key={`${block.id}-slide-${index}`} href={href} className={`${slideClass} ${styles.bannerSlideLink}`} style={slideStyle} aria-label={slide.title || slide.cta_label || 'Open linked destination'}>{content}</a> : <section key={`${block.id}-slide-${index}`} className={slideClass} style={slideStyle}>{content}</section>;
         })}
