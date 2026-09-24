@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { coreSectionsByPage, insertWebsiteSection, moveWebsiteSection, removeWebsiteBannerSlide, resolveWebsiteSlideItems, websiteItemHref, websitePageOptions, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
 import { publishWebsiteLayout, saveWebsiteDraft } from './actions';
-import { WebsiteSlideItemCards } from '@/components/website-slide-item-cards';
 import styles from './website-workspace.module.css';
 
 export type WebsiteWorkspaceStore = { id: string; name: string; slug: string; logoUrl: string | null };
@@ -65,6 +64,82 @@ function SlideItemPicker({ title, items, selectedId, name, onSelect }: { title: 
   </details>;
 }
 
+type HeroLinkType = WebsiteSlideItem['type'];
+
+function HeroLinkComposer({ stores, products, categories, initialItem, onClose, onSave }: { stores: WebsiteWorkspaceStore[]; products: WebsiteWorkspaceProduct[]; categories: CategoryOption[]; initialItem?: WebsiteSlideItem; onClose: () => void; onSave: (item: WebsiteSlideItem) => void }) {
+  const initialProduct = initialItem?.type === 'product' ? products.find((product) => product.productId === initialItem.id) : undefined;
+  const initialCategory = initialItem?.type === 'category' ? categories.find((category) => category.id === initialItem.id) : undefined;
+  const inferredStoreSlug = initialItem?.type === 'store' ? stores.find((store) => store.id === initialItem.id)?.slug : initialProduct?.storeSlug ?? (initialCategory ? products.find((product) => product.categoryId === initialCategory.id)?.storeSlug : undefined);
+  const initialStoreId = stores.find((store) => store.slug === inferredStoreSlug)?.id ?? '';
+  const [type, setType] = useState<HeroLinkType>(initialItem?.type ?? 'store');
+  const [storeId, setStoreId] = useState(initialStoreId);
+  const [categoryId, setCategoryId] = useState(initialCategory?.id ?? '');
+  const [productId, setProductId] = useState(initialProduct?.productId ?? '');
+  const [manualUrl, setManualUrl] = useState(initialItem?.type === 'manual' ? (initialItem.href ?? initialItem.id) : '');
+  const [manualLabel, setManualLabel] = useState(initialItem?.type === 'manual' ? (initialItem.label ?? '') : '');
+  const [productSearch, setProductSearch] = useState('');
+  const store = stores.find((entry) => entry.id === storeId);
+  const storeCategories = useMemo(() => categoriesForStore(store?.slug, products, categories), [store?.slug, products, categories]);
+  const category = storeCategories.find((entry) => entry.id === categoryId);
+  const categoryIds = category ? categoryBranch(category.slug, categories) ?? new Set<string>() : null;
+  const availableProducts = useMemo(() => {
+    if (!store?.slug || !categoryIds) return [];
+    const unique = new Map<string, WebsiteWorkspaceProduct>();
+    for (const product of products) {
+      if (product.storeSlug !== store.slug || !categoryIds.has(product.categoryId)) continue;
+      if (!unique.has(product.productId)) unique.set(product.productId, product);
+    }
+    const needle = productSearch.trim().toLowerCase();
+    return [...unique.values()].filter((product) => !needle || `${product.title} ${product.brand ?? ''}`.toLowerCase().includes(needle)).slice(0, 100);
+  }, [store?.slug, categoryIds, products, productSearch]);
+  const selectedProduct = products.find((entry) => entry.productId === productId);
+  const destination = type === 'store' && store ? websiteItemHref('store', store.slug) : type === 'category' && category ? websiteItemHref('category', category.slug) : type === 'product' && selectedProduct ? websiteItemHref('product', selectedProduct.slug) : type === 'manual' ? manualUrl.trim() : '';
+  const canSave = type === 'manual' ? Boolean(/^\/(?!\/)|^https?:\/\//i.test(manualUrl.trim())) : type === 'store' ? Boolean(store) : type === 'category' ? Boolean(store && category) : Boolean(store && category && selectedProduct);
+
+  function changeType(next: HeroLinkType) {
+    setType(next);
+    if (next !== 'manual') setManualUrl('');
+  }
+
+  function changeStore(nextId: string) {
+    setStoreId(nextId);
+    setCategoryId('');
+    setProductId('');
+    setProductSearch('');
+  }
+
+  function changeCategory(nextId: string) {
+    setCategoryId(nextId);
+    setProductId('');
+    setProductSearch('');
+  }
+
+  function save() {
+    if (!canSave) return;
+    if (type === 'manual') onSave({ type, id: manualUrl.trim(), href: manualUrl.trim(), label: manualLabel.trim() || manualUrl.trim() });
+    else if (type === 'store' && store) onSave({ type, id: store.id });
+    else if (type === 'category' && category) onSave({ type, id: category.id });
+    else if (type === 'product' && selectedProduct) onSave({ type, id: selectedProduct.productId });
+  }
+
+  return <div className={styles.heroComposerOverlay} role="dialog" aria-modal="true" aria-label="Add link to hero slide">
+    <div className={styles.heroComposer}>
+      <header className={styles.heroComposerHeader}><div><small>HERO SLIDE · LINK DESTINATION</small><b>{initialItem ? 'Edit linked item' : 'Add an item to this slide'}</b><span>Choose one destination. Store, category and product links never expand into product cards.</span></div><button type="button" onClick={onClose} aria-label="Close link selector"><X/></button></header>
+      <div className={styles.heroComposerGrid}>
+        <section className={styles.heroComposerForm}>
+          <label>Link type<select value={type} onChange={(event) => changeType(event.target.value as HeroLinkType)}><option value="store">Whole store</option><option value="category">Category or subcategory</option><option value="product">Specific product</option><option value="manual">Manual link</option></select></label>
+          {type !== 'manual' && <label>Store<select value={storeId} onChange={(event) => changeStore(event.target.value)}><option value="">Select a connected store</option>{stores.map((entry) => <option value={entry.id} key={entry.id}>{entry.name}</option>)}</select><small>Only active connected stores are shown.</small></label>}
+          {type === 'category' && <label>Category or subcategory<select value={categoryId} onChange={(event) => changeCategory(event.target.value)} disabled={!store}><option value="">Select a category</option>{storeCategories.map((entry) => <option value={entry.id} key={entry.id}>{formatCategory(entry, categories)}</option>)}</select><small>{store ? 'Filtered to categories connected to this store.' : 'Select a store first.'}</small></label>}
+          {type === 'product' && <><label>Category or subcategory<select value={categoryId} onChange={(event) => changeCategory(event.target.value)} disabled={!store}><option value="">Select a category first</option>{storeCategories.map((entry) => <option value={entry.id} key={entry.id}>{formatCategory(entry, categories)}</option>)}</select><small>{store ? 'Products are filtered to this store and category branch.' : 'Select a store first.'}</small></label><label>Product search<input type="search" value={productSearch} onChange={(event) => setProductSearch(event.target.value)} disabled={!category} placeholder="Search products by name or brand"/></label><label>Product<select size={8} value={productId} onChange={(event) => setProductId(event.target.value)} disabled={!category}><option value="">Select a product</option>{availableProducts.map((entry) => <option value={entry.productId} key={entry.productId}>{entry.title} · {entry.storeName}</option>)}</select><small>{category ? `${availableProducts.length}${availableProducts.length === 100 ? '+' : ''} matching products shown` : 'Select a category first.'}</small></label></>}
+          {type === 'manual' && <><label>Link label<input value={manualLabel} onChange={(event) => setManualLabel(event.target.value)} maxLength={80} placeholder="e.g. Shop the sale"/></label><label>URL<input value={manualUrl} onChange={(event) => setManualUrl(event.target.value)} maxLength={500} placeholder="/deals or https://merchant.example/offer"/><small>Use an internal path or a full HTTPS merchant URL.</small></label></>}
+        </section>
+        <aside className={styles.heroComposerPreview}><small>SELECTED DESTINATION</small><div className={styles.heroDestinationIcon}>{type === 'store' ? 'S' : type === 'category' ? 'C' : type === 'product' ? 'P' : '↗'}</div><b>{type === 'store' ? store?.name ?? 'Choose a store' : type === 'category' ? category ? formatCategory(category, categories) : 'Choose a category' : type === 'product' ? selectedProduct?.title ?? 'Choose a product' : manualLabel || manualUrl || 'Add a manual link'}</b><span>{destination || 'The destination will appear here.'}</span>{destination && <a href={destination} target="_blank" rel="noreferrer">Open destination ↗</a>}<p>Only this destination is attached to the slide. Products are not automatically inserted.</p></aside>
+      </div>
+      <footer className={styles.heroComposerFooter}><button type="button" className={styles.saveDraft} onClick={onClose}>Cancel</button><button type="button" className={styles.publish} disabled={!canSave} onClick={save}>{initialItem ? 'Save item' : 'Add item'}<ChevronRight/></button></footer>
+    </div>
+  </div>;
+}
+
 function newBlock(type: WebsiteBlockType, page: WebsitePageKey, storeSlug?: string): WebsiteDraftBlock {
   const slot = page === 'home' ? 'after_price_drops' : page === 'stores' ? 'store_before_products' : 'after_summary';
   const title = type === 'hero' ? 'Your featured campaign' : type === 'banner' ? 'New promotion' : type === 'store_rail' ? 'Top deals at this store' : type === 'category_rail' ? 'Browse categories' : type === 'store_directory' ? 'Shop by store' : 'Featured products';
@@ -116,6 +191,19 @@ function categoryBranch(categorySlug: string | undefined, categories: CategoryOp
   return branch;
 }
 
+function categoriesForStore(storeSlug: string | undefined, products: WebsiteWorkspaceProduct[], categories: CategoryOption[]) {
+  if (!storeSlug) return [];
+  const visible = new Set(products.filter((product) => product.storeSlug === storeSlug && product.categoryId).map((product) => product.categoryId));
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const category of categories) if (category.parentId && visible.has(category.id) && !visible.has(category.parentId)) {
+      visible.add(category.parentId);
+      changed = true;
+    }
+  }
+  return categories.filter((category) => visible.has(category.id));
+}
+
 export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, initialCoreContent, publishedLayouts: initialPublishedLayouts, publishedOrders: initialPublishedOrders, publishedCoreContent: initialPublishedCoreContent, pageStatuses, stores, products, categories, canEdit }: Props) {
   const [pageKey, setPageKey] = useState<WebsitePageKey>(initialPage);
   const [layouts, setLayouts] = useState(initialLayouts);
@@ -141,6 +229,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [heroComposer, setHeroComposer] = useState<{ blockId: string; slideIndex: number; itemIndex?: number } | null>(null);
   const blocks = layouts[pageKey] ?? [];
   const selected = blocks.find((block) => block.id === selectedId) ?? null;
   const sectionOrder = orders[pageKey] ?? [];
@@ -344,19 +433,19 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     });
   }
 
-  function firstAvailableItem(type: WebsiteSlideItem['type'], existing: WebsiteSlideItem[]) {
-    const used = new Set(existing.filter((item) => item.type === type).map((item) => item.id));
-    const candidates = type === 'store' ? stores : type === 'category' ? categories : orderedOffers.map((product) => ({ id: product.productId }));
-    return candidates.find((item) => !used.has(item.id))?.id;
-  }
-
-  function addSlideItem(blockId: string, slideIndex: number) {
-    const existing = blocks.find((block) => block.id === blockId)?.config.slide_items?.[slideIndex] ?? [];
-    if (existing.length >= 12) return;
-    const type: WebsiteSlideItem['type'] = stores.length ? 'store' : categories.length ? 'category' : 'product';
-    const id = firstAvailableItem(type, existing);
-    if (!id) { setNotice({ kind: 'error', text: 'No more published catalogue items are available to add to this slide.' }); return; }
-    updateSlideItems(blockId, slideIndex, (items) => [...items, { type, id, product_count: 4 }]);
+  function saveHeroItem(blockId: string, slideIndex: number, itemIndex: number | undefined, item: WebsiteSlideItem) {
+    const currentItems = blocks.find((block) => block.id === blockId)?.config.slide_items?.[slideIndex] ?? [];
+    if (itemIndex === undefined && currentItems.length >= 12) {
+      setNotice({ kind: 'error', text: 'A slide can contain up to 12 linked items.' });
+      return;
+    }
+    const duplicate = currentItems.some((entry, index) => index !== itemIndex && entry.type === item.type && entry.id === item.id);
+    if (duplicate) {
+      setNotice({ kind: 'error', text: 'That destination is already linked to this slide.' });
+      return;
+    }
+    updateSlideItems(blockId, slideIndex, (items) => itemIndex === undefined ? [...items, item] : items.map((entry, index) => index === itemIndex ? item : entry));
+    setHeroComposer(null);
   }
 
   function addSection(type: WebsiteBlockType) {
@@ -484,7 +573,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
         const destination = resolvedItems.length ? undefined : target && target.type !== 'manual' ? linkedItem?.href : slide.cta_href;
         const image = slide.image_url || linkedItem?.image;
         return <article key={`${block.id}-preview-${index}`} className={`${styles.previewBanner} ${styles[`size_${block.config.slide_shapes?.[index] ?? block.config.banner_size ?? 'wide'}`]}`} style={{ background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
-          {image && <img src={image} alt=""/>}<div><small>{block.block_type === 'hero' ? 'FEATURED' : 'PROMOTION'} · {index + 1}/{slides.length}</small><b>{slide.title || linkedItem?.label || 'Campaign banner'}</b>{slide.body && <span>{renderRichPreview(slide.body)}</span>}{resolvedItems.length ? <WebsiteSlideItemCards items={resolvedItems} compact/> : destination ? <a className={styles.previewDestination} href={destination} target="_blank" rel="noreferrer">{slide.cta_label || 'Open card'} ↗ <small>{destination}</small></a> : target?.type !== 'manual' ? <em>Select an item to link this card</em> : null}</div>
+          {image && <img src={image} alt=""/>}<div><small>{block.block_type === 'hero' ? 'FEATURED' : 'PROMOTION'} · {index + 1}/{slides.length}</small><b>{slide.title || linkedItem?.label || 'Campaign banner'}</b>{slide.body && <span>{renderRichPreview(slide.body)}</span>}{resolvedItems.length ? <div className={styles.previewSlideLinks}>{resolvedItems.map((item) => <a href={item.href} key={`${item.type}-${item.id}`} target="_blank" rel="noreferrer">{item.imageUrl && <img src={item.imageUrl} alt=""/>}<span><b>{item.name}</b><small>{item.type === 'store' ? 'Store page' : item.type === 'category' ? 'Category page' : item.type === 'product' ? 'Product page' : 'Manual link'} ↗</small></span></a>)}</div> : destination ? <a className={styles.previewDestination} href={destination} target="_blank" rel="noreferrer">{slide.cta_label || 'Open card'} ↗ <small>{destination}</small></a> : target && target.type !== 'manual' ? <em>Select an item to link this card</em> : null}</div>
         </article>;
       })}</div>;
     }
@@ -550,8 +639,9 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   }).filter((item) => item.core || item.block);
   const widthClass = device === 'desktop' ? styles.desktop : device === 'tablet' ? styles.tablet : styles.mobile;
   const customerHref = pageKey === 'home' ? '/' : pageKey === 'stores' ? `/store/${activeStore?.slug ?? ''}` : `/product/${activeProduct?.slug ?? ''}`;
+  const composerItem = heroComposer && heroComposer.itemIndex !== undefined ? blocks.find((block) => block.id === heroComposer.blockId)?.config.slide_items?.[heroComposer.slideIndex]?.[heroComposer.itemIndex] : undefined;
 
-  return <section className={styles.workspace}>
+  return <><section className={styles.workspace}>
     <div className={styles.toolbar}>
       <label className={styles.pagePicker}><LayoutTemplate/><span>Editing page</span><select value={pageKey} onChange={(event) => { const nextPage = event.target.value as WebsitePageKey; setPageKey(nextPage); setSelectedId(null); setSelectedCoreKey(null); setInsertAtIndex(orders[nextPage]?.length ?? 0); setAddOpen(false); setNotice(null); }}><option value="home">Home page</option><option value="stores">Store page</option><option value="product">Product page</option></select><ChevronDown size={15}/></label>
       <div className={styles.devicePicker} role="group" aria-label="Preview size">
@@ -627,29 +717,19 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
               {Array.from({ length: selected.config.slide_count ?? 1 }, (_, slideIndex) => {
                 const extra = selected.config.slides?.[slideIndex - 1];
                 const values = slideIndex === 0 ? { title: selected.title, body: selected.body, image_url: selected.image_url, cta_label: selected.cta_label, cta_href: selected.cta_href } : extra ?? { title: '', body: '', image_url: '', cta_label: '', cta_href: '' };
-                const target = selected.config.slide_targets?.[slideIndex] ?? { type: 'manual' as const };
                 const slideItems = selected.config.slide_items?.[slideIndex] ?? [];
-                const linkedItem = slideItem(target);
-                const targetItems: PickerItem[] = target.type === 'product' ? orderedOffers.map((product) => ({ id: product.productId, label: product.title, detail: `${product.storeName} · ${money(product.price)} · ${websiteItemHref('product', product.slug)}`, image: product.imageUrl })) : target.type === 'category' ? categories.map((category) => ({ id: category.id, label: formatCategory(category, categories), detail: websiteItemHref('category', category.slug), image: category.imageUrl })) : target.type === 'store' ? stores.map((store) => ({ id: store.id, label: store.name, detail: websiteItemHref('store', store.slug), image: store.logoUrl })) : [];
                 return <section className={styles.slideEditor} key={`${selected.id}-slide-editor-${slideIndex}`}><header><b>Slide {slideIndex + 1}</b><button type="button" className={styles.deleteSlide} onClick={() => deleteBannerSlide(selected.id, slideIndex)} aria-label={(selected.config.slide_count ?? 1) > 1 ? `Delete slide ${slideIndex + 1}` : 'Delete only slide and banner section'}><Trash2/> {(selected.config.slide_count ?? 1) > 1 ? 'Delete slide' : 'Delete slide & section'}</button></header>
                   <label>Card shape<select value={selected.config.slide_shapes?.[slideIndex] ?? selected.config.banner_size ?? 'wide'} onChange={(event) => setBannerSlideShape(selected.id, slideIndex, event.target.value as NonNullable<WebsiteDraftBlock['config']['banner_size']>)}><option value="wide">Full-width banner</option><option value="strip">Promotional strip</option><option value="square">Square card</option><option value="rectangle_horizontal">Horizontal rectangle card</option><option value="rectangle_vertical">Vertical rectangle card</option></select></label>
-                  <div className={styles.slideContents}><div><b>Content inside this slide</b><small>Add a whole store, category, subcategory or individual product. Each item opens its own page.</small></div>{slideItems.length < 12 && <button type="button" onClick={() => addSlideItem(selected.id, slideIndex)}><Plus/> Add item</button>}</div>
+                  <div className={styles.slideContents}><div><b>Link destinations on this slide</b><small>Add a store, category, subcategory, product, or manual URL. Each item creates only a link; it never expands into product cards.</small></div>{slideItems.length < 12 && <button type="button" onClick={() => setHeroComposer({ blockId: selected.id, slideIndex })}><Plus/> Add item</button>}</div>
                   {slideItems.map((item, itemIndex) => {
-                    const itemChoices: PickerItem[] = item.type === 'product' ? orderedOffers.map((product) => ({ id: product.productId, label: product.title, detail: `${product.storeName} · ${money(product.price)}`, image: product.imageUrl })) : item.type === 'category' ? categories.map((category) => ({ id: category.id, label: formatCategory(category, categories), detail: category.parentId ? 'Subcategory' : 'Main category', image: category.imageUrl })) : stores.map((store) => ({ id: store.id, label: store.name, detail: 'Whole store', image: store.logoUrl }));
-                    return <div className={styles.slideContentItem} key={`${selected.id}-${slideIndex}-item-${itemIndex}`}><div className={styles.slideContentHeading}><b>Item {itemIndex + 1}</b><div><button type="button" disabled={itemIndex === 0} onClick={() => updateSlideItems(selected.id, slideIndex, (items) => { [items[itemIndex - 1], items[itemIndex]] = [items[itemIndex], items[itemIndex - 1]]; return items; })} aria-label={`Move item ${itemIndex + 1} up`}>↑</button><button type="button" disabled={itemIndex === slideItems.length - 1} onClick={() => updateSlideItems(selected.id, slideIndex, (items) => { [items[itemIndex], items[itemIndex + 1]] = [items[itemIndex + 1], items[itemIndex]]; return items; })} aria-label={`Move item ${itemIndex + 1} down`}>↓</button><button type="button" onClick={() => updateSlideItems(selected.id, slideIndex, (items) => items.filter((_, index) => index !== itemIndex))} aria-label={`Remove item ${itemIndex + 1}`}><Trash2/></button></div></div>
-                      <label>Show<select value={item.type} onChange={(event) => { const type = event.target.value as WebsiteSlideItem['type']; const id = firstAvailableItem(type, slideItems.filter((_, index) => index !== itemIndex)); if (id) updateSlideItems(selected.id, slideIndex, (items) => items.map((entry, index) => index === itemIndex ? { type, id, product_count: 4 } : entry)); else setNotice({ kind: 'error', text: 'No published catalogue items of this type are available.' }); }}><option value="store">Whole store</option><option value="category">Category or subcategory</option><option value="product">Specific product</option></select></label>
-                      <SlideItemPicker key={`${selected.id}-${slideIndex}-${itemIndex}-${item.type}`} title={item.type === 'store' ? 'Select store' : item.type === 'category' ? 'Select category or subcategory' : 'Select product'} items={itemChoices} selectedId={item.id} name={`slide-item-${selected.id}-${slideIndex}-${itemIndex}`} onSelect={(id) => { if (slideItems.some((entry, index) => index !== itemIndex && entry.type === item.type && entry.id === id)) { setNotice({ kind: 'error', text: 'This item is already in the slide.' }); return; } updateSlideItems(selected.id, slideIndex, (items) => items.map((entry, index) => index === itemIndex ? { ...entry, id } : entry)); }}/>
-                      {item.type === 'product' && <small className={styles.sourceNote}>Need a new product? Save this draft first, then <a href="/admin/products?view=manual" target="_blank" rel="noreferrer">create or fetch it in Products ↗</a> Once published, reload this editor and select it.</small>}
-                      {item.type !== 'product' && <label>Products to show from this {item.type}<input type="number" min={1} max={50} value={item.product_count ?? 4} onChange={(event) => updateSlideItems(selected.id, slideIndex, (items) => items.map((entry, index) => index === itemIndex ? { ...entry, product_count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) } : entry))}/></label>}
-                    </div>;
+                    const linked = item.type === 'manual' ? { label: item.label ?? item.href ?? item.id, href: item.href ?? item.id, image: undefined } : slideItem({ type: item.type, id: item.id });
+                    return <div className={styles.slideContentItem} key={`${selected.id}-${slideIndex}-item-${itemIndex}`}><div className={styles.slideContentHeading}><b>Item {itemIndex + 1}</b><div><button type="button" disabled={itemIndex === 0} onClick={() => updateSlideItems(selected.id, slideIndex, (items) => { [items[itemIndex - 1], items[itemIndex]] = [items[itemIndex], items[itemIndex - 1]]; return items; })} aria-label={`Move item ${itemIndex + 1} up`}>↑</button><button type="button" disabled={itemIndex === slideItems.length - 1} onClick={() => updateSlideItems(selected.id, slideIndex, (items) => { [items[itemIndex], items[itemIndex + 1]] = [items[itemIndex + 1], items[itemIndex]]; return items; })} aria-label={`Move item ${itemIndex + 1} down`}>↓</button><button type="button" onClick={() => updateSlideItems(selected.id, slideIndex, (items) => items.filter((_, index) => index !== itemIndex))} aria-label={`Remove item ${itemIndex + 1}`}><Trash2/></button></div></div><div className={styles.slideLinkSummary}>{linked?.image && <img src={linked.image} alt=""/>}<div><b>{linked?.label ?? 'Destination unavailable'}</b><small>{item.type === 'store' ? 'Whole store' : item.type === 'category' ? 'Category or subcategory' : item.type === 'product' ? 'Specific product' : 'Manual URL'}{linked?.href ? ` · ${linked.href}` : ''}</small></div><button type="button" onClick={() => setHeroComposer({ blockId: selected.id, slideIndex, itemIndex })}>Edit link</button></div></div>;
                   })}
-                  {!slideItems.length && <><label>Whole-slide link (optional)<select value={target.type} onChange={(event) => setBannerSlideTarget(selected.id, slideIndex, event.target.value as WebsiteSlideTarget['type'])}><option value="manual">Custom link</option><option value="product">Product page</option><option value="category">Category or subcategory page</option><option value="store">Store page</option></select></label>
-                    {target.type !== 'manual' && <SlideItemPicker key={`${selected.id}-${slideIndex}-${target.type}`} title={target.type === 'product' ? 'Choose a product' : target.type === 'category' ? 'Choose a category or subcategory' : 'Choose a store'} items={targetItems} selectedId={target.id} name={`slide-target-${selected.id}-${slideIndex}`} onSelect={(id) => setBannerSlideTarget(selected.id, slideIndex, target.type, id)}/>}
-                    {target.type !== 'manual' && <small className={styles.sourceNote}><Check/> {linkedItem ? `The entire card opens ${linkedItem.href}` : 'Select an item above to link this card.'}</small>}</>}
+                  {!slideItems.length && <small className={styles.sourceNote}><Check/> Add item to attach a store, category, subcategory, product, or manual URL. The button below remains available for a simple slide CTA.</small>}
                   <label>Heading<input maxLength={120} value={values.title} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { title: event.target.value })} placeholder="e.g. Diwali essentials"/></label>
                   <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={values.body} onChange={(body) => updateBannerSlide(selected.id, slideIndex, { body })} placeholder="Add a short customer-friendly description"/></div>
                   {slideIndex === 0 ? <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === 'image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label> : <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === `slide-${slideIndex}` ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0], slideIndex)} disabled={Boolean(uploading)}/></label></span></label>}
-                  {!slideItems.length && <div className={styles.twoFields}><label>Button label<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Shop now"/></label>{target.type === 'manual' ? <label>Button link<input maxLength={500} value={values.cta_href} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_href: event.target.value })} placeholder="/deals or https://…"/></label> : <label>Linked page<input value={linkedItem?.href ?? 'Choose an item above'} readOnly/></label>}</div>}
+                  {!slideItems.length && <div className={styles.twoFields}><label>Button label<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Shop now"/></label><label>Button link<input maxLength={500} value={values.cta_href} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_href: event.target.value })} placeholder="/deals or https://…"/></label></div>}
                 </section>;
               })}
               <label className={styles.uploadField}>Mobile image for first slide (optional)<span className={styles.uploadRow}><input value={selected.config.mobile_image_url ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, mobile_image_url: event.target.value } }))} placeholder="Use a crop suited to mobile"/><label className={styles.uploadButton}><Upload/>{uploading === 'mobile_image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('mobile_image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label>
@@ -693,5 +773,5 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       <div>{notice ? <p className={notice.kind === 'success' ? styles.success : styles.error}><i>{notice.kind === 'success' ? <Check/> : <X/>}</i>{notice.text}</p> : <p className={dirty || hasUnpublishedDraft ? styles.unsaved : styles.saved}><i>{dirty || hasUnpublishedDraft ? '!' : <Check/>}</i>{dirty ? 'Unsaved changes' : hasUnpublishedDraft ? 'Draft saved · not live' : 'All changes saved'}<small>{dirty ? 'Save draft to keep your work. Customers are not affected until you publish.' : hasUnpublishedDraft ? 'Shoppers still see the previously published layout until you publish this draft.' : 'Draft and published page are in sync.'}</small></p>}</div>
       <div className={styles.saveActions}><button type="button" className={styles.saveDraft} onClick={() => void save(false)} disabled={busy || !canEdit}>{busy ? 'Saving…' : 'Save draft'}</button><button type="button" className={styles.publish} onClick={() => void save(true)} disabled={busy || !canEdit}>{busy ? 'Publishing…' : 'Publish changes'}<ChevronRight/></button></div>
     </footer>
-  </section>;
+  </section>{heroComposer && <HeroLinkComposer stores={stores} products={products} categories={categories} initialItem={composerItem} onClose={() => setHeroComposer(null)} onSave={(item) => saveHeroItem(heroComposer.blockId, heroComposer.slideIndex, heroComposer.itemIndex, item)}/>}</>;
 }

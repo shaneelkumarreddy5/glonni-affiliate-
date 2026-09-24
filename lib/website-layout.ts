@@ -22,7 +22,7 @@ export type WebsiteBannerSlide = {
 };
 
 export type WebsiteSlideTarget = { type: 'manual' | 'product' | 'category' | 'store'; id?: string };
-export type WebsiteSlideItem = { type: 'product' | 'category' | 'store'; id: string; product_count?: number };
+export type WebsiteSlideItem = { type: 'product' | 'category' | 'store' | 'manual'; id: string; href?: string; label?: string; product_count?: number };
 export type WebsiteSlideStore = { id: string; name: string; slug: string; imageUrl?: string | null };
 export type WebsiteSlideCategory = { id: string; name: string; slug: string; parentId: string | null; imageUrl?: string | null };
 export type WebsiteSlideProduct = { id: string; title: string; slug: string; imageUrl?: string | null; categoryId: string; storeSlug: string; price: number | null; cashback?: number | null; brand?: string | null };
@@ -38,6 +38,10 @@ export function resolveWebsiteSlideItems(items: WebsiteSlideItem[], stores: Webs
     return [...byProduct.values()];
   };
   return items.flatMap<ResolvedWebsiteSlideItem>((item) => {
+    if (item.type === 'manual') {
+      const href = item.href ?? item.id;
+      return href ? [{ type: item.type, id: item.id, name: item.label ?? href, href, products: [] }] : [];
+    }
     const count = Math.max(1, Math.min(50, Number(item.product_count ?? 4) || 4));
     if (item.type === 'product') {
       const product = uniqueProducts(products.filter((entry) => entry.id === item.id))[0];
