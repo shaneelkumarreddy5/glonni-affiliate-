@@ -1,4 +1,5 @@
 import { ChevronDown, FileCheck2, Landmark, WalletCards } from 'lucide-react';
+import { renderWebsiteRichText } from '@/lib/website-rich-text';
 
 export type CustomerPolicy = {
   glonniTerms?: string;
@@ -13,7 +14,7 @@ export function CustomerPolicyAccordions({storeName,policy,heading,intro}:{store
     {title:'Cashback Terms',copy:'Tracking, confirmation and withdrawal timing for eligible cashback.',icon:<WalletCards/>,body:policy.cashbackTerms},
   ].filter(section=>section.body?.trim());
   if(!sections.length)return null;
-  return <section className="customer-policy-accordions"><p className="eyebrow">TERMS &amp; CONDITIONS</p><h2>{heading || `Before shopping with ${storeName}`}</h2><p className="policy-intro">{intro || 'Open each section to review the terms that apply to this purchase.'}</p><div>{sections.map((section,index)=><details key={section.title} open={index===0}><summary><span>{section.icon}<i><b>{section.title}</b><small>{section.copy}</small></i></span><ChevronDown/></summary><p>{section.body}</p></details>)}</div></section>;
+  return <section className="customer-policy-accordions"><p className="eyebrow">TERMS &amp; CONDITIONS</p><h2>{renderWebsiteRichText(heading || `Before shopping with ${storeName}`)}</h2><p className="policy-intro">{intro ? renderWebsiteRichText(intro) : 'Open each section to review the terms that apply to this purchase.'}</p><div>{sections.map((section,index)=><details key={section.title} open={index===0}><summary><span>{section.icon}<i><b>{section.title}</b><small>{section.copy}</small></i></span><ChevronDown/></summary><p>{section.body}</p></details>)}</div></section>;
 }
 
 export function parseCustomerPolicy(reviewNotes?:string|null):CustomerPolicy {

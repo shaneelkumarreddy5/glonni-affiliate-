@@ -144,7 +144,7 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
         {visibleSlides.map(({ slide, index, href, image, catalogueItems }) => {
         const destinationLinks = catalogueItems.length > 1 ? catalogueItems : [];
         const buttonLayout = normalizeWebsiteBannerButtonLayout(config.slide_button_layouts?.[index]);
-        const content = <>{image && <picture className={styles.bannerPicture}>{index === 0 && config.mobile_image_url && <source media="(max-width: 700px)" srcSet={config.mobile_image_url}/>}<img src={image} alt=""/></picture>}<div className={styles.copy}>{slide.title && <h2>{slide.title}</h2>}{slide.body && <p>{renderWebsiteRichText(slide.body)}</p>}{destinationLinks.length > 0 && <div className={styles.slideDestinationList}>{destinationLinks.map((item) => <a key={`${item.type}-${item.id}`} href={item.href} className={styles.slideDestinationLink}>{item.name}</a>)}</div>}</div>{href && slide.cta_label && catalogueItems.length <= 1 && <span className={styles.slideCta}>{slide.cta_label}</span>}</>;
+        const content = <>{image && <picture className={styles.bannerPicture}>{index === 0 && config.mobile_image_url && <source media="(max-width: 700px)" srcSet={config.mobile_image_url}/>}<img src={image} alt=""/></picture>}<div className={styles.copy}>{slide.title && <h2>{renderWebsiteRichText(slide.title)}</h2>}{slide.body && <p>{renderWebsiteRichText(slide.body)}</p>}{destinationLinks.length > 0 && <div className={styles.slideDestinationList}>{destinationLinks.map((item) => <a key={`${item.type}-${item.id}`} href={item.href} className={styles.slideDestinationLink}>{item.name}</a>)}</div>}</div>{href && slide.cta_label && catalogueItems.length <= 1 && <span className={styles.slideCta}>{slide.cta_label}</span>}</>;
         const shape = block.block_type === 'banner' ? 'strip' : config.slide_shapes?.[index] ?? config.banner_size ?? 'wide';
         const slideClass = `${styles.block} ${styles.bannerBlock} ${styles.bannerSlide} ${block.block_type === 'banner' ? styles.promotionStrip : ''} ${destinationLinks.length ? styles.bannerSlideWithItems : ''} ${styles[block.block_type] ?? ''} ${styles[`size_${shape}`] ?? ''}`;
           const slideStyle = { '--accent': accent, '--background': background, '--cta-x': `${buttonLayout.x}%`, '--cta-y': `${buttonLayout.y}%`, '--cta-width': `${buttonLayout.width}px`, '--cta-height': `${buttonLayout.height}px` } as React.CSSProperties;
@@ -175,7 +175,7 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
       if (!ordered.length) return null;
       const storeName = ordered[0]?.merchants?.name;
       return <section key={block.id} className={`${styles.productBlock} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`}>
-        <header><div><p className="eyebrow">{block.block_type === 'store_rail' ? `${storeName ?? 'STORE'} DEALS` : 'FEATURED PRODUCTS'}</p><h2>{block.title || (block.block_type === 'store_rail' ? `Deals at ${storeName ?? 'this store'}` : 'Featured products')}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
+        <header><div><p className="eyebrow">{block.block_type === 'store_rail' ? `${storeName ?? 'STORE'} DEALS` : 'FEATURED PRODUCTS'}</p><h2>{renderWebsiteRichText(block.title || (block.block_type === 'store_rail' ? `Deals at ${storeName ?? 'this store'}` : 'Featured products'))}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
         <HomeOfferRail offers={ordered} shape={config.visual_shape ?? 'standard'}/>
       </section>;
     }
@@ -187,7 +187,7 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
         .slice(0, Math.max(1, Math.min(50, Number(config.count ?? 10))));
       if (!selected.length) return null;
       return <section key={block.id} className={`${styles.catalogueRail} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`}>
-        <header><div><p className="eyebrow">CATEGORIES</p><h2>{block.title || 'Browse categories'}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
+        <header><div><p className="eyebrow">CATEGORIES</p><h2>{renderWebsiteRichText(block.title || 'Browse categories')}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
         <ScrollRail className={styles.categoryCards} label={block.title || 'categories'}>{selected.map((category) => <a className={`${styles.catalogueCard} ${styles[`shape_${(config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`} href={`/category/${category.slug}`} key={category.id}><span className={styles.categoryImage}>{category.image_url ? <img src={category.image_url} alt=""/> : <b>{category.name.slice(0, 1)}</b>}</span><strong>{category.name}</strong><small>Explore category</small></a>)}</ScrollRail>
       </section>;
     }
@@ -199,13 +199,13 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
         .slice(0, Math.max(1, Math.min(50, Number(config.count ?? 10))));
       if (!selected.length) return null;
       return <section key={block.id} className={`${styles.catalogueRail} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`}>
-        <header><div><p className="eyebrow">STORES</p><h2>{block.title || 'Shop by store'}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
+        <header><div><p className="eyebrow">STORES</p><h2>{renderWebsiteRichText(block.title || 'Shop by store')}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
         <ScrollRail className={styles.storeCards} label={block.title || 'stores'}>{selected.map((store) => <a className={`${styles.catalogueCard} ${styles[`shape_${(config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`} href={`/store/${store.slug}?from=/`} key={store.id}><span className={styles.storeImage}>{store.logo_url ? <img src={store.logo_url} alt=""/> : <b>{store.name.slice(0, 1)}</b>}</span><strong>{store.name}</strong><small>Shop this store</small></a>)}</ScrollRail>
       </section>;
     }
 
     return <section key={block.id} className={`${styles.block} ${styles.genericBlock}`} style={{ '--accent': accent, '--background': background } as React.CSSProperties} data-device={visibility}>
-      <div className={styles.copy}>{block.title && <h2>{block.title}</h2>}{block.body && <p className={styles.richText}>{renderWebsiteRichText(block.body)}</p>}{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label}</a>}</div>
+      <div className={styles.copy}>{block.title && <h2>{renderWebsiteRichText(block.title)}</h2>}{block.body && <p className={styles.richText}>{renderWebsiteRichText(block.body)}</p>}{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label}</a>}</div>
       {block.image_url && <img src={block.image_url} alt=""/>}
     </section>;
   })}</div>;

@@ -1,9 +1,10 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { Bold, Check, ChevronDown, ChevronRight, ExternalLink, GripVertical, ImagePlus, Italic, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Underline, Upload, X } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronRight, ExternalLink, GripVertical, ImagePlus, Italic, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Underline, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
+import { applyWebsiteTextStyle, getWebsiteTextAlignment, getWebsiteTextStyleAt, setWebsiteTextAlignment, WEBSITE_TEXT_FONTS, websiteRichTextToPlainText, updateWebsiteRichTextText, type WebsiteTextAlignment } from '@/lib/website-rich-text-format';
 import { coreSectionsByPage, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, removeWebsiteBannerSlide, resolveWebsiteSlideItems, websiteItemHref, websitePageOptions, type WebsiteBannerButtonLayout, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
 import { autosaveWebsiteDraft, publishWebsiteLayout, saveWebsiteDraft, type WebsiteActionResult } from './actions';
 import styles from './website-workspace.module.css';
@@ -15,30 +16,80 @@ type Device = 'desktop' | 'tablet' | 'mobile';
 type CoreContentMap = Record<WebsitePageKey, Record<string, WebsiteCoreContent>>;
 type Props = { initialPage: WebsitePageKey; initialLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]>; initialOrders: Record<WebsitePageKey, string[]>; initialCoreContent: CoreContentMap; publishedLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]>; publishedOrders: Record<WebsitePageKey, string[]>; publishedCoreContent: CoreContentMap; pageStatuses: Partial<Record<WebsitePageKey, string>>; stores: WebsiteWorkspaceStore[]; products: WebsiteWorkspaceProduct[]; categories: CategoryOption[]; canEdit: boolean };
 
-function RichTextField({ value, onChange, placeholder, maxLength = 1800 }: { value: string; onChange: (value: string) => void; placeholder: string; maxLength?: number }) {
+function RichTextField({ value, onChange, placeholder, maxLength = 1800, singleLine = false }: { value: string; onChange: (value: string) => void; placeholder: string; maxLength?: number; singleLine?: boolean }) {
   const input = useRef<HTMLTextAreaElement>(null);
-  function wrap(open: string, close: string) {
-    const element = input.current;
+  const selection = useRef({ start: 0, end: 0 });
+  const [, refreshToolbar] = useState(0);
+  const [fontSizeDraft, setFontSizeDraft] = useState<string | null>(null);
+  const plainValue = websiteRichTextToPlainText(value);
+  const selectedStyle = getWebsiteTextStyleAt(value, selection.current.start);
+  const selectedText = selection.current.end > selection.current.start;
+  const alignment = getWebsiteTextAlignment(value);
+  function rememberSelection(element = input.current) {
     if (!element) return;
-    const start = element.selectionStart;
-    const end = element.selectionEnd;
-    const selected = value.slice(start, end);
-    const next = `${value.slice(0, start)}${open}${selected}${close}${value.slice(end)}`;
-    onChange(next);
+    selection.current = { start: element.selectionStart, end: element.selectionEnd };
+    refreshToolbar((current) => current + 1);
+  }
+  function restoreSelection() {
     requestAnimationFrame(() => {
+      const element = input.current;
+      if (!element) return;
       element.focus();
-      element.setSelectionRange(start + open.length, start + open.length + selected.length);
+      element.setSelectionRange(selection.current.start, selection.current.end);
     });
   }
-  return <div className={styles.richEditor}>
+  function applyStyle(patch: Parameters<typeof applyWebsiteTextStyle>[3], restoreFocus = true) {
+    const { start, end } = selection.current;
+    if (end <= start) return;
+    onChange(applyWebsiteTextStyle(value, start, end, patch));
+    if (restoreFocus) restoreSelection();
+  }
+  function commitFontSize(restoreFocus = false) {
+    if (fontSizeDraft === null) return;
+    const size = Number(fontSizeDraft);
+    if (Number.isFinite(size) && size >= 8 && size <= 96 && selection.current.end > selection.current.start) applyStyle({ size }, restoreFocus);
+    setFontSizeDraft(null);
+  }
+  function setAlignment(next: WebsiteTextAlignment) {
+    onChange(setWebsiteTextAlignment(value, next));
+    restoreSelection();
+  }
+  function updateText(next: string) {
+    onChange(updateWebsiteRichTextText(value, next));
+    requestAnimationFrame(() => {
+      const element = input.current;
+      if (!element) return;
+      const caret = Math.max(0, element.selectionStart || 0);
+      selection.current = { start: caret, end: caret };
+      refreshToolbar((current) => current + 1);
+    });
+  }
+  function toolbarButton(label: string, icon: ReactNode, active: boolean, action: () => void) {
+    return <button type="button" title={label} aria-label={label} aria-pressed={active} disabled={!selectedText} className={active ? styles.formatActive : ''} onMouseDown={(event) => event.preventDefault()} onClick={action}>{icon}</button>;
+  }
+  return <div className={`${styles.richEditor} ${singleLine ? styles.richEditorSingleLine : ''}`}>
     <div className={styles.richToolbar} aria-label="Text formatting">
-      <button type="button" title="Bold" aria-label="Bold selected text" onMouseDown={(event) => event.preventDefault()} onClick={() => wrap('**', '**')}><Bold/></button>
-      <button type="button" title="Italic" aria-label="Italic selected text" onMouseDown={(event) => event.preventDefault()} onClick={() => wrap('*', '*')}><Italic/></button>
-      <button type="button" title="Underline" aria-label="Underline selected text" onMouseDown={(event) => event.preventDefault()} onClick={() => wrap('__', '__')}><Underline/></button>
-      <label title="Text color" aria-label="Choose text color"><span>A</span><input type="color" defaultValue="#1554d1" onChange={(event) => wrap(`[color=${event.target.value}]`, '[/color]')}/></label>
-      <small>Select text, then choose a style.</small>
+      <div className={styles.richToolbarTop}>
+        <select aria-label="Font family" value={selectedStyle.font ?? 'Arial'} disabled={!selectedText} onChange={(event) => applyStyle({ font: event.target.value as typeof WEBSITE_TEXT_FONTS[number] })}>
+          {WEBSITE_TEXT_FONTS.map((font) => <option value={font} key={font}>{font}</option>)}
+        </select>
+        <label className={styles.richColorControl} title="Text color" aria-label="Text color"><span>A</span><input type="color" value={selectedStyle.color ?? '#1554d1'} disabled={!selectedText} onChange={(event) => applyStyle({ color: event.target.value }, false)}/></label>
+      </div>
+      <div className={styles.richToolbarMiddle}>
+        <label className={styles.richFontSize} title="Text size"><input type="number" aria-label="Text size in pixels" min={8} max={96} value={fontSizeDraft ?? selectedStyle.size ?? 24} disabled={!selectedText} onChange={(event) => setFontSizeDraft(event.target.value)} onBlur={() => commitFontSize(false)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commitFontSize(false); } }}/><span>px</span></label>
+        {toolbarButton('Bold', <Bold/>, Boolean(selectedStyle.bold), () => applyStyle({ bold: !selectedStyle.bold }))}
+        {toolbarButton('Italic', <Italic/>, Boolean(selectedStyle.italic), () => applyStyle({ italic: !selectedStyle.italic }))}
+        {toolbarButton('Underline', <Underline/>, Boolean(selectedStyle.underline), () => applyStyle({ underline: !selectedStyle.underline }))}
+        <small>{selectedText ? 'Formatting applies to selected text' : 'Select text to format'}</small>
+      </div>
+      <div className={styles.richToolbarAlignment} aria-label="Text alignment">
+        <button type="button" title="Align left" aria-label="Align left" aria-pressed={alignment === 'left'} className={alignment === 'left' ? styles.formatActive : ''} onMouseDown={(event) => event.preventDefault()} onClick={() => setAlignment('left')}><AlignLeft/></button>
+        <button type="button" title="Align center" aria-label="Align center" aria-pressed={alignment === 'center'} className={alignment === 'center' ? styles.formatActive : ''} onMouseDown={(event) => event.preventDefault()} onClick={() => setAlignment('center')}><AlignCenter/></button>
+        <button type="button" title="Align right" aria-label="Align right" aria-pressed={alignment === 'right'} className={alignment === 'right' ? styles.formatActive : ''} onMouseDown={(event) => event.preventDefault()} onClick={() => setAlignment('right')}><AlignRight/></button>
+        <button type="button" title="Justify" aria-label="Justify" aria-pressed={alignment === 'justify'} className={alignment === 'justify' ? styles.formatActive : ''} onMouseDown={(event) => event.preventDefault()} onClick={() => setAlignment('justify')}><AlignJustify/></button>
+      </div>
     </div>
-    <textarea ref={input} maxLength={maxLength} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder}/>
+    <textarea ref={input} maxLength={maxLength} rows={singleLine ? 1 : 4} wrap={singleLine ? 'off' : 'soft'} value={plainValue} onChange={(event) => updateText(event.target.value)} onSelect={() => rememberSelection()} onKeyUp={() => rememberSelection()} onMouseUp={() => rememberSelection()} onBlur={() => rememberSelection()} onKeyDown={(event) => { if (singleLine && event.key === 'Enter') event.preventDefault(); }} placeholder={placeholder}/>
   </div>;
 }
 
@@ -68,7 +119,7 @@ type HeroLinkType = WebsiteSlideItem['type'];
 type WebsiteDraftPayload = { blocks: WebsiteDraftBlock[]; section_order: string[]; core_content: Record<string, WebsiteCoreContent> };
 type AutoSaveState = 'waiting' | 'saving' | 'saved' | 'error';
 type LocalDraftBackups = Partial<Record<WebsitePageKey, { payload: WebsiteDraftPayload; signature: string }>>;
-type BannerButtonInteraction = { pointerId: number; blockId: string; slideIndex: number; mode: 'move' | 'resize'; startX: number; startY: number; slideRect: { left: number; top: number; width: number; height: number }; startLayout: WebsiteBannerButtonLayout };
+type BannerButtonInteraction = { pointerId: number; pointerElement: HTMLElement; slideElement: HTMLElement; blockId: string; slideIndex: number; mode: 'move' | 'resize'; startX: number; startY: number; grabOffsetX: number; grabOffsetY: number; startVisualWidth: number; startVisualHeight: number; startLayout: WebsiteBannerButtonLayout };
 const LOCAL_DRAFT_BACKUP_KEY = 'glonni-website-workspace-pending-drafts-v1';
 
 function cloneDraftValue<T>(value: T): T {
@@ -243,7 +294,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const [draftBackupsLoaded, setDraftBackupsLoaded] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [heroComposer, setHeroComposer] = useState<{ blockId: string; slideIndex: number; itemIndex?: number } | null>(null);
-  const [previewButtonAdjustment, setPreviewButtonAdjustment] = useState<{ blockId: string; slideIndex: number; layout: WebsiteBannerButtonLayout } | null>(null);
+  const [previewButtonAdjustment, setPreviewButtonAdjustment] = useState<{ blockId: string; slideIndex: number; layout: WebsiteBannerButtonLayout; mode: BannerButtonInteraction['mode'] } | null>(null);
   const bannerButtonInteraction = useRef<BannerButtonInteraction | null>(null);
   const previewButtonLayout = useRef<WebsiteBannerButtonLayout | null>(null);
   const bannerButtonCleanup = useRef<(() => void) | null>(null);
@@ -575,54 +626,106 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     event.preventDefault();
     event.stopPropagation();
     bannerButtonCleanup.current?.();
-    const slide = event.currentTarget.closest('[data-banner-slide]');
+    const pointerElement = event.currentTarget;
+    const slide = pointerElement.closest<HTMLElement>('[data-banner-slide]');
     const rect = slide?.getBoundingClientRect();
-    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    if (!slide || !rect || rect.width <= 0 || rect.height <= 0) return;
     const initial = normalizeWebsiteBannerButtonLayout(layout);
+    const button = pointerElement.closest<HTMLElement>('[data-banner-cta]');
+    const scaleX = rect.width / Math.max(1, slide.offsetWidth);
+    const scaleY = rect.height / Math.max(1, slide.offsetHeight);
+    const buttonRect = button?.getBoundingClientRect();
+    const grabOffsetX = mode === 'move' && buttonRect ? (event.clientX - (buttonRect.left + buttonRect.width / 2)) / scaleX : 0;
+    const grabOffsetY = mode === 'move' && buttonRect ? (event.clientY - (buttonRect.top + buttonRect.height / 2)) / scaleY : 0;
     bannerButtonInteraction.current = {
       pointerId: event.pointerId,
+      pointerElement,
+      slideElement: slide,
       blockId,
       slideIndex,
       mode,
       startX: event.clientX,
       startY: event.clientY,
-      slideRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      grabOffsetX,
+      grabOffsetY,
+      startVisualWidth: buttonRect ? buttonRect.width / scaleX : initial.width,
+      startVisualHeight: buttonRect ? buttonRect.height / scaleY : initial.height,
       startLayout: initial,
     };
     previewButtonLayout.current = initial;
-    setPreviewButtonAdjustment({ blockId, slideIndex, layout: initial });
+    setPreviewButtonAdjustment({ blockId, slideIndex, layout: initial, mode });
+    try { pointerElement.setPointerCapture(event.pointerId); } catch { /* Window listeners still keep the interaction stable. */ }
 
     const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(Math.max(min, max), value));
+    const snap = (value: number, min: number, max: number, extent: number) => {
+      const guides = [min, extent * 0.25, extent * 0.5, extent * 0.75, max];
+      const nearest = guides.reduce((best, point) => Math.abs(point - value) < Math.abs(best - value) ? point : best, guides[0]);
+      return Math.abs(nearest - value) <= 9 ? clamp(nearest, min, max) : clamp(value, min, max);
+    };
+    const applyLayoutToPreview = (interaction: BannerButtonInteraction, next: WebsiteBannerButtonLayout) => {
+      const activeButton = interaction.slideElement.querySelector<HTMLElement>('[data-banner-cta]');
+      if (activeButton) {
+        activeButton.style.setProperty('--cta-x', `${next.x}%`);
+        activeButton.style.setProperty('--cta-y', `${next.y}%`);
+        activeButton.style.setProperty('--cta-width', `${next.width}px`);
+        activeButton.style.setProperty('--cta-height', `${next.height}px`);
+      }
+      const guide = interaction.slideElement.querySelector<HTMLElement>('[data-button-guides]');
+      guide?.querySelector<HTMLElement>('[data-cta-x-guide]')?.style.setProperty('left', `${next.x}%`);
+      guide?.querySelector<HTMLElement>('[data-cta-y-guide]')?.style.setProperty('top', `${next.y}%`);
+      const label = guide?.querySelector<HTMLElement>('[data-cta-guide-label]');
+      if (label) label.textContent = interaction.mode === 'move'
+        ? `Position · ${Math.round(next.x)}% / ${Math.round(next.y)}%`
+        : `Button size · ${Math.round(next.width)} × ${Math.round(next.height)} px`;
+    };
     const handleMove = (moveEvent: PointerEvent) => {
       const interaction = bannerButtonInteraction.current;
       if (!interaction || moveEvent.pointerId !== interaction.pointerId) return;
       moveEvent.preventDefault();
-      const { slideRect, startLayout } = interaction;
+      const { startLayout, slideElement } = interaction;
+      const currentRect = slideElement.getBoundingClientRect();
+      if (currentRect.width <= 0 || currentRect.height <= 0) return;
+      const currentScaleX = currentRect.width / Math.max(1, slideElement.offsetWidth);
+      const currentScaleY = currentRect.height / Math.max(1, slideElement.offsetHeight);
+      const contentWidth = slideElement.clientWidth;
+      const contentHeight = slideElement.clientHeight;
+      const originX = currentRect.left + slideElement.clientLeft * currentScaleX;
+      const originY = currentRect.top + slideElement.clientTop * currentScaleY;
       let next: WebsiteBannerButtonLayout;
       if (interaction.mode === 'move') {
-        const centerX = clamp(moveEvent.clientX - slideRect.left, startLayout.width / 2 + 8, slideRect.width - startLayout.width / 2 - 8);
-        const centerY = clamp(moveEvent.clientY - slideRect.top, startLayout.height / 2 + 8, slideRect.height - startLayout.height / 2 - 8);
-        next = { ...startLayout, x: centerX / slideRect.width * 100, y: centerY / slideRect.height * 100 };
+        const minX = interaction.startVisualWidth / 2 + 8;
+        const maxX = contentWidth - interaction.startVisualWidth / 2 - 8;
+        const minY = interaction.startVisualHeight / 2 + 8;
+        const maxY = contentHeight - interaction.startVisualHeight / 2 - 8;
+        const desiredX = (moveEvent.clientX - originX) / currentScaleX - interaction.grabOffsetX;
+        const desiredY = (moveEvent.clientY - originY) / currentScaleY - interaction.grabOffsetY;
+        const centerX = snap(desiredX, minX, maxX, contentWidth);
+        const centerY = snap(desiredY, minY, maxY, contentHeight);
+        next = { ...startLayout, x: centerX / contentWidth * 100, y: centerY / contentHeight * 100 };
       } else {
-        const width = clamp(startLayout.width + moveEvent.clientX - interaction.startX, 88, Math.min(480, slideRect.width - 16));
-        const height = clamp(startLayout.height + moveEvent.clientY - interaction.startY, 36, Math.min(128, slideRect.height - 16));
-        const left = startLayout.x / 100 * slideRect.width - startLayout.width / 2;
-        const top = startLayout.y / 100 * slideRect.height - startLayout.height / 2;
-        const centerX = clamp(left + width / 2, width / 2 + 8, slideRect.width - width / 2 - 8);
-        const centerY = clamp(top + height / 2, height / 2 + 8, slideRect.height - height / 2 - 8);
-        next = { x: centerX / slideRect.width * 100, y: centerY / slideRect.height * 100, width, height };
+        const maxWidth = Math.max(88, Math.min(480, contentWidth - 16));
+        const maxHeight = Math.max(36, Math.min(128, contentHeight - 16));
+        const width = clamp(interaction.startVisualWidth + (moveEvent.clientX - interaction.startX) / currentScaleX, 88, maxWidth);
+        const height = clamp(interaction.startVisualHeight + (moveEvent.clientY - interaction.startY) / currentScaleY, 36, maxHeight);
+        const left = startLayout.x / 100 * contentWidth - interaction.startVisualWidth / 2;
+        const top = startLayout.y / 100 * contentHeight - interaction.startVisualHeight / 2;
+        const centerX = clamp(left + width / 2, width / 2 + 8, contentWidth - width / 2 - 8);
+        const centerY = clamp(top + height / 2, height / 2 + 8, contentHeight - height / 2 - 8);
+        next = { x: centerX / contentWidth * 100, y: centerY / contentHeight * 100, width, height };
       }
       previewButtonLayout.current = next;
-      setPreviewButtonAdjustment({ blockId: interaction.blockId, slideIndex: interaction.slideIndex, layout: next });
+      applyLayoutToPreview(interaction, next);
     };
     const finish = (finishEvent: PointerEvent) => {
       const interaction = bannerButtonInteraction.current;
       if (!interaction || finishEvent.pointerId !== interaction.pointerId) return;
+      if (finishEvent.type === 'pointerup') handleMove(finishEvent);
       cleanup();
       const finalLayout = previewButtonLayout.current ?? interaction.startLayout;
       bannerButtonInteraction.current = null;
       previewButtonLayout.current = null;
       setPreviewButtonAdjustment(null);
+      try { if (interaction.pointerElement.hasPointerCapture(interaction.pointerId)) interaction.pointerElement.releasePointerCapture(interaction.pointerId); } catch { /* Capture may already have been released by the browser. */ }
       saveBannerButtonLayout(interaction.blockId, interaction.slideIndex, finalLayout);
     };
     const cleanup = () => {
@@ -808,9 +911,17 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
         const buttonLayout = previewButtonAdjustment?.blockId === block.id && previewButtonAdjustment.slideIndex === index ? previewButtonAdjustment.layout : storedButtonLayout;
         const buttonStyle = { '--cta-x': `${buttonLayout.x}%`, '--cta-y': `${buttonLayout.y}%`, '--cta-width': `${buttonLayout.width}px`, '--cta-height': `${buttonLayout.height}px`, '--preview-banner-background': block.config.background ?? '#f2f6ff', '--accent': block.config.accent ?? '#1554d1' } as React.CSSProperties;
         const hasSingleCta = Boolean(destination && slide.cta_label && resolvedItems.length <= 1);
-        return <article key={`${block.id}-preview-${index}`} data-banner-slide data-has-image={Boolean(image)} className={`${styles.previewBanner} ${!hasContent ? styles.previewSlideEmpty : ''} ${styles[`size_${shape}`]}`} style={{ ...buttonStyle, background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
+        const isAdjustingButton = previewButtonAdjustment?.blockId === block.id && previewButtonAdjustment.slideIndex === index;
+        return <article key={`${block.id}-preview-${index}`} data-banner-slide data-has-image={Boolean(image)} data-button-adjusting={isAdjustingButton} className={`${styles.previewBanner} ${!hasContent ? styles.previewSlideEmpty : ''} ${styles[`size_${shape}`]}`} style={{ ...buttonStyle, background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
           <small className={styles.previewSlideNumber}>Slide {index + 1} of {slides.length}</small>
-          {image && <img src={image} alt=""/>}<div>{hasContent ? <>{slide.title && <b>{slide.title}</b>}{slide.body && <span>{renderRichPreview(slide.body)}</span>}{resolvedItems.length > 1 && <div className={styles.previewSlideLinks}>{resolvedItems.map((item) => <a href={item.href} key={`${item.type}-${item.id}`} target="_blank" rel="noreferrer"><span><b>{item.name}</b><small>{item.type === 'store' ? 'Store page' : item.type === 'category' ? 'Category page' : item.type === 'product' ? 'Product page' : 'Manual link'}</small></span></a>)}</div>}</> : <><b>Slide {index + 1} is not ready</b><span>{destination || resolvedItems.length ? 'Its destination is saved. Add an image, heading, supporting text, or button label to make it visible.' : 'Add an image, heading, supporting text, or button label in the settings. This placeholder is only shown in the admin preview.'}</span></>}</div>{hasContent && hasSingleCta && <button type="button" className={styles.previewCtaButton} style={buttonStyle} aria-label={`${slide.cta_label}: drag to reposition`} title="Drag to move · drag the corner to resize" onPointerDown={(event) => beginBannerButtonAdjustment(event, block.id, index, 'move', buttonLayout)}>{slide.cta_label}<span className={styles.previewCtaResize} aria-hidden="true" title="Drag to resize" onPointerDown={(event) => beginBannerButtonAdjustment(event, block.id, index, 'resize', buttonLayout)}/></button>}
+          {image && <img src={image} alt=""/>}<div>{hasContent ? <>{slide.title && <b>{renderRichPreview(slide.title)}</b>}{slide.body && <span>{renderRichPreview(slide.body)}</span>}{resolvedItems.length > 1 && <div className={styles.previewSlideLinks}>{resolvedItems.map((item) => <a href={item.href} key={`${item.type}-${item.id}`} target="_blank" rel="noreferrer"><span><b>{item.name}</b><small>{item.type === 'store' ? 'Store page' : item.type === 'category' ? 'Category page' : item.type === 'product' ? 'Product page' : 'Manual link'}</small></span></a>)}</div>}</> : <><b>Slide {index + 1} is not ready</b><span>{destination || resolvedItems.length ? 'Its destination is saved. Add an image, heading, supporting text, or button label to make it visible.' : 'Add an image, heading, supporting text, or button label in the settings. This placeholder is only shown in the admin preview.'}</span></>}</div>
+          <div className={styles.previewCtaGuides} data-button-guides aria-hidden="true">
+            <i className={styles.previewCtaGuideVertical} style={{ left: '25%' }}/><i className={styles.previewCtaGuideVertical} style={{ left: '50%' }}/><i className={styles.previewCtaGuideVertical} style={{ left: '75%' }}/>
+            <i className={styles.previewCtaGuideHorizontal} style={{ top: '25%' }}/><i className={styles.previewCtaGuideHorizontal} style={{ top: '50%' }}/><i className={styles.previewCtaGuideHorizontal} style={{ top: '75%' }}/>
+            <i className={styles.previewCtaActiveVertical} data-cta-x-guide style={{ left: `${buttonLayout.x}%` }}/><i className={styles.previewCtaActiveHorizontal} data-cta-y-guide style={{ top: `${buttonLayout.y}%` }}/>
+            <span className={styles.previewCtaGuideLabel} data-cta-guide-label>{isAdjustingButton && previewButtonAdjustment ? previewButtonAdjustment.mode === 'move' ? `Position · ${Math.round(buttonLayout.x)}% / ${Math.round(buttonLayout.y)}%` : `Button size · ${Math.round(buttonLayout.width)} × ${Math.round(buttonLayout.height)} px` : ''}</span>
+          </div>
+          {hasContent && hasSingleCta && <button type="button" data-banner-cta className={styles.previewCtaButton} style={buttonStyle} aria-label={`${slide.cta_label}: drag to reposition`} title="Drag to move · drag the corner to resize" onPointerDown={(event) => beginBannerButtonAdjustment(event, block.id, index, 'move', buttonLayout)}>{slide.cta_label}<span className={styles.previewCtaResize} aria-hidden="true" title="Drag to resize" onPointerDown={(event) => beginBannerButtonAdjustment(event, block.id, index, 'resize', buttonLayout)}/></button>}
         </article>;
       })}</div>;
     }
@@ -818,17 +929,17 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       const ids = block.config.category_ids ?? [];
       const rank = new Map(ids.map((id, index) => [id, index]));
       const list = (ids.length ? categories.filter((category) => rank.has(category.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : categories).slice(0, block.config.count ?? 10);
-      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED CATEGORIES · EACH OPENS ITS CATEGORY PAGE</small><b>{block.title}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={`${styles.previewCards} ${styles[`shape_${(block.config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`}>{list.map((category) => <article key={category.id} className={styles.previewCatalogueCard}><span>{category.imageUrl ? <img src={category.imageUrl} alt=""/> : category.name.slice(0, 1)}</span><b>{category.name}</b><small>Opens /category/{category.slug}</small></article>)}</div></section>;
+      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED CATEGORIES · EACH OPENS ITS CATEGORY PAGE</small><b>{renderRichPreview(block.title)}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={`${styles.previewCards} ${styles[`shape_${(block.config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`}>{list.map((category) => <article key={category.id} className={styles.previewCatalogueCard}><span>{category.imageUrl ? <img src={category.imageUrl} alt=""/> : category.name.slice(0, 1)}</span><b>{category.name}</b><small>Opens /category/{category.slug}</small></article>)}</div></section>;
     }
     if (block.block_type === 'store_directory') {
       const ids = block.config.store_ids ?? [];
       const rank = new Map(ids.map((id, index) => [id, index]));
       const list = (ids.length ? stores.filter((store) => rank.has(store.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : stores).slice(0, block.config.count ?? 10);
-      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED STORES · EACH OPENS ITS STORE PAGE</small><b>{block.title}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={`${styles.previewCards} ${styles[`shape_${(block.config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`}>{list.map((store) => <article key={store.id} className={styles.previewCatalogueCard}><span>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}</span><b>{store.name}</b><small>Opens /store/{store.slug}</small></article>)}</div></section>;
+      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED STORES · EACH OPENS ITS STORE PAGE</small><b>{renderRichPreview(block.title)}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={`${styles.previewCards} ${styles[`shape_${(block.config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`}>{list.map((store) => <article key={store.id} className={styles.previewCatalogueCard}><span>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}</span><b>{store.name}</b><small>Opens /store/{store.slug}</small></article>)}</div></section>;
     }
     const productsHere = blockProducts(block);
-    if (!productsHere.length) return <div className={styles.previewEmpty} key={block.id}><b>{block.title || 'Product section'}</b><span>{block.config.source_mode === 'curated' && !block.config.product_ids?.length ? 'Choose products in the section settings. Nothing will appear to customers until you do.' : 'No matching published products yet. Check the store and category filters.'}</span></div>;
-    return <section className={styles.previewRail} key={block.id}><header><div><small>{block.block_type === 'store_rail' ? `STORE DEALS · ${stores.find((store) => store.slug === block.config.store_slug)?.name ?? 'Selected store'}` : 'CURATED CATALOGUE · PRODUCT CARDS OPEN PDP'}</small><b>{block.title}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={`${styles.previewCards} ${styles[`shape_${(block.config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`}>{productsHere.map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><small>{product.storeName} · {product.brand ?? product.categoryName}</small><b>{product.title}</b><strong>{money(product.price)}</strong>{product.cashback ? <em>₹{Math.round(product.cashback).toLocaleString('en-IN')} cashback</em> : null}<small>Opens /product/{product.slug}</small></article>)}</div></section>;
+    if (!productsHere.length) return <div className={styles.previewEmpty} key={block.id}><b>{renderRichPreview(block.title || 'Product section')}</b><span>{block.config.source_mode === 'curated' && !block.config.product_ids?.length ? 'Choose products in the section settings. Nothing will appear to customers until you do.' : 'No matching published products yet. Check the store and category filters.'}</span></div>;
+    return <section className={styles.previewRail} key={block.id}><header><div><small>{block.block_type === 'store_rail' ? `STORE DEALS · ${stores.find((store) => store.slug === block.config.store_slug)?.name ?? 'Selected store'}` : 'CURATED CATALOGUE · PRODUCT CARDS OPEN PDP'}</small><b>{renderRichPreview(block.title)}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={`${styles.previewCards} ${styles[`shape_${(block.config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`}>{productsHere.map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><small>{product.storeName} · {product.brand ?? product.categoryName}</small><b>{product.title}</b><strong>{money(product.price)}</strong>{product.cashback ? <em>₹{Math.round(product.cashback).toLocaleString('en-IN')} cashback</em> : null}<small>Opens /product/{product.slug}</small></article>)}</div></section>;
   }
 
   function cataloguePreview(key: string, defaultTitle: string, caption: string, kind: 'categories' | 'stores' | 'products') {
@@ -840,27 +951,27 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     const productsPicked = kind === 'products' && picked?.length ? orderedOffers.filter((product) => rank.has(product.productId)).sort((a, b) => (rank.get(a.productId) ?? 0) - (rank.get(b.productId) ?? 0)) : orderedOffers;
     const categoriesPicked = kind === 'categories' ? categories.filter((category) => !category.parentId && (!picked?.length || rank.has(category.id))).sort((a,b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : [];
     const storesPicked = kind === 'stores' ? stores.filter((store) => !picked?.length || rank.has(store.id)).sort((a,b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : [];
-    return <section className={styles.lockedPreview}><header><div><small>CONNECTED LIVE CONTENT</small><b>{title}</b></div><span>{shape === 'standard' ? 'Card shape: standard' : `Card shape: ${shape.replaceAll('_', ' ')}`}</span></header>{content.body && <p className={styles.previewRich}>{renderRichPreview(content.body)}</p>}{kind === 'products' ? <div className={`${styles.fakeProducts} ${styles[`shape_${shape}`]}`}>{productsPicked.slice(0, content.count ?? 4).map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><b>{product.title}</b><small>{product.storeName} · {money(product.price)}</small></article>)}</div> : kind === 'categories' ? <div className={`${styles.fakeCategories} ${styles[`shape_${shape}`]}`}>{categoriesPicked.slice(0, content.count ?? 7).map((category) => <span key={category.id}>{category.name}</span>)}</div> : <div className={`${styles.fakeStores} ${styles[`shape_${shape}`]}`}>{storesPicked.slice(0, content.count ?? 7).map((store) => <span key={store.id}>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}{store.name}</span>)}</div>}<small>{caption}</small></section>;
+    return <section className={styles.lockedPreview}><header><div><small>CONNECTED LIVE CONTENT</small><b>{renderRichPreview(title)}</b></div><span>{shape === 'standard' ? 'Card shape: standard' : `Card shape: ${shape.replaceAll('_', ' ')}`}</span></header>{content.body && <p className={styles.previewRich}>{renderRichPreview(content.body)}</p>}{kind === 'products' ? <div className={`${styles.fakeProducts} ${styles[`shape_${shape}`]}`}>{productsPicked.slice(0, content.count ?? 4).map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><b>{product.title}</b><small>{product.storeName} · {money(product.price)}</small></article>)}</div> : kind === 'categories' ? <div className={`${styles.fakeCategories} ${styles[`shape_${shape}`]}`}>{categoriesPicked.slice(0, content.count ?? 7).map((category) => <span key={category.id}>{category.name}</span>)}</div> : <div className={`${styles.fakeStores} ${styles[`shape_${shape}`]}`}>{storesPicked.slice(0, content.count ?? 7).map((store) => <span key={store.id}>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}{store.name}</span>)}</div>}<small>{caption}</small></section>;
   }
 
   function previewCore(key: string) {
     if (pageKey === 'home') {
-      if (key === 'hero') return <section className={styles.defaultHero}><div><small>FEATURED DEALS</small><b>{currentCoreContent.hero?.title || 'Compare before you shop.'}</b><span>{currentCoreContent.hero?.body ? renderRichPreview(currentCoreContent.hero.body) : 'Find the right deal across connected stores.'}</span><em>Explore deals →</em></div><div><small>SEASONAL PICKS</small><b>Fresh finds for every cart.</b><span>Discover products for every day.</span></div></section>;
+      if (key === 'hero') return <section className={styles.defaultHero}><div><small>FEATURED DEALS</small><b>{renderRichPreview(currentCoreContent.hero?.title || 'Compare before you shop.')}</b><span>{currentCoreContent.hero?.body ? renderRichPreview(currentCoreContent.hero.body) : 'Find the right deal across connected stores.'}</span><em>Explore deals →</em></div><div><small>SEASONAL PICKS</small><b>Fresh finds for every cart.</b><span>Discover products for every day.</span></div></section>;
       if (key === 'categories') return cataloguePreview(key, 'What are you shopping for?', 'Choose catalogue categories; cards open their category page.', 'categories');
       if (key === 'stores') return cataloguePreview(key, 'Shop by store', 'Choose catalogue stores; cards open their store page.', 'stores');
       if (key === 'best_deals') return cataloguePreview(key, 'Best deals right now', 'Choose products; each product card opens its product page.', 'products');
       if (key === 'trending') return cataloguePreview(key, 'Trending picks', 'Choose products; each product card opens its product page.', 'products');
       if (key === 'price_drops') return cataloguePreview(key, 'Worth a closer look', 'Choose products; each product card opens its product page.', 'products');
-      return <section className={styles.coreTextPreview}><b>Glonni benefits</b><span>Trusted shopping · compare stores · eligible cashback · support</span></section>;
+      return <section className={styles.coreTextPreview}><b>{renderRichPreview(currentCoreContent.benefits?.title || 'Glonni benefits')}</b><span>{currentCoreContent.benefits?.body ? renderRichPreview(currentCoreContent.benefits.body) : 'Trusted shopping · compare stores · eligible cashback · support'}</span></section>;
     }
     if (pageKey === 'stores') {
-      if (key === 'store_intro') return <section className={styles.storeIntro}><small>SHOP BY STORE</small><b>{activeStore?.name ?? 'Choose a store'}</b><span>Connected store identity and current offer summary.</span><em>{orderedOffers.filter((item) => item.storeSlug === activeStore?.slug).length} available offers</em></section>;
-      if (key === 'store_products') return <>{<section className={styles.lockedProductsHeader}><small>{activeStore?.name?.toUpperCase() ?? 'STORE'} PRODUCTS</small><b>Browse and compare</b><span>Search, filters and the existing product-card design stay connected.</span></section>}{cataloguePreview('store_products', `Products from ${activeStore?.name ?? 'this store'}`, 'Approved offers from this store.', 'products')}</>;
-      return <section className={styles.coreTextPreview}><b>{key === 'store_policies' ? 'Store policies' : 'Store FAQs'}</b><span>Connected terms and active store-specific support answers.</span></section>;
+      if (key === 'store_intro') return <section className={styles.storeIntro}><small>SHOP BY STORE</small><b>{renderRichPreview(currentCoreContent.store_intro?.title || activeStore?.name || 'Choose a store')}</b><span>{currentCoreContent.store_intro?.body ? renderRichPreview(currentCoreContent.store_intro.body) : 'Connected store identity and current offer summary.'}</span><em>{orderedOffers.filter((item) => item.storeSlug === activeStore?.slug).length} available offers</em></section>;
+      if (key === 'store_products') return <>{<section className={styles.lockedProductsHeader}><small>{activeStore?.name?.toUpperCase() ?? 'STORE'} PRODUCTS</small><b>{renderRichPreview(currentCoreContent.store_products?.title || 'Browse and compare')}</b>{currentCoreContent.store_products?.body && <span>{renderRichPreview(currentCoreContent.store_products.body)}</span>}</section>}{cataloguePreview('store_products', `Products from ${activeStore?.name ?? 'this store'}`, 'Approved offers from this store.', 'products')}</>;
+      return <section className={styles.coreTextPreview}><b>{renderRichPreview(currentCoreContent[key]?.title || (key === 'store_policies' ? 'Store policies' : 'Store FAQs'))}</b><span>{currentCoreContent[key]?.body ? renderRichPreview(currentCoreContent[key].body!) : 'Connected terms and active store-specific support answers.'}</span></section>;
     }
-    if (key === 'product_summary') return <section className={styles.productIntro}>{activeProduct?.imageUrl && <img src={activeProduct.imageUrl} alt=""/>}<div><small>{activeProduct?.brand ?? 'GLONNI'} · {activeProduct?.categoryName ?? 'PRODUCT'}</small><b>{activeProduct?.title ?? 'Choose a product'}</b><span>Canonical product details and selected offers.</span><em>{money(activeProduct?.price ?? null)} · compare connected stores</em></div></section>;
+    if (key === 'product_summary') return <section className={styles.productIntro}>{activeProduct?.imageUrl && <img src={activeProduct.imageUrl} alt=""/>}<div><small>{activeProduct?.brand ?? 'GLONNI'} · {activeProduct?.categoryName ?? 'PRODUCT'}</small><b>{renderRichPreview(activeProduct?.title ?? 'Choose a product')}</b><span>{currentCoreContent.product_summary?.body ? renderRichPreview(currentCoreContent.product_summary.body) : 'Canonical product details and selected offers.'}</span><em>{money(activeProduct?.price ?? null)} · compare connected stores</em></div></section>;
     if (key === 'offer_comparison') return cataloguePreview('offer_comparison', 'Compare prices across stores', 'Live prices, cashback and merchant offers.', 'products');
-    return <section className={styles.coreTextPreview}><b>{coreSections.find((section) => section.key === key)?.title ?? key}</b><span>{coreSections.find((section) => section.key === key)?.note}</span></section>;
+    return <section className={styles.coreTextPreview}><b>{renderRichPreview(currentCoreContent[key]?.title || coreSections.find((section) => section.key === key)?.title || key)}</b><span>{currentCoreContent[key]?.body ? renderRichPreview(currentCoreContent[key].body!) : coreSections.find((section) => section.key === key)?.note}</span></section>;
   }
 
   function previewOrderedSection(token: string) {
@@ -938,7 +1049,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           <header className={styles.inspectorHeader}><div><small>PAGE SECTION</small><b>{selectedCore.title}</b></div><button type="button" onClick={() => setSelectedCoreKey(null)} aria-label="Close section settings"><X/></button></header>
           <div className={styles.inspectorBody}>
             {pageKey === 'home' && selectedCore.key === 'hero' && <div className={styles.heroConvert}><b>Main hero uses fixed built-in slides.</b><span>Convert it to editable slides to add whole stores, categories, subcategories and products here too. Its current three messages are kept.</span><button type="button" onClick={convertCoreHero}><Plus/> Make hero slides editable</button></div>}
-            <label>{pageKey === 'home' && selectedCore.key === 'hero' ? 'Main hero heading' : 'Section heading'}<input maxLength={120} value={currentCoreContent[selectedCore.key]?.title ?? (pageKey === 'home' && selectedCore.key === 'hero' ? '' : selectedCore.title)} placeholder={pageKey === 'home' && selectedCore.key === 'hero' ? 'Compare before you shop.' : undefined} onChange={(event) => updateCoreContent(selectedCore.key, { title: event.target.value })}/></label>
+            <div className={styles.richFieldLabel}><span>Heading</span><RichTextField value={currentCoreContent[selectedCore.key]?.title ?? (pageKey === 'home' && selectedCore.key === 'hero' ? '' : selectedCore.title)} maxLength={120} singleLine placeholder={pageKey === 'home' && selectedCore.key === 'hero' ? 'Compare before you shop.' : 'Add a section heading'} onChange={(title) => updateCoreContent(selectedCore.key, { title })}/></div>
             <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={currentCoreContent[selectedCore.key]?.body ?? ''} onChange={(body) => updateCoreContent(selectedCore.key, { body })} placeholder="Optional description"/></div>
             {pageKey === 'home' && ['categories', 'stores', 'best_deals', 'trending', 'price_drops'].includes(selectedCore.key) && <>
               <div className={styles.twoFields}><label>Number of cards<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? (selectedCore.key === 'categories' || selectedCore.key === 'stores' ? 10 : 10)} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>
@@ -976,17 +1087,17 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
                     return <div className={styles.slideContentItem} key={`${selected.id}-${slideIndex}-item-${itemIndex}`}><div className={styles.slideContentHeading}><b>Item {itemIndex + 1}</b><div><button type="button" disabled={itemIndex === 0} onClick={() => updateSlideItems(selected.id, slideIndex, (items) => { [items[itemIndex - 1], items[itemIndex]] = [items[itemIndex], items[itemIndex - 1]]; return items; })} aria-label={`Move item ${itemIndex + 1} up`}>↑</button><button type="button" disabled={itemIndex === slideItems.length - 1} onClick={() => updateSlideItems(selected.id, slideIndex, (items) => { [items[itemIndex], items[itemIndex + 1]] = [items[itemIndex + 1], items[itemIndex]]; return items; })} aria-label={`Move item ${itemIndex + 1} down`}>↓</button><button type="button" onClick={() => updateSlideItems(selected.id, slideIndex, (items) => items.filter((_, index) => index !== itemIndex))} aria-label={`Remove item ${itemIndex + 1}`}><Trash2/></button></div></div><div className={styles.slideLinkSummary}><div><b>{linked?.label ?? 'Destination unavailable'}</b><small>{item.type === 'store' ? 'Whole store' : item.type === 'category' ? 'Category or subcategory' : item.type === 'product' ? 'Specific product' : 'Manual URL'}{linked?.href ? ` · ${linked.href}` : ''}</small></div><button type="button" onClick={() => setHeroComposer({ blockId: selected.id, slideIndex, itemIndex })}>Edit link</button></div></div>;
                   })}
                   {!slideItems.length && <small className={styles.sourceNote}><Check/> Add item to attach a store, category, subcategory, product, or manual URL. The button below remains available for a simple slide CTA.</small>}
-                  <label>Heading<input maxLength={120} value={values.title} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { title: event.target.value })} placeholder="e.g. Diwali essentials"/></label>
+                  <div className={styles.richFieldLabel}><span>Heading</span><RichTextField value={values.title} maxLength={120} singleLine onChange={(title) => updateBannerSlide(selected.id, slideIndex, { title })} placeholder="e.g. Diwali essentials"/></div>
                   <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={values.body} onChange={(body) => updateBannerSlide(selected.id, slideIndex, { body })} placeholder="Add a short customer-friendly description"/></div>
                   {slideIndex === 0 ? <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === 'image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label> : <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === `slide-${slideIndex}` ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0], slideIndex)} disabled={Boolean(uploading)}/></label></span></label>}
                   {!slideItems.length ? <div className={styles.twoFields}><label>Button label (optional)<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Leave blank to show no button"/></label><label>Button link<input maxLength={500} value={values.cta_href} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_href: event.target.value })} placeholder="/deals or https://…"/></label></div> : slideItems.length === 1 ? <label>Button label (optional)<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Leave blank to show no button"/></label> : <small className={styles.sourceNote}>Each selected destination is its own text link. No catalogue images are added to this card.</small>}
-                  {canAdjustButton && <div className={styles.bannerButtonControls}><b>Button position and size</b><small>Drag the button in the preview to move it. Drag its corner to resize. Default: centered, slightly above the bottom edge.</small><div className={styles.twoFields}><label>Width (px)<input type="number" min={88} max={480} step={4} value={buttonLayout.width} onChange={(event) => updateBannerButtonSize(selected.id, slideIndex, 'width', Number(event.target.value))}/></label><label>Height (px)<input type="number" min={36} max={128} step={2} value={buttonLayout.height} onChange={(event) => updateBannerButtonSize(selected.id, slideIndex, 'height', Number(event.target.value))}/></label></div><button type="button" onClick={() => saveBannerButtonLayout(selected.id, slideIndex, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT)}>Reset position and size</button></div>}
+                  {canAdjustButton && <div className={styles.bannerButtonControls}><b>Button position and size</b><small>Drag the button to move it and its corner to resize. Alignment guides appear on the slide; the button stays within its edges. Default: centered, slightly above the bottom edge.</small><div className={styles.twoFields}><label>Width (px)<input type="number" min={88} max={480} step={4} value={buttonLayout.width} onChange={(event) => updateBannerButtonSize(selected.id, slideIndex, 'width', Number(event.target.value))}/></label><label>Height (px)<input type="number" min={36} max={128} step={2} value={buttonLayout.height} onChange={(event) => updateBannerButtonSize(selected.id, slideIndex, 'height', Number(event.target.value))}/></label></div><button type="button" onClick={() => saveBannerButtonLayout(selected.id, slideIndex, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT)}>Reset position and size</button></div>}
                 </section>;
               })}
               <label className={styles.uploadField}>Mobile image for first slide (optional)<span className={styles.uploadRow}><input value={selected.config.mobile_image_url ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, mobile_image_url: event.target.value } }))} placeholder="Use a crop suited to mobile"/><label className={styles.uploadButton}><Upload/>{uploading === 'mobile_image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('mobile_image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label>
               <div className={styles.twoFields}><label>Starts (optional)<input type="datetime-local" value={toLocalDateTime(selected.config.starts_at)} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, starts_at: fromLocalDateTime(event.target.value) } }))}/></label><label>Ends (optional)<input type="datetime-local" value={toLocalDateTime(selected.config.ends_at)} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, ends_at: fromLocalDateTime(event.target.value) } }))}/></label></div>
             </> : <>
-              <label>Section heading<input maxLength={120} value={selected.title} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, title: event.target.value }))} placeholder="e.g. Diwali essentials"/></label>
+              <div className={styles.richFieldLabel}><span>Heading</span><RichTextField value={selected.title} maxLength={120} singleLine onChange={(title) => updateBlock(selected.id, (block) => ({ ...block, title }))} placeholder="e.g. Diwali essentials"/></div>
               <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={selected.body} onChange={(body) => updateBlock(selected.id, (block) => ({ ...block, body }))} placeholder="Add a short customer-friendly description"/></div>
             </>}
             {(selected.block_type === 'category_rail' || selected.block_type === 'store_directory') && <>

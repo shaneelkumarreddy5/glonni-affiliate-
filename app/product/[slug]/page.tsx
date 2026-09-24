@@ -394,7 +394,7 @@ export default async function ProductPage({
           <ProductGallery images={gallery} title={product.title}/>
           <div className="pdp-summary">
             <p className="pdp-brand">
-              {coreContent.product_summary?.title || `${product.brand ?? "GLONNI"} · ${category}`}
+              {renderWebsiteRichText(coreContent.product_summary?.title || `${product.brand ?? "GLONNI"} · ${category}`)}
             </p>
             <h1>{product.title}</h1>
             {averageRating ? <div className="pdp-rating"><span><Star/></span><b>{averageRating.toFixed(1)} / 5</b><small>{totalRatings.toLocaleString('en-IN')} ratings across reporting stores</small></div> : <div className="pdp-rating pdp-rating-missing"><small>Customer ratings are not available from connected stores yet.</small></div>}
@@ -467,7 +467,7 @@ export default async function ProductPage({
         <section id="offers" className="pdp-card pdp-comparison">
           <header>
             <div>
-              <h2>{coreContent.offer_comparison?.title || 'Compare prices across stores'}</h2>
+              <h2>{renderWebsiteRichText(coreContent.offer_comparison?.title || 'Compare prices across stores')}</h2>
               <p>{coreContent.offer_comparison?.body ? renderWebsiteRichText(coreContent.offer_comparison.body) : <>
                 Same product and selected variant. Different merchant offers.
               </>}</p>
@@ -549,7 +549,7 @@ export default async function ProductPage({
         <section className="pdp-card pdp-history">
           <header>
             <div>
-              <h2>{coreContent.price_history?.title || 'Price history'}</h2>
+              <h2>{renderWebsiteRichText(coreContent.price_history?.title || 'Price history')}</h2>
               <p>{coreContent.price_history?.body ? renderWebsiteRichText(coreContent.price_history.body) : 'Verified recorded prices for this product'}</p>
             </div>
           </header>
@@ -606,7 +606,7 @@ export default async function ProductPage({
         <section className="pdp-card pdp-specifications">
           <header>
             <div>
-              <h2>{coreContent.specifications?.title || 'Top 10 specifications'}</h2>
+              <h2>{renderWebsiteRichText(coreContent.specifications?.title || 'Top 10 specifications')}</h2>
               <p>{coreContent.specifications?.body ? renderWebsiteRichText(coreContent.specifications.body) : 'Category-relevant details for faster comparison'}</p>
             </div>
             <a href="#full-information">View all specifications</a>
@@ -627,7 +627,7 @@ export default async function ProductPage({
         <div style={sectionStyle('product_information', 5)}>
         <section id="category-guide" className="pdp-information-grid">
           <article className="pdp-card">
-            <h2>{coreContent.product_information?.title || view.guideTitle}</h2>
+            <h2>{renderWebsiteRichText(coreContent.product_information?.title || view.guideTitle)}</h2>
             <p>{coreContent.product_information?.body ? renderWebsiteRichText(coreContent.product_information.body) : view.guideText}</p>
             <div className="pdp-guide">
               <ShieldCheck />
@@ -667,7 +667,7 @@ export default async function ProductPage({
         </section>
         </div>
         <div style={sectionStyle('store_policies', 6)}>
-        {merchantPolicies.length > 0 && <section className="pdp-merchant-policies"><header><p className="eyebrow">PURCHASE TERMS</p><h2>{coreContent.store_policies?.title || 'Terms for stores selling this product'}</h2><p>{coreContent.store_policies?.body ? renderWebsiteRichText(coreContent.store_policies.body) : 'Select the store you plan to buy from and review the applicable Glonni, store and cashback terms.'}</p></header>{merchantPolicies.map(({merchant,policy})=><CustomerPolicyAccordions key={merchant.slug} storeName={merchant.name} policy={policy}/>)}</section>}
+        {merchantPolicies.length > 0 && <section className="pdp-merchant-policies"><header><p className="eyebrow">PURCHASE TERMS</p><h2>{renderWebsiteRichText(coreContent.store_policies?.title || 'Terms for stores selling this product')}</h2><p>{coreContent.store_policies?.body ? renderWebsiteRichText(coreContent.store_policies.body) : 'Select the store you plan to buy from and review the applicable Glonni, store and cashback terms.'}</p></header>{merchantPolicies.map(({merchant,policy})=><CustomerPolicyAccordions key={merchant.slug} storeName={merchant.name} policy={policy}/>)}</section>}
         </div>
         <div style={sectionStyle('product_faqs', 7)}>
         <ContextualFaqs
@@ -687,7 +687,7 @@ export default async function ProductPage({
           <section className="pdp-related">
             <header>
               <div>
-                <h2>{coreContent.related_products?.title || 'Similar products'}</h2>
+                <h2>{renderWebsiteRichText(coreContent.related_products?.title || 'Similar products')}</h2>
                 <p>{coreContent.related_products?.body ? renderWebsiteRichText(coreContent.related_products.body) : `More options in ${category}`}</p>
               </div>
               <a

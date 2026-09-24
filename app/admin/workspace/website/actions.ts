@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { coreSectionsByPage, defaultWebsiteSectionOrder, slotsByPage, websitePageOptions, type WebsiteBannerSlide, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteVisualShape } from '@/lib/website-layout';
+import { websiteRichTextToPlainText } from '@/lib/website-rich-text-format';
 
 export type WebsiteActionResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -59,7 +60,7 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
     const rawConfig = item.config && typeof item.config === 'object' ? item.config as Record<string, unknown> : {};
     const slot = String(rawConfig.slot ?? '');
     if (!allowedSlots.has(slot as never)) return 'Choose a valid placement for this page.';
-    if (title.length > 120 || body.length > 1800 || ctaLabel.length > 60 || ctaHref.length > 500 || imageUrl.length > 1000) return 'A section has text or an image address that is too long.';
+    if (title.length > 8000 || body.length > 20000 || websiteRichTextToPlainText(title).length > 120 || websiteRichTextToPlainText(body).length > 1800 || ctaLabel.length > 60 || ctaHref.length > 500 || imageUrl.length > 1000) return 'A section has text or an image address that is too long.';
     if (!validLink(ctaHref) || !validImage(imageUrl)) return 'Buttons and images must use a safe site path or HTTPS address.';
     if (!['all', 'desktop', 'mobile'].includes(deviceVisibility)) return 'Choose a supported device visibility.';
 
@@ -124,13 +125,14 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
       const candidate = rawSlides[index];
       const slide = candidate && typeof candidate === 'object' ? candidate as Record<string, unknown> : {};
       return {
-        title: String(slide.title ?? '').trim().slice(0, 120),
-        body: String(slide.body ?? '').trim().slice(0, 1800),
+        title: String(slide.title ?? '').trim().slice(0, 8000),
+        body: String(slide.body ?? '').trim().slice(0, 20000),
         image_url: String(slide.image_url ?? '').trim().slice(0, 1000),
         cta_label: String(slide.cta_label ?? '').trim().slice(0, 60),
         cta_href: String(slide.cta_href ?? '').trim().slice(0, 500),
       };
     });
+    if (slides.some((slide) => websiteRichTextToPlainText(slide.title).length > 120 || websiteRichTextToPlainText(slide.body).length > 1800)) return 'A slide heading or supporting text is too long.';
     if (mobileImage && !validImage(mobileImage)) return 'The mobile banner image must use a safe site path or HTTPS address.';
     if (slides.some((slide, index) => !validImage(slide.image_url) || !validLink(slide.cta_href) || (slide.cta_label && !slide.cta_href && !slideItems[index + 1]?.length && slideTargets[index + 1]?.type === 'manual'))) return 'Each slide must use a safe image and button destination.';
     if ((type === 'store_rail' || (pageKey === 'stores' && storeSlug)) && !/^[a-z0-9-]{1,100}$/.test(storeSlug)) return 'Select a connected store for this store rail.';
@@ -200,7 +202,7 @@ function normalizeCoreContent(pageKey: WebsitePageKey, value: unknown): Record<s
     const content = raw as Record<string, unknown>;
     const title = String(content.title ?? '').trim();
     const body = String(content.body ?? '').trim();
-    if (title.length > 120 || body.length > 1800) return 'A section heading or description is too long.';
+    if (title.length > 8000 || body.length > 20000 || websiteRichTextToPlainText(title).length > 120 || websiteRichTextToPlainText(body).length > 1800) return 'A section heading or description is too long.';
     const ids = (candidate: unknown) => Array.isArray(candidate) ? candidate.filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50) : [];
     const count = Math.max(1, Math.min(50, Number(content.count ?? 10) || 10));
     const visualShape = ['standard', 'wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(content.visual_shape)) ? content.visual_shape as WebsiteCoreContent['visual_shape'] : undefined;
