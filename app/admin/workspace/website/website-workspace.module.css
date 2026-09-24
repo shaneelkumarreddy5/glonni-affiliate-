@@ -106,3 +106,16 @@
    heavy outline around the complete banner group in the canvas. */
 .previewSectionTargetActive{outline:none;outline-offset:0;background:rgba(21,84,209,.025);border-radius:8px}
 .previewSlideEmpty>div>b{display:block}
+
+/* Builder image and CTA match the published card; the button itself is
+   draggable/resizable only while editing. */
+.previewBanner>img{opacity:1;filter:none;image-rendering:auto}
+.previewBanner[data-has-image="true"]:after{content:"";position:absolute;z-index:0;inset:0;pointer-events:none;background:linear-gradient(90deg,color-mix(in srgb,var(--preview-banner-background,#f2f6ff) 18%,transparent) 0%,color-mix(in srgb,var(--preview-banner-background,#f2f6ff) 4%,transparent) 46%,transparent 72%)}
+.previewCtaButton{position:absolute;z-index:4;left:var(--cta-x,50%);top:var(--cta-y,82%);transform:translate(-50%,-50%);box-sizing:border-box;width:var(--cta-width,124px);height:var(--cta-height,44px);max-width:calc(100% - 16px);display:flex;align-items:center;justify-content:center;padding:0 14px;overflow:hidden;border:1px solid color-mix(in srgb,var(--accent,#1554d1) 78%,#fff);border-radius:9px;background:var(--accent,#1554d1);color:#fff;font:800 13px/1.2 'DM Sans',sans-serif;text-align:center;text-overflow:ellipsis;white-space:nowrap;cursor:move;touch-action:none;user-select:none}
+.previewCtaButton:hover{filter:brightness(.96)}
+.previewCtaResize{position:absolute;right:2px;bottom:2px;width:11px;height:11px;border-radius:3px;background:#fff;box-shadow:0 0 0 1px #164ebc;cursor:nwse-resize;touch-action:none}
+.bannerButtonControls{display:grid;gap:6px;padding:9px;border:1px solid #dbe6f7;border-radius:8px;background:#f6f9ff}
+.bannerButtonControls>b{font-size:9px;color:#314b75}
+.bannerButtonControls>small{color:#71819b;font-size:8px;line-height:1.45}
+.bannerButtonControls>button{justify-self:start;padding:6px 8px;border:1px solid #c8d8f3;border-radius:6px;background:#fff;color:#1554d1;font-size:8px;font-weight:800;cursor:pointer}
+.bannerButtonControls>button:hover{background:#edf4ff}

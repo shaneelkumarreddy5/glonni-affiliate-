@@ -21,6 +21,33 @@ export type WebsiteBannerSlide = {
   cta_href: string;
 };
 
+export type WebsiteBannerButtonLayout = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export const DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT: WebsiteBannerButtonLayout = {
+  x: 50,
+  y: 82,
+  width: 124,
+  height: 44,
+};
+
+export function normalizeWebsiteBannerButtonLayout(layout?: Partial<WebsiteBannerButtonLayout> | null): WebsiteBannerButtonLayout {
+  const bounded = (value: unknown, fallback: number, min: number, max: number) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
+  };
+  return {
+    x: bounded(layout?.x, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT.x, 0, 100),
+    y: bounded(layout?.y, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT.y, 0, 100),
+    width: bounded(layout?.width, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT.width, 88, 480),
+    height: bounded(layout?.height, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT.height, 36, 128),
+  };
+}
+
 export function hasVisibleWebsiteBannerSlideContent(slide: WebsiteBannerSlide, linkedDestinationCount = 0, hasDestination = Boolean(slide.cta_href.trim())) {
   return Boolean(slide.title.trim() || slide.body.trim() || slide.image_url.trim() || (slide.cta_label.trim() && hasDestination) || linkedDestinationCount > 1);
 }
@@ -102,6 +129,7 @@ export type WebsiteBlockConfig = {
   slide_targets?: WebsiteSlideTarget[];
   slide_shapes?: Exclude<WebsiteVisualShape, 'standard'>[];
   slide_items?: WebsiteSlideItem[][];
+  slide_button_layouts?: WebsiteBannerButtonLayout[];
 };
 
 export type WebsiteDraftBlock = {
@@ -134,7 +162,9 @@ export function removeWebsiteBannerSlide(block: WebsiteDraftBlock, index: number
   shapes.splice(index, 1);
   const items = [...(block.config.slide_items ?? [])];
   items.splice(index, 1);
-  return { ...block, ...first, config: { ...block.config, slides: remaining, slide_targets: targets, slide_shapes: shapes, slide_items: items, slide_count: count - 1 } };
+  const buttonLayouts = [...(block.config.slide_button_layouts ?? [])];
+  buttonLayouts.splice(index, 1);
+  return { ...block, ...first, config: { ...block.config, slides: remaining, slide_targets: targets, slide_shapes: shapes, slide_items: items, slide_button_layouts: buttonLayouts, slide_count: count - 1 } };
 }
 
 export const coreSectionsByPage: Record<WebsitePageKey, WebsiteCoreSection[]> = {

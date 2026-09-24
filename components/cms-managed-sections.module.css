@@ -31,3 +31,13 @@
 .bannerSlides .bannerSlide.size_rectangle_vertical{box-sizing:border-box;flex:0 0 min(260px,80%);width:min(260px,80%);max-width:80%;min-height:0;aspect-ratio:3/4;grid-template-columns:1fr;align-items:end}
 .bannerSlides .bannerSlide.size_strip{flex:0 0 100%;width:100%;max-width:100%;min-height:82px}
 @media(max-width:700px){.bannerSlides .bannerSlide.size_square{flex-basis:min(360px,85%);width:min(360px,85%)}.bannerSlides .bannerSlide.size_rectangle_horizontal{flex-basis:min(410px,94%);width:min(410px,94%);max-width:94%}.bannerSlides .bannerSlide.size_rectangle_vertical{flex-basis:min(290px,84%);width:min(290px,84%);max-width:84%}}
+
+/* Keep uploaded banner pixels intact and render one compact CTA at the exact
+   same relative position and dimensions in every card shape. */
+.bannerPicture{z-index:0}
+.bannerPicture img{opacity:1;filter:none;image-rendering:auto}
+.bannerPicture:after,.size_square .bannerPicture:after,.size_rectangle_horizontal .bannerPicture:after,.size_rectangle_vertical .bannerPicture:after{opacity:1;background:linear-gradient(90deg,color-mix(in srgb,var(--background) 18%,transparent) 0%,color-mix(in srgb,var(--background) 4%,transparent) 46%,transparent 72%)}
+.bannerBlock .copy{position:relative;z-index:1}
+.slideCta{position:absolute;z-index:2;left:var(--cta-x,50%);top:var(--cta-y,82%);transform:translate(-50%,-50%);box-sizing:border-box;width:var(--cta-width,124px);height:var(--cta-height,44px);max-width:calc(100% - 16px);display:inline-flex;align-items:center;justify-content:center;margin:0;padding:0 14px;overflow:hidden;border:1px solid color-mix(in srgb,var(--accent) 78%,#fff);border-radius:9px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-weight:800;font-size:13px;line-height:1.2;text-align:center;text-overflow:ellipsis;white-space:nowrap}
+.slideDestinationList .slideDestinationLink{position:static;display:inline-flex;align-items:center;justify-content:center;width:auto;height:auto;max-width:100%;margin:0;padding:9px 13px;border:1px solid color-mix(in srgb,var(--accent) 78%,#fff);border-radius:8px;background:var(--accent);color:#fff;font-size:12px;font-weight:800;text-decoration:none}
+.slideDestinationList .slideDestinationLink:hover{filter:brightness(.96)}

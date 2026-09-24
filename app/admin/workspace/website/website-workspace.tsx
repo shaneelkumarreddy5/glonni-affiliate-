@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Bold, Check, ChevronDown, ChevronRight, ExternalLink, GripVertical, ImagePlus, Italic, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Underline, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
-import { coreSectionsByPage, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, removeWebsiteBannerSlide, resolveWebsiteSlideItems, websiteItemHref, websitePageOptions, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
+import { coreSectionsByPage, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, removeWebsiteBannerSlide, resolveWebsiteSlideItems, websiteItemHref, websitePageOptions, type WebsiteBannerButtonLayout, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
 import { autosaveWebsiteDraft, publishWebsiteLayout, saveWebsiteDraft, type WebsiteActionResult } from './actions';
 import styles from './website-workspace.module.css';
 
@@ -68,6 +68,7 @@ type HeroLinkType = WebsiteSlideItem['type'];
 type WebsiteDraftPayload = { blocks: WebsiteDraftBlock[]; section_order: string[]; core_content: Record<string, WebsiteCoreContent> };
 type AutoSaveState = 'waiting' | 'saving' | 'saved' | 'error';
 type LocalDraftBackups = Partial<Record<WebsitePageKey, { payload: WebsiteDraftPayload; signature: string }>>;
+type BannerButtonInteraction = { pointerId: number; blockId: string; slideIndex: number; mode: 'move' | 'resize'; startX: number; startY: number; slideRect: { left: number; top: number; width: number; height: number }; startLayout: WebsiteBannerButtonLayout };
 const LOCAL_DRAFT_BACKUP_KEY = 'glonni-website-workspace-pending-drafts-v1';
 
 function cloneDraftValue<T>(value: T): T {
@@ -242,6 +243,10 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const [draftBackupsLoaded, setDraftBackupsLoaded] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [heroComposer, setHeroComposer] = useState<{ blockId: string; slideIndex: number; itemIndex?: number } | null>(null);
+  const [previewButtonAdjustment, setPreviewButtonAdjustment] = useState<{ blockId: string; slideIndex: number; layout: WebsiteBannerButtonLayout } | null>(null);
+  const bannerButtonInteraction = useRef<BannerButtonInteraction | null>(null);
+  const previewButtonLayout = useRef<WebsiteBannerButtonLayout | null>(null);
+  const bannerButtonCleanup = useRef<(() => void) | null>(null);
   const autoSaveTimers = useRef(new Map<WebsitePageKey, ReturnType<typeof setTimeout>>());
   const autoSavePending = useRef(new Map<WebsitePageKey, WebsiteDraftPayload>());
   const autoSaveInFlight = useRef(new Map<WebsitePageKey, Promise<void>>());
@@ -255,6 +260,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const stageScrollerRef = useRef<HTMLDivElement>(null);
   const previewSectionRefs = useRef(new Map<string, HTMLDivElement>());
   const selectedToken = selectedId ? `block:${selectedId}` : selectedCoreKey ? `core:${selectedCoreKey}` : null;
+  useEffect(() => () => bannerButtonCleanup.current?.(), []);
   useEffect(() => {
     if (!selectedToken) return;
     const scroller = stageScrollerRef.current;
@@ -551,8 +557,90 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       while (slideShapes.length < count) slideShapes.push(block.block_type === 'banner' ? 'strip' : block.config.banner_size ?? 'wide');
       const slideItems = [...(block.config.slide_items ?? [])].slice(0, count);
       while (slideItems.length < count) slideItems.push([]);
-      return { ...block, config: { ...block.config, slide_count: count, slides, slide_targets: slideTargets, slide_shapes: slideShapes, slide_items: slideItems } };
+      const slideButtonLayouts = Array.from({ length: count }, (_, index) => normalizeWebsiteBannerButtonLayout(block.config.slide_button_layouts?.[index]));
+      return { ...block, config: { ...block.config, slide_count: count, slides, slide_targets: slideTargets, slide_shapes: slideShapes, slide_items: slideItems, slide_button_layouts: slideButtonLayouts } };
     });
+  }
+
+  function saveBannerButtonLayout(blockId: string, slideIndex: number, layout: WebsiteBannerButtonLayout) {
+    updateBlock(blockId, (block) => {
+      const count = Math.max(1, Math.min(10, block.config.slide_count ?? 1));
+      const layouts = Array.from({ length: Math.max(count, slideIndex + 1) }, (_, index) => normalizeWebsiteBannerButtonLayout(block.config.slide_button_layouts?.[index]));
+      layouts[slideIndex] = normalizeWebsiteBannerButtonLayout(layout);
+      return { ...block, config: { ...block.config, slide_button_layouts: layouts } };
+    });
+  }
+
+  function beginBannerButtonAdjustment(event: React.PointerEvent<HTMLElement>, blockId: string, slideIndex: number, mode: BannerButtonInteraction['mode'], layout: WebsiteBannerButtonLayout) {
+    event.preventDefault();
+    event.stopPropagation();
+    bannerButtonCleanup.current?.();
+    const slide = event.currentTarget.closest('[data-banner-slide]');
+    const rect = slide?.getBoundingClientRect();
+    if (!rect || rect.width <= 0 || rect.height <= 0) return;
+    const initial = normalizeWebsiteBannerButtonLayout(layout);
+    bannerButtonInteraction.current = {
+      pointerId: event.pointerId,
+      blockId,
+      slideIndex,
+      mode,
+      startX: event.clientX,
+      startY: event.clientY,
+      slideRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      startLayout: initial,
+    };
+    previewButtonLayout.current = initial;
+    setPreviewButtonAdjustment({ blockId, slideIndex, layout: initial });
+
+    const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(Math.max(min, max), value));
+    const handleMove = (moveEvent: PointerEvent) => {
+      const interaction = bannerButtonInteraction.current;
+      if (!interaction || moveEvent.pointerId !== interaction.pointerId) return;
+      moveEvent.preventDefault();
+      const { slideRect, startLayout } = interaction;
+      let next: WebsiteBannerButtonLayout;
+      if (interaction.mode === 'move') {
+        const centerX = clamp(moveEvent.clientX - slideRect.left, startLayout.width / 2 + 8, slideRect.width - startLayout.width / 2 - 8);
+        const centerY = clamp(moveEvent.clientY - slideRect.top, startLayout.height / 2 + 8, slideRect.height - startLayout.height / 2 - 8);
+        next = { ...startLayout, x: centerX / slideRect.width * 100, y: centerY / slideRect.height * 100 };
+      } else {
+        const width = clamp(startLayout.width + moveEvent.clientX - interaction.startX, 88, Math.min(480, slideRect.width - 16));
+        const height = clamp(startLayout.height + moveEvent.clientY - interaction.startY, 36, Math.min(128, slideRect.height - 16));
+        const left = startLayout.x / 100 * slideRect.width - startLayout.width / 2;
+        const top = startLayout.y / 100 * slideRect.height - startLayout.height / 2;
+        const centerX = clamp(left + width / 2, width / 2 + 8, slideRect.width - width / 2 - 8);
+        const centerY = clamp(top + height / 2, height / 2 + 8, slideRect.height - height / 2 - 8);
+        next = { x: centerX / slideRect.width * 100, y: centerY / slideRect.height * 100, width, height };
+      }
+      previewButtonLayout.current = next;
+      setPreviewButtonAdjustment({ blockId: interaction.blockId, slideIndex: interaction.slideIndex, layout: next });
+    };
+    const finish = (finishEvent: PointerEvent) => {
+      const interaction = bannerButtonInteraction.current;
+      if (!interaction || finishEvent.pointerId !== interaction.pointerId) return;
+      cleanup();
+      const finalLayout = previewButtonLayout.current ?? interaction.startLayout;
+      bannerButtonInteraction.current = null;
+      previewButtonLayout.current = null;
+      setPreviewButtonAdjustment(null);
+      saveBannerButtonLayout(interaction.blockId, interaction.slideIndex, finalLayout);
+    };
+    const cleanup = () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      bannerButtonCleanup.current = null;
+    };
+    window.addEventListener('pointermove', handleMove, { passive: false });
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+    bannerButtonCleanup.current = cleanup;
+  }
+
+  function updateBannerButtonSize(blockId: string, slideIndex: number, field: 'width' | 'height', value: number) {
+    const block = blocks.find((item) => item.id === blockId);
+    const current = normalizeWebsiteBannerButtonLayout(block?.config.slide_button_layouts?.[slideIndex]);
+    saveBannerButtonLayout(blockId, slideIndex, { ...current, [field]: value });
   }
 
   function updateSlideItems(blockId: string, slideIndex: number, change: (items: WebsiteSlideItem[]) => WebsiteSlideItem[]) {
@@ -716,9 +804,13 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
         const image = slide.image_url;
         const shape = block.block_type === 'banner' ? 'strip' : block.config.slide_shapes?.[index] ?? block.config.banner_size ?? 'wide';
         const hasContent = hasVisibleWebsiteBannerSlideContent(slide, resolvedItems.length, Boolean(destination));
-        return <article key={`${block.id}-preview-${index}`} className={`${styles.previewBanner} ${!hasContent ? styles.previewSlideEmpty : ''} ${styles[`size_${shape}`]}`} style={{ background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
+        const storedButtonLayout = normalizeWebsiteBannerButtonLayout(block.config.slide_button_layouts?.[index]);
+        const buttonLayout = previewButtonAdjustment?.blockId === block.id && previewButtonAdjustment.slideIndex === index ? previewButtonAdjustment.layout : storedButtonLayout;
+        const buttonStyle = { '--cta-x': `${buttonLayout.x}%`, '--cta-y': `${buttonLayout.y}%`, '--cta-width': `${buttonLayout.width}px`, '--cta-height': `${buttonLayout.height}px`, '--preview-banner-background': block.config.background ?? '#f2f6ff', '--accent': block.config.accent ?? '#1554d1' } as React.CSSProperties;
+        const hasSingleCta = Boolean(destination && slide.cta_label && resolvedItems.length <= 1);
+        return <article key={`${block.id}-preview-${index}`} data-banner-slide data-has-image={Boolean(image)} className={`${styles.previewBanner} ${!hasContent ? styles.previewSlideEmpty : ''} ${styles[`size_${shape}`]}`} style={{ ...buttonStyle, background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
           <small className={styles.previewSlideNumber}>Slide {index + 1} of {slides.length}</small>
-          {image && <img src={image} alt=""/>}<div>{hasContent ? <>{slide.title && <b>{slide.title}</b>}{slide.body && <span>{renderRichPreview(slide.body)}</span>}{resolvedItems.length ? <div className={styles.previewSlideLinks}>{resolvedItems.map((item) => <a href={item.href} key={`${item.type}-${item.id}`} target="_blank" rel="noreferrer"><span><b>{resolvedItems.length === 1 && slide.cta_label ? slide.cta_label : item.name}</b><small>{item.type === 'store' ? 'Store page' : item.type === 'category' ? 'Category page' : item.type === 'product' ? 'Product page' : 'Manual link'}</small></span></a>)}</div> : destination && slide.cta_label ? <a className={styles.previewDestination} href={destination} target="_blank" rel="noreferrer">{slide.cta_label}</a> : null}</> : <><b>Slide {index + 1} is not ready</b><span>{destination || resolvedItems.length ? 'Its destination is saved. Add an image, heading, supporting text, or button label to make it visible.' : 'Add an image, heading, supporting text, or button label in the settings. This placeholder is only shown in the admin preview.'}</span></>}</div>
+          {image && <img src={image} alt=""/>}<div>{hasContent ? <>{slide.title && <b>{slide.title}</b>}{slide.body && <span>{renderRichPreview(slide.body)}</span>}{resolvedItems.length > 1 && <div className={styles.previewSlideLinks}>{resolvedItems.map((item) => <a href={item.href} key={`${item.type}-${item.id}`} target="_blank" rel="noreferrer"><span><b>{item.name}</b><small>{item.type === 'store' ? 'Store page' : item.type === 'category' ? 'Category page' : item.type === 'product' ? 'Product page' : 'Manual link'}</small></span></a>)}</div>}</> : <><b>Slide {index + 1} is not ready</b><span>{destination || resolvedItems.length ? 'Its destination is saved. Add an image, heading, supporting text, or button label to make it visible.' : 'Add an image, heading, supporting text, or button label in the settings. This placeholder is only shown in the admin preview.'}</span></>}</div>{hasContent && hasSingleCta && <button type="button" className={styles.previewCtaButton} style={buttonStyle} aria-label={`${slide.cta_label}: drag to reposition`} title="Drag to move · drag the corner to resize" onPointerDown={(event) => beginBannerButtonAdjustment(event, block.id, index, 'move', buttonLayout)}>{slide.cta_label}<span className={styles.previewCtaResize} aria-hidden="true" title="Drag to resize" onPointerDown={(event) => beginBannerButtonAdjustment(event, block.id, index, 'resize', buttonLayout)}/></button>}
         </article>;
       })}</div>;
     }
@@ -870,6 +962,12 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
                 const extra = selected.config.slides?.[slideIndex - 1];
                 const values = slideIndex === 0 ? { title: selected.title, body: selected.body, image_url: selected.image_url, cta_label: selected.cta_label, cta_href: selected.cta_href } : extra ?? { title: '', body: '', image_url: '', cta_label: '', cta_href: '' };
                 const slideItems = selected.config.slide_items?.[slideIndex] ?? [];
+                const slideTarget = selected.config.slide_targets?.[slideIndex];
+                const buttonLayout = normalizeWebsiteBannerButtonLayout(selected.config.slide_button_layouts?.[slideIndex]);
+                const onlySlideItem = slideItems[0];
+                const hasOneLinkedItem = onlySlideItem?.type === 'manual' ? Boolean(onlySlideItem.href ?? onlySlideItem.id) : onlySlideItem ? Boolean(slideItem({ type: onlySlideItem.type, id: onlySlideItem.id })?.href) : false;
+                const hasButtonDestination = hasOneLinkedItem || (!slideItems.length && Boolean(values.cta_href.trim() || slideItem(slideTarget)?.href));
+                const canAdjustButton = Boolean(values.cta_label.trim() && hasButtonDestination && slideItems.length <= 1);
                 return <section className={styles.slideEditor} key={`${selected.id}-slide-editor-${slideIndex}`}><header><b>{selected.block_type === 'banner' ? 'Promotion card' : 'Slide'} {slideIndex + 1}</b><button type="button" className={styles.deleteSlide} onClick={() => deleteBannerSlide(selected.id, slideIndex)} aria-label={(selected.config.slide_count ?? 1) > 1 ? `Delete ${selected.block_type === 'banner' ? 'promotion card' : 'slide'} ${slideIndex + 1}` : `Delete only ${selected.block_type === 'banner' ? 'promotion card' : 'slide'} and banner section`}><Trash2/> {(selected.config.slide_count ?? 1) > 1 ? selected.block_type === 'banner' ? 'Delete card' : 'Delete slide' : selected.block_type === 'banner' ? 'Delete card & section' : 'Delete slide & section'}</button></header>
                   {selected.block_type === 'banner' ? <div className={styles.promotionShapeNote}><span>Card shape</span><b>Curved full-width strip</b><small>Promotion banners use this compact strip layout on every device.</small></div> : <label>Card shape<select value={selected.config.slide_shapes?.[slideIndex] ?? selected.config.banner_size ?? 'wide'} onChange={(event) => setBannerSlideShape(selected.id, slideIndex, event.target.value as NonNullable<WebsiteDraftBlock['config']['banner_size']>)}><option value="wide">Full-width banner</option><option value="strip">Promotional strip</option><option value="square">Square card</option><option value="rectangle_horizontal">Horizontal rectangle card</option><option value="rectangle_vertical">Vertical rectangle card</option></select></label>}
                   <div className={styles.slideContents}><div><b>Link destinations on this slide</b><small>Add a store, category, subcategory, product, or manual URL. Each item creates only a link; it never expands into product cards.</small></div>{slideItems.length < 12 && <button type="button" onClick={() => setHeroComposer({ blockId: selected.id, slideIndex })}><Plus/> Add item</button>}</div>
@@ -882,6 +980,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
                   <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={values.body} onChange={(body) => updateBannerSlide(selected.id, slideIndex, { body })} placeholder="Add a short customer-friendly description"/></div>
                   {slideIndex === 0 ? <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === 'image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label> : <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === `slide-${slideIndex}` ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0], slideIndex)} disabled={Boolean(uploading)}/></label></span></label>}
                   {!slideItems.length ? <div className={styles.twoFields}><label>Button label (optional)<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Leave blank to show no button"/></label><label>Button link<input maxLength={500} value={values.cta_href} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_href: event.target.value })} placeholder="/deals or https://…"/></label></div> : slideItems.length === 1 ? <label>Button label (optional)<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Leave blank to show no button"/></label> : <small className={styles.sourceNote}>Each selected destination is its own text link. No catalogue images are added to this card.</small>}
+                  {canAdjustButton && <div className={styles.bannerButtonControls}><b>Button position and size</b><small>Drag the button in the preview to move it. Drag its corner to resize. Default: centered, slightly above the bottom edge.</small><div className={styles.twoFields}><label>Width (px)<input type="number" min={88} max={480} step={4} value={buttonLayout.width} onChange={(event) => updateBannerButtonSize(selected.id, slideIndex, 'width', Number(event.target.value))}/></label><label>Height (px)<input type="number" min={36} max={128} step={2} value={buttonLayout.height} onChange={(event) => updateBannerButtonSize(selected.id, slideIndex, 'height', Number(event.target.value))}/></label></div><button type="button" onClick={() => saveBannerButtonLayout(selected.id, slideIndex, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT)}>Reset position and size</button></div>}
                 </section>;
               })}
               <label className={styles.uploadField}>Mobile image for first slide (optional)<span className={styles.uploadRow}><input value={selected.config.mobile_image_url ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, mobile_image_url: event.target.value } }))} placeholder="Use a crop suited to mobile"/><label className={styles.uploadButton}><Upload/>{uploading === 'mobile_image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('mobile_image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label>

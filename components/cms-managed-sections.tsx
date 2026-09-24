@@ -6,7 +6,7 @@ import { ScrollRail } from '@/components/scroll-rail';
 import { getStores } from '@/lib/catalog';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { systemPageSlug, type SystemPageKey } from '@/lib/system-pages';
-import { hasVisibleWebsiteBannerSlideContent, resolveWebsiteSlideItems, websiteItemHref, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey } from '@/lib/website-layout';
+import { hasVisibleWebsiteBannerSlideContent, normalizeWebsiteBannerButtonLayout, resolveWebsiteSlideItems, websiteItemHref, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey } from '@/lib/website-layout';
 import styles from './cms-managed-sections.module.css';
 
 type ManagedBlock = WebsiteDraftBlock & { id: string };
@@ -143,10 +143,11 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
       return <div key={block.id} className={`${styles.bannerSlides} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`} aria-label={`${block.title || 'Promotion'} banner slides`}>
         {visibleSlides.map(({ slide, index, href, image, catalogueItems }) => {
         const destinationLinks = catalogueItems.length > 1 ? catalogueItems : [];
-        const content = <>{image && <picture className={styles.bannerPicture}>{index === 0 && config.mobile_image_url && <source media="(max-width: 700px)" srcSet={config.mobile_image_url}/>}<img src={image} alt=""/></picture>}<div className={styles.copy}>{slide.title && <h2>{slide.title}</h2>}{slide.body && <p>{renderWebsiteRichText(slide.body)}</p>}{href && slide.cta_label && <span className={styles.slideCta}>{slide.cta_label}</span>}{destinationLinks.length > 0 && <div className={styles.slideDestinationList}>{destinationLinks.map((item) => <a key={`${item.type}-${item.id}`} href={item.href} className={styles.slideCta}>{item.name}</a>)}</div>}</div></>;
-          const shape = block.block_type === 'banner' ? 'strip' : config.slide_shapes?.[index] ?? config.banner_size ?? 'wide';
-          const slideClass = `${styles.block} ${styles.bannerBlock} ${styles.bannerSlide} ${block.block_type === 'banner' ? styles.promotionStrip : ''} ${destinationLinks.length ? styles.bannerSlideWithItems : ''} ${styles[block.block_type] ?? ''} ${styles[`size_${shape}`] ?? ''}`;
-          const slideStyle = { '--accent': accent, '--background': background } as React.CSSProperties;
+        const buttonLayout = normalizeWebsiteBannerButtonLayout(config.slide_button_layouts?.[index]);
+        const content = <>{image && <picture className={styles.bannerPicture}>{index === 0 && config.mobile_image_url && <source media="(max-width: 700px)" srcSet={config.mobile_image_url}/>}<img src={image} alt=""/></picture>}<div className={styles.copy}>{slide.title && <h2>{slide.title}</h2>}{slide.body && <p>{renderWebsiteRichText(slide.body)}</p>}{destinationLinks.length > 0 && <div className={styles.slideDestinationList}>{destinationLinks.map((item) => <a key={`${item.type}-${item.id}`} href={item.href} className={styles.slideDestinationLink}>{item.name}</a>)}</div>}</div>{href && slide.cta_label && catalogueItems.length <= 1 && <span className={styles.slideCta}>{slide.cta_label}</span>}</>;
+        const shape = block.block_type === 'banner' ? 'strip' : config.slide_shapes?.[index] ?? config.banner_size ?? 'wide';
+        const slideClass = `${styles.block} ${styles.bannerBlock} ${styles.bannerSlide} ${block.block_type === 'banner' ? styles.promotionStrip : ''} ${destinationLinks.length ? styles.bannerSlideWithItems : ''} ${styles[block.block_type] ?? ''} ${styles[`size_${shape}`] ?? ''}`;
+          const slideStyle = { '--accent': accent, '--background': background, '--cta-x': `${buttonLayout.x}%`, '--cta-y': `${buttonLayout.y}%`, '--cta-width': `${buttonLayout.width}px`, '--cta-height': `${buttonLayout.height}px` } as React.CSSProperties;
           return href ? <a key={`${block.id}-slide-${index}`} href={href} className={`${slideClass} ${styles.bannerSlideLink}`} style={slideStyle} aria-label={slide.title || slide.cta_label || 'Open linked destination'}>{content}</a> : <section key={`${block.id}-slide-${index}`} className={slideClass} style={slideStyle}>{content}</section>;
         })}
       </div>;

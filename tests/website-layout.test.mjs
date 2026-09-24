@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { defaultWebsiteSectionOrder, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, resolveWebsiteSlideItems, websiteItemHref } from '../lib/website-layout.ts';
+import { DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, defaultWebsiteSectionOrder, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, resolveWebsiteSlideItems, websiteItemHref } from '../lib/website-layout.ts';
 
 const block = (id, slot) => ({
   id,
@@ -57,6 +57,12 @@ test('blank slides do not render live, even when they already have a destination
   assert.equal(hasVisibleWebsiteBannerSlideContent(blank, 2, false), true, 'multiple linked destinations are visible as separate links');
 });
 
+test('banner buttons get a centered lower default and safe persisted size and position limits', () => {
+  assert.deepEqual(DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, { x: 50, y: 82, width: 124, height: 44 });
+  assert.deepEqual(normalizeWebsiteBannerButtonLayout({ x: 130, y: -12, width: 900, height: 12 }), { x: 100, y: 0, width: 480, height: 36 });
+  assert.deepEqual(normalizeWebsiteBannerButtonLayout(), DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT);
+});
+
 test('a slide resolves mixed stores, subcategories and individual products from approved catalogue rows', () => {
   const stores = [{ id: 'store-a', name: 'Amazon', slug: 'amazon', imageUrl: null }, { id: 'store-b', name: 'Flipkart', slug: 'flipkart', imageUrl: null }];
   const categories = [{ id: 'fashion', name: 'Fashion', slug: 'fashion', parentId: null }, { id: 'men', name: 'Men', slug: 'men', parentId: 'fashion' }, { id: 'shirts', name: 'Shirts', slug: 'shirts', parentId: 'men' }];
@@ -91,6 +97,7 @@ test('deleting a selected slide keeps the remaining content and linked items ali
       slide_targets: [{ type: 'product', id: 'one' }, { type: 'category', id: 'two' }, { type: 'store', id: 'three' }],
       slide_shapes: ['wide', 'rectangle_horizontal', 'rectangle_vertical'],
       slide_items: [[{ type: 'store', id: 'store-a' }], [{ type: 'category', id: 'fashion' }], [{ type: 'product', id: 'shirt' }]],
+      slide_button_layouts: [{ x: 50, y: 82, width: 124, height: 44 }, { x: 25, y: 30, width: 160, height: 50 }, { x: 75, y: 40, width: 140, height: 48 }],
     },
   };
   const afterFirst = removeWebsiteBannerSlide(banner, 0);
@@ -99,6 +106,7 @@ test('deleting a selected slide keeps the remaining content and linked items ali
   assert.deepEqual(afterFirst.config.slide_targets, [{ type: 'category', id: 'two' }, { type: 'store', id: 'three' }]);
   assert.deepEqual(afterFirst.config.slide_shapes, ['rectangle_horizontal', 'rectangle_vertical']);
   assert.deepEqual(afterFirst.config.slide_items, [[{ type: 'category', id: 'fashion' }], [{ type: 'product', id: 'shirt' }]]);
+  assert.deepEqual(afterFirst.config.slide_button_layouts, [{ x: 25, y: 30, width: 160, height: 50 }, { x: 75, y: 40, width: 140, height: 48 }]);
   assert.equal(afterFirst.config.slides[0].title, 'Third');
   assert.equal(afterFirst.config.slide_count, 2);
   const afterLast = removeWebsiteBannerSlide(afterFirst, 1);
@@ -106,6 +114,7 @@ test('deleting a selected slide keeps the remaining content and linked items ali
   assert.deepEqual(afterLast.config.slide_targets, [{ type: 'category', id: 'two' }]);
   assert.deepEqual(afterLast.config.slide_shapes, ['rectangle_horizontal']);
   assert.deepEqual(afterLast.config.slide_items, [[{ type: 'category', id: 'fashion' }]]);
+  assert.deepEqual(afterLast.config.slide_button_layouts, [{ x: 25, y: 30, width: 160, height: 50 }]);
   assert.deepEqual(afterLast.config.slides, []);
   assert.equal(removeWebsiteBannerSlide(afterLast, 0), afterLast);
 });
