@@ -168,6 +168,13 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     setNotice(null);
   }
 
+  function removeBlockSection(id: string) {
+    setLayouts((current) => ({ ...current, [pageKey]: current[pageKey].filter((block) => block.id !== id) }));
+    setOrders((current) => ({ ...current, [pageKey]: current[pageKey].filter((token) => token !== `block:${id}`) }));
+    setSelectedId((current) => current === id ? null : current);
+    setNotice(null);
+  }
+
   function convertCoreHero() {
     const replacement = newBlock('hero', 'home');
     replacement.title = currentCoreContent.hero?.title || 'Compare before you shop.';
@@ -566,7 +573,10 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
             <article draggable={canEdit} className={`${styles.sectionCard} ${draggedId === item.token ? styles.dragging : ''} ${selectedId === item.block?.id && !selectedCoreKey || selectedCoreKey === item.core?.key ? styles.selected : ''} ${item.block && !item.block.is_active ? styles.hiddenCard : ''}`} onDragStart={(event) => { if (!canEdit) return; setDraggedId(item.token); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', item.token); }} onDragEnd={() => setDraggedId(null)} onDragOver={(event) => { if (canEdit) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }} onDrop={(event) => { if (!canEdit) return; event.preventDefault(); event.stopPropagation(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, index); setDraggedId(null); }}>
               <button type="button" className={styles.dragHandle} aria-label={`Drag ${item.core?.title ?? item.block?.title ?? 'section'}`} title="Drag to move this whole section"><GripVertical/></button>
               <button type="button" className={styles.sectionSelect} onClick={() => { setSelectedId(item.block?.id ?? null); setSelectedCoreKey(item.core?.key ?? null); }}><span className={styles.sectionThumb}>{item.block ? item.block.block_type.includes('rail') ? <span className={styles.thumbCards}>▥</span> : item.block.image_url ? <img src={item.block.image_url} alt=""/> : <ImagePlus/> : <LayoutTemplate/>}</span><span><b>{item.core?.title ?? item.block?.title ?? titleForType(item.block!.block_type)}</b><small>{item.core?.note ?? `${titleForType(item.block!.block_type)} · ${item.block!.config.count ?? item.block!.config.slide_count ?? 1} ${item.block!.block_type === 'hero' || item.block!.block_type === 'banner' ? 'slides' : 'items'}`}</small></span></button>
-              {item.block ? <button type="button" className={styles.miniToggle} aria-label={`${item.block.is_active ? 'Hide' : 'Show'} ${item.block.title}`} aria-pressed={item.block.is_active} onClick={() => updateBlock(item.block!.id, (current) => ({ ...current, is_active: !current.is_active }))}><i/></button> : <span className={styles.editableTag}>EDITABLE</span>}
+              <div className={styles.sectionActions}>
+                {item.block && <button type="button" disabled={!canEdit} className={styles.miniToggle} aria-label={`${item.block.is_active ? 'Hide' : 'Show'} ${item.block.title}`} aria-pressed={item.block.is_active} onClick={(event) => { event.stopPropagation(); updateBlock(item.block!.id, (current) => ({ ...current, is_active: !current.is_active })); }}><i/></button>}
+                <button type="button" disabled={!canEdit} className={styles.miniRemove} aria-label={`Remove ${item.core?.title ?? item.block?.title ?? 'section'}`} title="Remove section" onClick={(event) => { event.stopPropagation(); if (item.core) removeCoreSection(item.core.key); else if (item.block) removeBlockSection(item.block.id); }}><Trash2/></button>
+              </div>
             </article>
           </Fragment>)}
           <button className={`${styles.dropMarker} ${draggedId ? styles.dropReady : ''}`} type="button" disabled={!canEdit} onClick={() => addAt(orderedItems.length)} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, orderedItems.length); setDraggedId(null); }} aria-label="Add a section at the end of the page"><i/><span>＋ Add here</span><small>Insert at the end of the page</small></button>
@@ -591,7 +601,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
 
       {(selected || selectedCore) && <aside className={styles.inspector} aria-label="Section settings">
         {!selected && !selectedCore ? <div className={styles.inspectorEmpty}><LayoutTemplate/><b>Select a section to edit</b><span>Drag any section using its grip, or choose “Add here” to place a new section exactly where you want it.</span><div><b>Pick what each card opens</b><small>Products open product pages, categories open category pages, and stores open store pages.</small></div></div> : selectedCore ? <>
-          <header className={styles.inspectorHeader}><div><small>EDITABLE PAGE SECTION</small><b>{selectedCore.title}</b></div><button type="button" onClick={() => setSelectedCoreKey(null)} aria-label="Close section settings"><X/></button></header>
+          <header className={styles.inspectorHeader}><div><small>PAGE SECTION</small><b>{selectedCore.title}</b></div><button type="button" onClick={() => setSelectedCoreKey(null)} aria-label="Close section settings"><X/></button></header>
           <div className={styles.inspectorBody}>
             {pageKey === 'home' && selectedCore.key === 'hero' && <div className={styles.heroConvert}><b>Main hero uses fixed built-in slides.</b><span>Convert it to editable slides to add whole stores, categories, subcategories and products here too. Its current three messages are kept.</span><button type="button" onClick={convertCoreHero}><Plus/> Make hero slides editable</button></div>}
             <label>Section heading<input maxLength={120} value={currentCoreContent[selectedCore.key]?.title ?? selectedCore.title} onChange={(event) => updateCoreContent(selectedCore.key, { title: event.target.value })}/></label>
