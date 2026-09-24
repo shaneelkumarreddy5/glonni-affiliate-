@@ -21,3 +21,13 @@
 .bannerSlides.mobileOnly{display:none}
 @media(max-width:700px){.bannerSlides.mobileOnly{display:flex}.bannerSlides.desktopOnly{display:none}.bannerSlides .bannerSlide.size_rectangle_horizontal{flex-basis:min(410px,94%);min-height:200px}.bannerSlides .bannerSlide.size_rectangle_vertical{flex-basis:min(290px,84%);min-height:330px}}
 .bannerSlides .promotionStrip.size_strip{flex:0 0 100%;min-height:82px;padding:14px 20px;border-radius:12px;grid-template-columns:minmax(0,1fr) auto}.bannerSlides .promotionStrip.bannerSlideWithItems{min-height:82px;flex-direction:row}.promotionStrip .slideDestinationList{margin-top:5px}
+
+/* Keep the live banner dimensions tied to the selected shape instead of letting
+   the generic banner height turn compact shapes into wide cards. */
+.bannerSlides{align-items:flex-start}
+.bannerSlides .bannerSlide.size_wide{box-sizing:border-box;flex:0 0 100%;width:100%;max-width:100%;min-height:0;aspect-ratio:16/5}
+.bannerSlides .bannerSlide.size_square{box-sizing:border-box;flex:0 0 min(360px,85%);width:min(360px,85%);max-width:360px;min-height:0;aspect-ratio:1/1;grid-template-columns:1fr}
+.bannerSlides .bannerSlide.size_rectangle_horizontal{box-sizing:border-box;flex:0 0 min(480px,92%);width:min(480px,92%);max-width:92%;min-height:0;aspect-ratio:2/1}
+.bannerSlides .bannerSlide.size_rectangle_vertical{box-sizing:border-box;flex:0 0 min(260px,80%);width:min(260px,80%);max-width:80%;min-height:0;aspect-ratio:3/4;grid-template-columns:1fr;align-items:end}
+.bannerSlides .bannerSlide.size_strip{flex:0 0 100%;width:100%;max-width:100%;min-height:82px}
+@media(max-width:700px){.bannerSlides .bannerSlide.size_square{flex-basis:min(360px,85%);width:min(360px,85%)}.bannerSlides .bannerSlide.size_rectangle_horizontal{flex-basis:min(410px,94%);width:min(410px,94%);max-width:94%}.bannerSlides .bannerSlide.size_rectangle_vertical{flex-basis:min(290px,84%);width:min(290px,84%);max-width:84%}}
