@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { defaultWebsiteSectionOrder, insertWebsiteSection, moveWebsiteSection, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, resolveWebsiteSlideItems, websiteItemHref } from '../lib/website-layout.ts';
+import { defaultWebsiteSectionOrder, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, resolveWebsiteSlideItems, websiteItemHref } from '../lib/website-layout.ts';
 
 const block = (id, slot) => ({
   id,
@@ -46,6 +46,15 @@ test('catalogue slide destinations open the selected product, subcategory or sto
   assert.equal(websiteItemHref('product', 'iphone-18-pro'), '/product/iphone-18-pro');
   assert.equal(websiteItemHref('category', 'mens-shirts'), '/category/mens-shirts');
   assert.equal(websiteItemHref('store', 'amazon'), '/store/amazon');
+});
+
+test('blank slides do not render live, even when they already have a destination', () => {
+  const blank = { title: '', body: '', image_url: '', cta_label: '', cta_href: '' };
+  assert.equal(hasVisibleWebsiteBannerSlideContent(blank), false);
+  assert.equal(hasVisibleWebsiteBannerSlideContent(blank, 1, true), false, 'a linked destination alone must not create a blank clickable slide');
+  assert.equal(hasVisibleWebsiteBannerSlideContent({ ...blank, cta_label: 'Shop now' }, 0, true), true);
+  assert.equal(hasVisibleWebsiteBannerSlideContent({ ...blank, image_url: '/campaign.png' }), true);
+  assert.equal(hasVisibleWebsiteBannerSlideContent(blank, 2, false), true, 'multiple linked destinations are visible as separate links');
 });
 
 test('a slide resolves mixed stores, subcategories and individual products from approved catalogue rows', () => {

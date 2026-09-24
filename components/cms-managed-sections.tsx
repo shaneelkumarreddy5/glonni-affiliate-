@@ -6,7 +6,7 @@ import { ScrollRail } from '@/components/scroll-rail';
 import { getStores } from '@/lib/catalog';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { systemPageSlug, type SystemPageKey } from '@/lib/system-pages';
-import { resolveWebsiteSlideItems, websiteItemHref, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey } from '@/lib/website-layout';
+import { hasVisibleWebsiteBannerSlideContent, resolveWebsiteSlideItems, websiteItemHref, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey } from '@/lib/website-layout';
 import styles from './cms-managed-sections.module.css';
 
 type ManagedBlock = WebsiteDraftBlock & { id: string };
@@ -136,7 +136,7 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
             href = websiteItemHref('store', store.slug);
           }
         }
-        if (!slide.title && !slide.body && !slide.image_url && !slide.cta_label && !href && !catalogueItems.length) return [];
+        if (!hasVisibleWebsiteBannerSlideContent(slide, catalogueItems.length, Boolean(href))) return [];
         return [{ slide, index, href, image: slide.image_url, catalogueItems }];
       });
       if (!visibleSlides.length) return null;

@@ -21,6 +21,10 @@ export type WebsiteBannerSlide = {
   cta_href: string;
 };
 
+export function hasVisibleWebsiteBannerSlideContent(slide: WebsiteBannerSlide, linkedDestinationCount = 0, hasDestination = Boolean(slide.cta_href.trim())) {
+  return Boolean(slide.title.trim() || slide.body.trim() || slide.image_url.trim() || (slide.cta_label.trim() && hasDestination) || linkedDestinationCount > 1);
+}
+
 export type WebsiteSlideTarget = { type: 'manual' | 'product' | 'category' | 'store'; id?: string };
 export type WebsiteSlideItem = { type: 'product' | 'category' | 'store' | 'manual'; id: string; href?: string; label?: string; product_count?: number };
 export type WebsiteSlideStore = { id: string; name: string; slug: string; imageUrl?: string | null };
