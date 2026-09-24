@@ -66,7 +66,7 @@ function SlideItemPicker({ title, items, selectedId, name, onSelect }: { title: 
 
 type HeroLinkType = WebsiteSlideItem['type'];
 
-function HeroLinkComposer({ stores, products, categories, initialItem, onClose, onSave }: { stores: WebsiteWorkspaceStore[]; products: WebsiteWorkspaceProduct[]; categories: CategoryOption[]; initialItem?: WebsiteSlideItem; onClose: () => void; onSave: (item: WebsiteSlideItem) => void }) {
+function HeroLinkComposer({ stores, products, categories, initialItem, blockType, onClose, onSave }: { stores: WebsiteWorkspaceStore[]; products: WebsiteWorkspaceProduct[]; categories: CategoryOption[]; initialItem?: WebsiteSlideItem; blockType: 'hero' | 'banner'; onClose: () => void; onSave: (item: WebsiteSlideItem) => void }) {
   const initialProduct = initialItem?.type === 'product' ? products.find((product) => product.productId === initialItem.id) : undefined;
   const initialCategory = initialItem?.type === 'category' ? categories.find((category) => category.id === initialItem.id) : undefined;
   const inferredStoreSlug = initialItem?.type === 'store' ? stores.find((store) => store.id === initialItem.id)?.slug : initialProduct?.storeSlug ?? (initialCategory ? products.find((product) => product.categoryId === initialCategory.id)?.storeSlug : undefined);
@@ -94,7 +94,7 @@ function HeroLinkComposer({ stores, products, categories, initialItem, onClose, 
   }, [store?.slug, categoryIds, products, productSearch]);
   const selectedProduct = products.find((entry) => entry.productId === productId);
   const destination = type === 'store' && store ? websiteItemHref('store', store.slug) : type === 'category' && category ? websiteItemHref('category', category.slug) : type === 'product' && selectedProduct ? websiteItemHref('product', selectedProduct.slug) : type === 'manual' ? manualUrl.trim() : '';
-  const canSave = type === 'manual' ? Boolean(/^\/(?!\/)|^https?:\/\//i.test(manualUrl.trim())) : type === 'store' ? Boolean(store) : type === 'category' ? Boolean(store && category) : Boolean(store && category && selectedProduct);
+  const canSave = type === 'manual' ? Boolean(/^\/(?!\/)|^https:\/\//i.test(manualUrl.trim())) : type === 'store' ? Boolean(store) : type === 'category' ? Boolean(store && category) : Boolean(store && category && selectedProduct);
 
   function changeType(next: HeroLinkType) {
     setType(next);
@@ -122,9 +122,10 @@ function HeroLinkComposer({ stores, products, categories, initialItem, onClose, 
     else if (type === 'product' && selectedProduct) onSave({ type, id: selectedProduct.productId });
   }
 
-  return <div className={styles.heroComposerOverlay} role="dialog" aria-modal="true" aria-label="Add link to hero slide">
+  const sectionName = blockType === 'banner' ? 'promotion card' : 'hero slide';
+  return <div className={styles.heroComposerOverlay} role="dialog" aria-modal="true" aria-label={`Add link to ${sectionName}`}>
     <div className={styles.heroComposer}>
-      <header className={styles.heroComposerHeader}><div><small>HERO SLIDE · LINK DESTINATION</small><b>{initialItem ? 'Edit linked item' : 'Add an item to this slide'}</b><span>Choose one destination. Store, category and product links never expand into product cards.</span></div><button type="button" onClick={onClose} aria-label="Close link selector"><X/></button></header>
+      <header className={styles.heroComposerHeader}><div><small>{blockType === 'banner' ? 'PROMOTION CARD · LINK DESTINATION' : 'HERO SLIDE · LINK DESTINATION'}</small><b>{initialItem ? 'Edit linked item' : `Add a destination to this ${sectionName}`}</b><span>Choose a store, category, product or manual link. The destination will not supply the card image.</span></div><button type="button" onClick={onClose} aria-label="Close link selector"><X/></button></header>
       <div className={styles.heroComposerGrid}>
         <section className={styles.heroComposerForm}>
           <label>Link type<select value={type} onChange={(event) => changeType(event.target.value as HeroLinkType)}><option value="store">Whole store</option><option value="category">Category or subcategory</option><option value="product">Specific product</option><option value="manual">Manual link</option></select></label>
@@ -142,11 +143,11 @@ function HeroLinkComposer({ stores, products, categories, initialItem, onClose, 
 
 function newBlock(type: WebsiteBlockType, page: WebsitePageKey, storeSlug?: string): WebsiteDraftBlock {
   const slot = page === 'home' ? 'after_price_drops' : page === 'stores' ? 'store_before_products' : 'after_summary';
-  const title = type === 'hero' ? 'Your featured campaign' : type === 'banner' ? 'New promotion' : type === 'store_rail' ? 'Top deals at this store' : type === 'category_rail' ? 'Browse categories' : type === 'store_directory' ? 'Shop by store' : 'Featured products';
+  const title = type === 'hero' ? 'Your featured campaign' : type === 'banner' ? '' : type === 'store_rail' ? 'Top deals at this store' : type === 'category_rail' ? 'Browse categories' : type === 'store_directory' ? 'Shop by store' : 'Featured products';
   const config: WebsiteDraftBlock['config'] = { slot: slot as WebsiteSlot, count: 10, slide_count: type === 'hero' || type === 'banner' ? 1 : undefined, slide_targets: type === 'hero' || type === 'banner' ? [{ type: 'manual' }] : undefined, slide_items: type === 'hero' || type === 'banner' ? [[]] : undefined, sort: 'best_deal', source_mode: type === 'product_rail' || type === 'store_rail' ? 'curated' : 'all', product_ids: [], banner_size: type === 'hero' || type === 'banner' ? 'wide' : undefined, visual_shape: 'standard', accent: '#1554d1', background: '#f2f6ff' };
   if (type === 'store_rail') config.store_slug = storeSlug;
   if (page === 'stores' && storeSlug) config.store_slug = storeSlug;
-  return { id: crypto.randomUUID(), block_type: type, title, body: '', cta_label: type.includes('rail') ? 'View all deals' : 'Shop now', cta_href: type === 'store_rail' && storeSlug ? `/store/${storeSlug}` : '/deals', image_url: '', config, device_visibility: 'all', is_active: true };
+  return { id: crypto.randomUUID(), block_type: type, title, body: '', cta_label: type === 'banner' ? '' : type.includes('rail') ? 'View all deals' : 'Shop now', cta_href: type === 'banner' ? '' : type === 'store_rail' && storeSlug ? `/store/${storeSlug}` : '/deals', image_url: '', config, device_visibility: 'all', is_active: true };
 }
 
 function titleForType(type: WebsiteBlockType) {
@@ -352,39 +353,17 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     if (!target?.id) return null;
     if (target.type === 'product') {
       const product = orderedOffers.find((item) => item.productId === target.id);
-      return product ? { label: product.title, image: product.imageUrl, href: websiteItemHref('product', product.slug) } : null;
+      return product ? { label: product.title, href: websiteItemHref('product', product.slug) } : null;
     }
     if (target.type === 'category') {
       const category = categories.find((item) => item.id === target.id);
-      return category ? { label: category.name, image: category.imageUrl, href: websiteItemHref('category', category.slug) } : null;
+      return category ? { label: category.name, href: websiteItemHref('category', category.slug) } : null;
     }
     if (target.type === 'store') {
       const store = stores.find((item) => item.id === target.id);
-      return store ? { label: store.name, image: store.logoUrl, href: websiteItemHref('store', store.slug) } : null;
+      return store ? { label: store.name, href: websiteItemHref('store', store.slug) } : null;
     }
     return null;
-  }
-
-  function setBannerSlideTarget(blockId: string, index: number, type: WebsiteSlideTarget['type'], id?: string) {
-    const target: WebsiteSlideTarget = type === 'manual' ? { type } : { type, id };
-    const item = slideItem(target);
-    updateBlock(blockId, (block) => {
-      const slideTargets = [...(block.config.slide_targets ?? [])];
-      slideTargets[index] = target;
-      const config = { ...block.config, slide_targets: slideTargets };
-      if (!item) return { ...block, config };
-      const current = index === 0 ? block : block.config.slides?.[index - 1];
-      const next = {
-        title: item.label,
-        image_url: item.image ?? '',
-        cta_label: !current?.cta_label || current.cta_label === 'Shop now' ? type === 'product' ? 'View product' : type === 'category' ? 'Explore category' : 'Shop store' : current.cta_label,
-      };
-      if (index === 0) return { ...block, ...next, config };
-      const slides = [...(block.config.slides ?? [])];
-      const currentSlide: WebsiteBannerSlide = slides[index - 1] ?? { title: '', body: '', image_url: '', cta_label: '', cta_href: '' };
-      slides[index - 1] = { ...currentSlide, ...next };
-      return { ...block, config: { ...config, slides } };
-    });
   }
 
   function deleteBannerSlide(blockId: string, index: number) {
@@ -569,11 +548,12 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       return <div className={styles.previewBannerTrack} key={block.id}>{slides.map((slide, index) => {
         const target = block.config.slide_targets?.[index];
         const linkedItem = slideItem(target);
-        const resolvedItems = resolveWebsiteSlideItems(block.config.slide_items?.[index] ?? [], stores.map((store) => ({ id: store.id, name: store.name, slug: store.slug, imageUrl: store.logoUrl })), categories, products.map((product) => ({ id: product.productId, title: product.title, slug: product.slug, imageUrl: product.imageUrl, categoryId: product.categoryId, storeSlug: product.storeSlug, price: product.price, cashback: product.cashback, brand: product.brand })));
-        const destination = resolvedItems.length ? undefined : target && target.type !== 'manual' ? linkedItem?.href : slide.cta_href;
-        const image = slide.image_url || linkedItem?.image;
+        const resolvedItems = resolveWebsiteSlideItems(block.config.slide_items?.[index] ?? [], stores.map((store) => ({ id: store.id, name: store.name, slug: store.slug })), categories, products.map((product) => ({ id: product.productId, title: product.title, slug: product.slug, categoryId: product.categoryId, storeSlug: product.storeSlug, price: product.price, cashback: product.cashback, brand: product.brand })));
+        const destination = resolvedItems.length === 1 ? resolvedItems[0].href : resolvedItems.length > 1 ? undefined : target && target.type !== 'manual' ? linkedItem?.href : slide.cta_href;
+        const image = slide.image_url;
+        if (!slide.title && !slide.body && !image && !slide.cta_label && !destination && !resolvedItems.length) return null;
         return <article key={`${block.id}-preview-${index}`} className={`${styles.previewBanner} ${styles[`size_${block.config.slide_shapes?.[index] ?? block.config.banner_size ?? 'wide'}`]}`} style={{ background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
-          {image && <img src={image} alt=""/>}<div><small>{block.block_type === 'hero' ? 'FEATURED' : 'PROMOTION'} · {index + 1}/{slides.length}</small><b>{slide.title || linkedItem?.label || 'Campaign banner'}</b>{slide.body && <span>{renderRichPreview(slide.body)}</span>}{resolvedItems.length ? <div className={styles.previewSlideLinks}>{resolvedItems.map((item) => <a href={item.href} key={`${item.type}-${item.id}`} target="_blank" rel="noreferrer">{item.imageUrl && <img src={item.imageUrl} alt=""/>}<span><b>{item.name}</b><small>{item.type === 'store' ? 'Store page' : item.type === 'category' ? 'Category page' : item.type === 'product' ? 'Product page' : 'Manual link'} ↗</small></span></a>)}</div> : destination ? <a className={styles.previewDestination} href={destination} target="_blank" rel="noreferrer">{slide.cta_label || 'Open card'} ↗ <small>{destination}</small></a> : target && target.type !== 'manual' ? <em>Select an item to link this card</em> : null}</div>
+          {image && <img src={image} alt=""/>}<div>{slide.title && <b>{slide.title}</b>}{slide.body && <span>{renderRichPreview(slide.body)}</span>}{resolvedItems.length ? <div className={styles.previewSlideLinks}>{resolvedItems.map((item) => <a href={item.href} key={`${item.type}-${item.id}`} target="_blank" rel="noreferrer"><span><b>{resolvedItems.length === 1 && slide.cta_label ? slide.cta_label : item.name}</b><small>{item.type === 'store' ? 'Store page' : item.type === 'category' ? 'Category page' : item.type === 'product' ? 'Product page' : 'Manual link'}</small></span></a>)}</div> : destination && slide.cta_label ? <a className={styles.previewDestination} href={destination} target="_blank" rel="noreferrer">{slide.cta_label}</a> : null}</div>
         </article>;
       })}</div>;
     }
@@ -711,25 +691,25 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           <header className={styles.inspectorHeader}><div><small>SECTION SETTINGS</small><b>{selected.title || titleForType(selected.block_type)}</b></div><button type="button" onClick={() => setSelectedId(null)} aria-label="Close section settings"><X/></button></header>
           <div className={styles.inspectorBody}>
             {(selected.block_type === 'hero' || selected.block_type === 'banner') ? <>
-              <div className={styles.bannerSectionTitle}><b>Banner content</b><small>Shape and size apply to this section; every slide keeps its own content.</small></div>
+              <div className={styles.bannerSectionTitle}><b>{selected.block_type === 'banner' ? 'Promotion card content' : 'Banner content'}</b><small>Each {selected.block_type === 'banner' ? 'card' : 'slide'} keeps its own shape, image, text and destination.</small></div>
               <label>Number of slides<input type="number" min={1} max={10} value={selected.config.slide_count ?? 1} onChange={(event) => setBannerSlideCount(selected.id, Number(event.target.value))}/></label>
               <small className={styles.shapeHint}>Choose the shape and linked item separately for each slide below.</small>
               {Array.from({ length: selected.config.slide_count ?? 1 }, (_, slideIndex) => {
                 const extra = selected.config.slides?.[slideIndex - 1];
                 const values = slideIndex === 0 ? { title: selected.title, body: selected.body, image_url: selected.image_url, cta_label: selected.cta_label, cta_href: selected.cta_href } : extra ?? { title: '', body: '', image_url: '', cta_label: '', cta_href: '' };
                 const slideItems = selected.config.slide_items?.[slideIndex] ?? [];
-                return <section className={styles.slideEditor} key={`${selected.id}-slide-editor-${slideIndex}`}><header><b>Slide {slideIndex + 1}</b><button type="button" className={styles.deleteSlide} onClick={() => deleteBannerSlide(selected.id, slideIndex)} aria-label={(selected.config.slide_count ?? 1) > 1 ? `Delete slide ${slideIndex + 1}` : 'Delete only slide and banner section'}><Trash2/> {(selected.config.slide_count ?? 1) > 1 ? 'Delete slide' : 'Delete slide & section'}</button></header>
+                return <section className={styles.slideEditor} key={`${selected.id}-slide-editor-${slideIndex}`}><header><b>{selected.block_type === 'banner' ? 'Promotion card' : 'Slide'} {slideIndex + 1}</b><button type="button" className={styles.deleteSlide} onClick={() => deleteBannerSlide(selected.id, slideIndex)} aria-label={(selected.config.slide_count ?? 1) > 1 ? `Delete ${selected.block_type === 'banner' ? 'promotion card' : 'slide'} ${slideIndex + 1}` : `Delete only ${selected.block_type === 'banner' ? 'promotion card' : 'slide'} and banner section`}><Trash2/> {(selected.config.slide_count ?? 1) > 1 ? selected.block_type === 'banner' ? 'Delete card' : 'Delete slide' : selected.block_type === 'banner' ? 'Delete card & section' : 'Delete slide & section'}</button></header>
                   <label>Card shape<select value={selected.config.slide_shapes?.[slideIndex] ?? selected.config.banner_size ?? 'wide'} onChange={(event) => setBannerSlideShape(selected.id, slideIndex, event.target.value as NonNullable<WebsiteDraftBlock['config']['banner_size']>)}><option value="wide">Full-width banner</option><option value="strip">Promotional strip</option><option value="square">Square card</option><option value="rectangle_horizontal">Horizontal rectangle card</option><option value="rectangle_vertical">Vertical rectangle card</option></select></label>
                   <div className={styles.slideContents}><div><b>Link destinations on this slide</b><small>Add a store, category, subcategory, product, or manual URL. Each item creates only a link; it never expands into product cards.</small></div>{slideItems.length < 12 && <button type="button" onClick={() => setHeroComposer({ blockId: selected.id, slideIndex })}><Plus/> Add item</button>}</div>
                   {slideItems.map((item, itemIndex) => {
-                    const linked = item.type === 'manual' ? { label: item.label ?? item.href ?? item.id, href: item.href ?? item.id, image: undefined } : slideItem({ type: item.type, id: item.id });
-                    return <div className={styles.slideContentItem} key={`${selected.id}-${slideIndex}-item-${itemIndex}`}><div className={styles.slideContentHeading}><b>Item {itemIndex + 1}</b><div><button type="button" disabled={itemIndex === 0} onClick={() => updateSlideItems(selected.id, slideIndex, (items) => { [items[itemIndex - 1], items[itemIndex]] = [items[itemIndex], items[itemIndex - 1]]; return items; })} aria-label={`Move item ${itemIndex + 1} up`}>↑</button><button type="button" disabled={itemIndex === slideItems.length - 1} onClick={() => updateSlideItems(selected.id, slideIndex, (items) => { [items[itemIndex], items[itemIndex + 1]] = [items[itemIndex + 1], items[itemIndex]]; return items; })} aria-label={`Move item ${itemIndex + 1} down`}>↓</button><button type="button" onClick={() => updateSlideItems(selected.id, slideIndex, (items) => items.filter((_, index) => index !== itemIndex))} aria-label={`Remove item ${itemIndex + 1}`}><Trash2/></button></div></div><div className={styles.slideLinkSummary}>{linked?.image && <img src={linked.image} alt=""/>}<div><b>{linked?.label ?? 'Destination unavailable'}</b><small>{item.type === 'store' ? 'Whole store' : item.type === 'category' ? 'Category or subcategory' : item.type === 'product' ? 'Specific product' : 'Manual URL'}{linked?.href ? ` · ${linked.href}` : ''}</small></div><button type="button" onClick={() => setHeroComposer({ blockId: selected.id, slideIndex, itemIndex })}>Edit link</button></div></div>;
+                    const linked = item.type === 'manual' ? { label: item.label ?? item.href ?? item.id, href: item.href ?? item.id } : slideItem({ type: item.type, id: item.id });
+                    return <div className={styles.slideContentItem} key={`${selected.id}-${slideIndex}-item-${itemIndex}`}><div className={styles.slideContentHeading}><b>Item {itemIndex + 1}</b><div><button type="button" disabled={itemIndex === 0} onClick={() => updateSlideItems(selected.id, slideIndex, (items) => { [items[itemIndex - 1], items[itemIndex]] = [items[itemIndex], items[itemIndex - 1]]; return items; })} aria-label={`Move item ${itemIndex + 1} up`}>↑</button><button type="button" disabled={itemIndex === slideItems.length - 1} onClick={() => updateSlideItems(selected.id, slideIndex, (items) => { [items[itemIndex], items[itemIndex + 1]] = [items[itemIndex + 1], items[itemIndex]]; return items; })} aria-label={`Move item ${itemIndex + 1} down`}>↓</button><button type="button" onClick={() => updateSlideItems(selected.id, slideIndex, (items) => items.filter((_, index) => index !== itemIndex))} aria-label={`Remove item ${itemIndex + 1}`}><Trash2/></button></div></div><div className={styles.slideLinkSummary}><div><b>{linked?.label ?? 'Destination unavailable'}</b><small>{item.type === 'store' ? 'Whole store' : item.type === 'category' ? 'Category or subcategory' : item.type === 'product' ? 'Specific product' : 'Manual URL'}{linked?.href ? ` · ${linked.href}` : ''}</small></div><button type="button" onClick={() => setHeroComposer({ blockId: selected.id, slideIndex, itemIndex })}>Edit link</button></div></div>;
                   })}
                   {!slideItems.length && <small className={styles.sourceNote}><Check/> Add item to attach a store, category, subcategory, product, or manual URL. The button below remains available for a simple slide CTA.</small>}
                   <label>Heading<input maxLength={120} value={values.title} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { title: event.target.value })} placeholder="e.g. Diwali essentials"/></label>
                   <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={values.body} onChange={(body) => updateBannerSlide(selected.id, slideIndex, { body })} placeholder="Add a short customer-friendly description"/></div>
                   {slideIndex === 0 ? <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === 'image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label> : <label className={styles.uploadField}>Image<span className={styles.uploadRow}><input value={values.image_url} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === `slide-${slideIndex}` ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('image_url', event.currentTarget.files?.[0], slideIndex)} disabled={Boolean(uploading)}/></label></span></label>}
-                  {!slideItems.length && <div className={styles.twoFields}><label>Button label<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Shop now"/></label><label>Button link<input maxLength={500} value={values.cta_href} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_href: event.target.value })} placeholder="/deals or https://…"/></label></div>}
+                  {!slideItems.length ? <div className={styles.twoFields}><label>Button label (optional)<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Leave blank to show no button"/></label><label>Button link<input maxLength={500} value={values.cta_href} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_href: event.target.value })} placeholder="/deals or https://…"/></label></div> : slideItems.length === 1 ? <label>Button label (optional)<input maxLength={60} value={values.cta_label} onChange={(event) => updateBannerSlide(selected.id, slideIndex, { cta_label: event.target.value })} placeholder="Leave blank to show no button"/></label> : <small className={styles.sourceNote}>Each selected destination is its own text link. No catalogue images are added to this card.</small>}
                 </section>;
               })}
               <label className={styles.uploadField}>Mobile image for first slide (optional)<span className={styles.uploadRow}><input value={selected.config.mobile_image_url ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, mobile_image_url: event.target.value } }))} placeholder="Use a crop suited to mobile"/><label className={styles.uploadButton}><Upload/>{uploading === 'mobile_image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('mobile_image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label>
@@ -773,5 +753,5 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       <div>{notice ? <p className={notice.kind === 'success' ? styles.success : styles.error}><i>{notice.kind === 'success' ? <Check/> : <X/>}</i>{notice.text}</p> : <p className={dirty || hasUnpublishedDraft ? styles.unsaved : styles.saved}><i>{dirty || hasUnpublishedDraft ? '!' : <Check/>}</i>{dirty ? 'Unsaved changes' : hasUnpublishedDraft ? 'Draft saved · not live' : 'All changes saved'}<small>{dirty ? 'Save draft to keep your work. Customers are not affected until you publish.' : hasUnpublishedDraft ? 'Shoppers still see the previously published layout until you publish this draft.' : 'Draft and published page are in sync.'}</small></p>}</div>
       <div className={styles.saveActions}><button type="button" className={styles.saveDraft} onClick={() => void save(false)} disabled={busy || !canEdit}>{busy ? 'Saving…' : 'Save draft'}</button><button type="button" className={styles.publish} onClick={() => void save(true)} disabled={busy || !canEdit}>{busy ? 'Publishing…' : 'Publish changes'}<ChevronRight/></button></div>
     </footer>
-  </section>{heroComposer && <HeroLinkComposer stores={stores} products={products} categories={categories} initialItem={composerItem} onClose={() => setHeroComposer(null)} onSave={(item) => saveHeroItem(heroComposer.blockId, heroComposer.slideIndex, heroComposer.itemIndex, item)}/>}</>;
+  </section>{heroComposer && <HeroLinkComposer stores={stores} products={products} categories={categories} initialItem={composerItem} blockType={blocks.find((block) => block.id === heroComposer.blockId)?.block_type === 'banner' ? 'banner' : 'hero'} onClose={() => setHeroComposer(null)} onSave={(item) => saveHeroItem(heroComposer.blockId, heroComposer.slideIndex, heroComposer.itemIndex, item)}/>}</>;
 }

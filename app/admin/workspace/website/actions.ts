@@ -102,9 +102,19 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
         const entry = candidate as Record<string, unknown>;
         const itemType = String(entry.type ?? '');
         const itemId = String(entry.id ?? '');
-        if (!['product', 'category', 'store'].includes(itemType) || !/^[0-9a-f-]{36}$/i.test(itemId)) return 'Choose a valid store, category, subcategory or product for each slide item.';
+        if (!['product', 'category', 'store', 'manual'].includes(itemType)) return 'Choose a valid store, category, subcategory, product or manual link for each slide item.';
+        if (itemType === 'manual') {
+          const href = String(entry.href ?? itemId).trim();
+          const label = String(entry.label ?? '').trim().slice(0, 80);
+          if (!href || href.length > 500 || !validLink(href)) return 'Manual slide links must use a safe site path or HTTPS address.';
+          if (items.some((item) => item.type === 'manual' && (item.href ?? item.id) === href)) return 'The same destination can appear only once in a slide.';
+          items.push({ type: 'manual', id: href, href, label: label || href });
+          continue;
+        }
+        if (!/^[0-9a-f-]{36}$/i.test(itemId)) return 'Choose a valid store, category, subcategory or product for each slide item.';
         if (items.some((item) => item.type === itemType && item.id === itemId)) return 'The same catalogue item can appear only once in a slide.';
-        items.push({ type: itemType as WebsiteSlideItem['type'], id: itemId, product_count: Math.max(1, Math.min(50, Number(entry.product_count ?? 4) || 4)) });
+        const productCount = entry.product_count == null ? undefined : Math.max(1, Math.min(50, Number(entry.product_count) || 1));
+        items.push({ type: itemType as WebsiteSlideItem['type'], id: itemId, ...(productCount ? { product_count: productCount } : {}) });
       }
       slideItems.push(items);
     }

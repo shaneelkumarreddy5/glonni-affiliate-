@@ -7,7 +7,6 @@ import { getStores } from '@/lib/catalog';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { systemPageSlug, type SystemPageKey } from '@/lib/system-pages';
 import { resolveWebsiteSlideItems, websiteItemHref, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey } from '@/lib/website-layout';
-import { WebsiteSlideItemCards } from '@/components/website-slide-item-cards';
 import styles from './cms-managed-sections.module.css';
 
 type ManagedBlock = WebsiteDraftBlock & { id: string };
@@ -119,37 +118,35 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
       const visibleSlides = slides.flatMap((slide, index) => {
         const target = config.slide_targets?.[index];
         const configuredItems = config.slide_items?.[index] ?? [];
-        const catalogueItems = resolveWebsiteSlideItems(configuredItems, stores.map((store) => ({ id: store.id, name: store.name, slug: store.slug, imageUrl: store.logo_url })), categories.map((category) => ({ id: category.id, name: category.name, slug: category.slug, parentId: category.parent_id, imageUrl: category.image_url })), allOffers.flatMap((offer) => offer.products && offer.merchants ? [{ id: offer.products.id, title: offer.products.title, slug: offer.products.slug, imageUrl: offer.products.image_url, categoryId: offer.products.categories?.id ?? '', storeSlug: offer.merchants.slug, price: offer.current_price, cashback: offer.cashback_amount, brand: offer.products.brand }] : []));
+        const catalogueItems = resolveWebsiteSlideItems(configuredItems, stores.map((store) => ({ id: store.id, name: store.name, slug: store.slug })), categories.map((category) => ({ id: category.id, name: category.name, slug: category.slug, parentId: category.parent_id })), allOffers.flatMap((offer) => offer.products && offer.merchants ? [{ id: offer.products.id, title: offer.products.title, slug: offer.products.slug, categoryId: offer.products.categories?.id ?? '', storeSlug: offer.merchants.slug, price: offer.current_price, cashback: offer.cashback_amount, brand: offer.products.brand }] : []));
         if (configuredItems.length && !catalogueItems.length) return [];
-        let href = catalogueItems.length ? '' : slide.cta_href;
-        let itemImage: string | null | undefined;
+        let href = catalogueItems.length === 1 ? catalogueItems[0].href : catalogueItems.length > 1 ? '' : slide.cta_href;
         if (!catalogueItems.length && target && target.type !== 'manual') {
           if (target.type === 'product') {
             const product = allOffers.find((offer) => offer.products?.id === target.id)?.products;
             if (!product) return [];
             href = websiteItemHref('product', product.slug);
-            itemImage = product.image_url;
           } else if (target.type === 'category') {
             const category = categories.find((item) => item.id === target.id);
             if (!category) return [];
             href = websiteItemHref('category', category.slug);
-            itemImage = category.image_url;
           } else if (target.type === 'store') {
             const store = stores.find((item) => item.id === target.id);
             if (!store) return [];
             href = websiteItemHref('store', store.slug);
-            itemImage = store.logo_url;
           }
         }
-        return [{ slide, index, href, image: slide.image_url || itemImage, catalogueItems }];
+        if (!slide.title && !slide.body && !slide.image_url && !slide.cta_label) return [];
+        return [{ slide, index, href, image: slide.image_url, catalogueItems }];
       });
       if (!visibleSlides.length) return null;
       return <div key={block.id} className={`${styles.bannerSlides} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`} aria-label={`${block.title || 'Promotion'} banner slides`}>
         {visibleSlides.map(({ slide, index, href, image, catalogueItems }) => {
-          const content = <>{image && <picture className={styles.bannerPicture}>{index === 0 && config.mobile_image_url && <source media="(max-width: 700px)" srcSet={config.mobile_image_url}/>}<img src={image} alt=""/></picture>}<div className={styles.copy}><span className={styles.bannerEyebrow}>{block.block_type === 'hero' ? 'FEATURED' : 'PROMOTION'}</span>{slide.title && <h2>{slide.title}</h2>}{slide.body && <p>{renderWebsiteRichText(slide.body)}</p>}{href && <span className={styles.slideCta}>{slide.cta_label || 'Open page'} →</span>}</div>{catalogueItems.length > 0 && <WebsiteSlideItemCards items={catalogueItems}/>}</>;
-          const slideClass = `${styles.block} ${styles.bannerBlock} ${styles.bannerSlide} ${catalogueItems.length ? styles.bannerSlideWithItems : ''} ${styles[block.block_type] ?? ''} ${styles[`size_${config.slide_shapes?.[index] ?? config.banner_size ?? 'wide'}`] ?? ''}`;
+        const destinationLinks = catalogueItems.length > 1 ? catalogueItems : [];
+        const content = <>{image && <picture className={styles.bannerPicture}>{index === 0 && config.mobile_image_url && <source media="(max-width: 700px)" srcSet={config.mobile_image_url}/>}<img src={image} alt=""/></picture>}<div className={styles.copy}>{slide.title && <h2>{slide.title}</h2>}{slide.body && <p>{renderWebsiteRichText(slide.body)}</p>}{href && slide.cta_label && <span className={styles.slideCta}>{slide.cta_label}</span>}{destinationLinks.length > 0 && <div className={styles.slideDestinationList}>{destinationLinks.map((item) => <a key={`${item.type}-${item.id}`} href={item.href} className={styles.slideCta}>{item.name}</a>)}</div>}</div></>;
+          const slideClass = `${styles.block} ${styles.bannerBlock} ${styles.bannerSlide} ${destinationLinks.length ? styles.bannerSlideWithItems : ''} ${styles[block.block_type] ?? ''} ${styles[`size_${config.slide_shapes?.[index] ?? config.banner_size ?? 'wide'}`] ?? ''}`;
           const slideStyle = { '--accent': accent, '--background': background } as React.CSSProperties;
-          return href ? <a key={`${block.id}-slide-${index}`} href={href} className={`${slideClass} ${styles.bannerSlideLink}`} style={slideStyle} aria-label={`${slide.title || 'Promotion'} — ${slide.cta_label || 'Open page'}`}>{content}</a> : <section key={`${block.id}-slide-${index}`} className={slideClass} style={slideStyle}>{content}</section>;
+          return href ? <a key={`${block.id}-slide-${index}`} href={href} className={`${slideClass} ${styles.bannerSlideLink}`} style={slideStyle} aria-label={slide.title || slide.cta_label || 'Open linked destination'}>{content}</a> : <section key={`${block.id}-slide-${index}`} className={slideClass} style={slideStyle}>{content}</section>;
         })}
       </div>;
     }
