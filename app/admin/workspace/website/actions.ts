@@ -209,7 +209,7 @@ function normalizeCoreContent(pageKey: WebsitePageKey, value: unknown): Record<s
   return output;
 }
 
-async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[], sectionOrder: string[], coreContent: Record<string, WebsiteCoreContent>) {
+async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[], sectionOrder: string[], coreContent: Record<string, WebsiteCoreContent>, replaceLatestDraft = false) {
   const context = await authorizeWebsiteChange();
   if (!context.ok) return context;
   const { supabase, user } = context;
@@ -217,13 +217,36 @@ async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[],
   if (!pageOption) return { ok: false, error: 'Choose a supported website page.' } as const;
   const { data: page, error: pageError } = await supabase.from('site_pages').select('id').eq('slug', pageOption.slug).maybeSingle();
   if (pageError || !page) return { ok: false, error: 'The website page is not ready. Refresh the workspace and try again.' } as const;
-  const { data: versions, error: versionsError } = await supabase.from('site_page_versions').select('version_number').eq('page_id', page.id).eq('change_note', 'workspace_draft').order('version_number', { ascending: false }).limit(1);
+  const { data: versions, error: versionsError } = await supabase.from('site_page_versions').select('id,version_number').eq('page_id', page.id).eq('change_note', 'workspace_draft').order('version_number', { ascending: false }).limit(1);
   if (versionsError) return { ok: false, error: 'Could not load the current draft version. Try again.' } as const;
-  const versionNumber = Number(versions?.[0]?.version_number ?? 0) + 1;
   const snapshot: WebsiteLayoutSnapshot = { blocks, section_order: sectionOrder, core_content: coreContent };
+  const latestDraft = versions?.[0];
+  if (replaceLatestDraft && latestDraft) {
+    const { data: updated, error } = await supabase.from('site_page_versions').update({ snapshot, created_at: new Date().toISOString(), created_by: user.id }).eq('id', latestDraft.id).eq('page_id', page.id).eq('change_note', 'workspace_draft').select('id').maybeSingle();
+    if (error || !updated) return { ok: false, error: 'The website draft could not be saved. Check your connection and try again.' } as const;
+    return { ok: true, supabase, user, page, snapshot } as const;
+  }
+  const { data: latestVersion, error: latestVersionError } = await supabase.from('site_page_versions').select('version_number').eq('page_id', page.id).order('version_number', { ascending: false }).limit(1).maybeSingle();
+  if (latestVersionError) return { ok: false, error: 'Could not load the current draft version. Try again.' } as const;
+  const versionNumber = Number(latestVersion?.version_number ?? 0) + 1;
   const { error } = await supabase.from('site_page_versions').insert({ page_id: page.id, version_number: versionNumber, snapshot, change_note: 'workspace_draft', created_by: user.id });
   if (error) return { ok: false, error: 'The website draft could not be saved. Check your connection and try again.' } as const;
   return { ok: true, supabase, user, page, snapshot } as const;
+}
+
+export async function autosaveWebsiteDraft(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {
+  if (!['home', 'stores', 'product'].includes(pageKey)) return { ok: false, error: 'Choose a supported website page.' };
+  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown } : {};
+  const blocks = normalizeBlocks(pageKey, request.blocks);
+  if (typeof blocks === 'string') return { ok: false, error: blocks };
+  const sectionOrder = normalizeOrder(pageKey, blocks, request.section_order);
+  if (typeof sectionOrder === 'string') return { ok: false, error: sectionOrder };
+  const coreContent = normalizeCoreContent(pageKey, request.core_content);
+  if (typeof coreContent === 'string') return { ok: false, error: coreContent };
+  const saved = await saveVersion(pageKey, blocks, sectionOrder, coreContent, true);
+  if (!saved.ok) return { ok: false, error: saved.error };
+  revalidatePath('/admin/workspace/website');
+  return { ok: true, message: 'Draft autosaved. Customers still see the currently published page.' };
 }
 
 export async function saveWebsiteDraft(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {

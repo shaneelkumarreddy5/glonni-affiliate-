@@ -5,7 +5,7 @@ import { Bold, Check, ChevronDown, ChevronRight, ExternalLink, GripVertical, Ima
 import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { coreSectionsByPage, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, removeWebsiteBannerSlide, resolveWebsiteSlideItems, websiteItemHref, websitePageOptions, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
-import { publishWebsiteLayout, saveWebsiteDraft } from './actions';
+import { autosaveWebsiteDraft, publishWebsiteLayout, saveWebsiteDraft, type WebsiteActionResult } from './actions';
 import styles from './website-workspace.module.css';
 
 export type WebsiteWorkspaceStore = { id: string; name: string; slug: string; logoUrl: string | null };
@@ -65,6 +65,14 @@ function SlideItemPicker({ title, items, selectedId, name, onSelect }: { title: 
 }
 
 type HeroLinkType = WebsiteSlideItem['type'];
+type WebsiteDraftPayload = { blocks: WebsiteDraftBlock[]; section_order: string[]; core_content: Record<string, WebsiteCoreContent> };
+type AutoSaveState = 'waiting' | 'saving' | 'saved' | 'error';
+type LocalDraftBackups = Partial<Record<WebsitePageKey, { payload: WebsiteDraftPayload; signature: string }>>;
+const LOCAL_DRAFT_BACKUP_KEY = 'glonni-website-workspace-pending-drafts-v1';
+
+function cloneDraftValue<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
 
 function HeroLinkComposer({ stores, products, categories, initialItem, blockType, onClose, onSave }: { stores: WebsiteWorkspaceStore[]; products: WebsiteWorkspaceProduct[]; categories: CategoryOption[]; initialItem?: WebsiteSlideItem; blockType: 'hero' | 'banner'; onClose: () => void; onSave: (item: WebsiteSlideItem) => void }) {
   const initialProduct = initialItem?.type === 'product' ? products.find((product) => product.productId === initialItem.id) : undefined;
@@ -229,8 +237,15 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const [catalogueSearch, setCatalogueSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
+  const [autoSaveStates, setAutoSaveStates] = useState<Partial<Record<WebsitePageKey, AutoSaveState>>>({});
+  const [autoSaveErrors, setAutoSaveErrors] = useState<Partial<Record<WebsitePageKey, string>>>({});
+  const [draftBackupsLoaded, setDraftBackupsLoaded] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [heroComposer, setHeroComposer] = useState<{ blockId: string; slideIndex: number; itemIndex?: number } | null>(null);
+  const autoSaveTimers = useRef(new Map<WebsitePageKey, ReturnType<typeof setTimeout>>());
+  const autoSavePending = useRef(new Map<WebsitePageKey, WebsiteDraftPayload>());
+  const autoSaveInFlight = useRef(new Map<WebsitePageKey, Promise<void>>());
+  const lastObservedDraft = useRef<Partial<Record<WebsitePageKey, string>>>({});
   const blocks = layouts[pageKey] ?? [];
   const selected = blocks.find((block) => block.id === selectedId) ?? null;
   const sectionOrder = orders[pageKey] ?? [];
@@ -250,6 +265,133 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   }, [selectedToken, pageKey, sectionOrder, device]);
   const dirty = JSON.stringify(blocks) !== JSON.stringify(savedLayouts[pageKey] ?? []) || JSON.stringify(sectionOrder) !== JSON.stringify(savedOrders[pageKey] ?? []) || JSON.stringify(currentCoreContent) !== JSON.stringify(savedCoreContent[pageKey] ?? {});
   const hasUnpublishedDraft = JSON.stringify(savedLayouts[pageKey] ?? []) !== JSON.stringify(publishedLayouts[pageKey] ?? []) || JSON.stringify(savedOrders[pageKey] ?? []) !== JSON.stringify(publishedOrders[pageKey] ?? []) || JSON.stringify(savedCoreContent[pageKey] ?? {}) !== JSON.stringify(publishedCoreContent[pageKey] ?? {});
+  function updateSavedSnapshot(key: WebsitePageKey, payload: WebsiteDraftPayload) {
+    setSavedLayouts((current) => ({ ...current, [key]: cloneDraftValue(payload.blocks) }));
+    setSavedOrders((current) => ({ ...current, [key]: [...payload.section_order] }));
+    setSavedCoreContent((current) => ({ ...current, [key]: cloneDraftValue(payload.core_content) }));
+  }
+  function updateAutoSaveState(key: WebsitePageKey, state: AutoSaveState, error?: string) {
+    setAutoSaveStates((current) => ({ ...current, [key]: state }));
+    setAutoSaveErrors((current) => ({ ...current, [key]: error }));
+  }
+  function updateLocalBackup(key: WebsitePageKey, payload: WebsiteDraftPayload, signature: string) {
+    try {
+      const stored = localStorage.getItem(LOCAL_DRAFT_BACKUP_KEY);
+      const backups = stored ? JSON.parse(stored) as LocalDraftBackups : {};
+      backups[key] = { payload, signature };
+      localStorage.setItem(LOCAL_DRAFT_BACKUP_KEY, JSON.stringify(backups));
+    } catch { /* Browser storage may be disabled; the server autosave still runs. */ }
+  }
+  function clearLocalBackup(key: WebsitePageKey, signature?: string) {
+    try {
+      const stored = localStorage.getItem(LOCAL_DRAFT_BACKUP_KEY);
+      if (!stored) return;
+      const backups = JSON.parse(stored) as LocalDraftBackups;
+      if (!backups[key] || (signature && backups[key]?.signature !== signature)) return;
+      delete backups[key];
+      if (Object.keys(backups).length) localStorage.setItem(LOCAL_DRAFT_BACKUP_KEY, JSON.stringify(backups));
+      else localStorage.removeItem(LOCAL_DRAFT_BACKUP_KEY);
+    } catch { /* Ignore malformed or unavailable local backup data. */ }
+  }
+  function scheduleAutoSave(key: WebsitePageKey, delay = 700) {
+    const previous = autoSaveTimers.current.get(key);
+    if (previous) clearTimeout(previous);
+    const timer = setTimeout(() => {
+      autoSaveTimers.current.delete(key);
+      void flushAutoSave(key);
+    }, delay);
+    autoSaveTimers.current.set(key, timer);
+  }
+  async function flushAutoSave(key: WebsitePageKey): Promise<void> {
+    const active = autoSaveInFlight.current.get(key);
+    if (active) {
+      await active;
+      if (autoSavePending.current.has(key)) await flushAutoSave(key);
+      return;
+    }
+    const payload = autoSavePending.current.get(key);
+    if (!payload) return;
+    autoSavePending.current.delete(key);
+    const signature = JSON.stringify(payload);
+    const operation = (async () => {
+      updateAutoSaveState(key, 'saving');
+      let result: WebsiteActionResult;
+      try { result = await autosaveWebsiteDraft(key, payload); }
+      catch { result = { ok: false, error: 'Draft autosave could not reach the server. Your changes are kept in this browser; use Save draft to retry.' }; }
+      if (result.ok) {
+        updateSavedSnapshot(key, payload);
+        clearLocalBackup(key, signature);
+        updateAutoSaveState(key, 'saved');
+      } else updateAutoSaveState(key, 'error', result.error);
+    })();
+    autoSaveInFlight.current.set(key, operation);
+    await operation;
+    if (autoSaveInFlight.current.get(key) === operation) autoSaveInFlight.current.delete(key);
+    if (autoSavePending.current.has(key) && !autoSaveTimers.current.has(key)) scheduleAutoSave(key, 0);
+  }
+
+  useEffect(() => {
+    let backups: LocalDraftBackups = {};
+    try {
+      const stored = localStorage.getItem(LOCAL_DRAFT_BACKUP_KEY);
+      if (stored) backups = JSON.parse(stored) as LocalDraftBackups;
+    } catch { backups = {}; }
+    const validKeys: WebsitePageKey[] = ['home', 'stores', 'product'];
+    for (const key of validKeys) {
+      const backup = backups[key];
+      if (!backup || !Array.isArray(backup.payload?.blocks) || !Array.isArray(backup.payload?.section_order) || !backup.payload?.core_content || typeof backup.signature !== 'string') {
+        delete backups[key];
+        continue;
+      }
+      const serverSnapshot: WebsiteDraftPayload = { blocks: initialLayouts[key] ?? [], section_order: initialOrders[key] ?? [], core_content: initialCoreContent[key] ?? {} };
+      if (backup.signature === JSON.stringify(serverSnapshot)) {
+        delete backups[key];
+        continue;
+      }
+      const payload = cloneDraftValue(backup.payload);
+      setLayouts((current) => ({ ...current, [key]: payload.blocks }));
+      setOrders((current) => ({ ...current, [key]: payload.section_order }));
+      setCoreContent((current) => ({ ...current, [key]: payload.core_content }));
+    }
+    try {
+      if (Object.keys(backups).length) localStorage.setItem(LOCAL_DRAFT_BACKUP_KEY, JSON.stringify(backups));
+      else localStorage.removeItem(LOCAL_DRAFT_BACKUP_KEY);
+    } catch { /* Ignore unavailable browser storage. */ }
+    setDraftBackupsLoaded(true);
+  }, [initialLayouts, initialOrders, initialCoreContent]);
+
+  useEffect(() => {
+    if (!draftBackupsLoaded || !canEdit || busy) return;
+    const payload: WebsiteDraftPayload = { blocks: cloneDraftValue(blocks), section_order: [...sectionOrder], core_content: cloneDraftValue(currentCoreContent) };
+    const signature = JSON.stringify(payload);
+    if (!dirty) {
+      lastObservedDraft.current[pageKey] = signature;
+      const timer = autoSaveTimers.current.get(pageKey);
+      if (timer) clearTimeout(timer);
+      autoSaveTimers.current.delete(pageKey);
+      if (autoSaveInFlight.current.has(pageKey)) {
+        // If an older save is already in flight, queue the reverted/current state behind it.
+        autoSavePending.current.set(pageKey, payload);
+        updateLocalBackup(pageKey, payload, signature);
+      } else {
+        autoSavePending.current.delete(pageKey);
+        clearLocalBackup(pageKey);
+        updateAutoSaveState(pageKey, 'saved');
+      }
+      return;
+    }
+    if (lastObservedDraft.current[pageKey] === signature) return;
+    lastObservedDraft.current[pageKey] = signature;
+    autoSavePending.current.set(pageKey, payload);
+    updateLocalBackup(pageKey, payload, signature);
+    updateAutoSaveState(pageKey, 'waiting');
+    scheduleAutoSave(pageKey);
+  }, [draftBackupsLoaded, canEdit, busy, dirty, pageKey, blocks, sectionOrder, currentCoreContent]);
+
+  useEffect(() => () => {
+    for (const timer of autoSaveTimers.current.values()) clearTimeout(timer);
+    autoSaveTimers.current.clear();
+  }, []);
   const activeStore = stores.find((store) => store.slug === previewStoreSlug) ?? stores[0];
   const activeProduct = products.find((product) => product.productId === previewProductId) ?? products[0];
   const pageOption = websitePageOptions.find((page) => page.key === pageKey)!;
@@ -483,22 +625,32 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       setNotice({ kind: 'error', text: 'Complete two-step verification with an active Owner, Admin, or Editor account before saving.' });
       return;
     }
+    const key = pageKey;
+    const payload: WebsiteDraftPayload = { blocks: cloneDraftValue(blocks), section_order: [...sectionOrder], core_content: cloneDraftValue(currentCoreContent) };
+    const pendingTimer = autoSaveTimers.current.get(key);
+    if (pendingTimer) clearTimeout(pendingTimer);
+    autoSaveTimers.current.delete(key);
+    autoSavePending.current.delete(key);
     setBusy(true); setNotice(null);
     try {
-      const payload = { blocks, section_order: sectionOrder, core_content: currentCoreContent };
-      const result = publish ? await publishWebsiteLayout(pageKey, payload) : await saveWebsiteDraft(pageKey, payload);
+      const activeAutoSave = autoSaveInFlight.current.get(key);
+      if (activeAutoSave) await activeAutoSave;
+      const result = publish ? await publishWebsiteLayout(key, payload) : await saveWebsiteDraft(key, payload);
       if (!result.ok) setNotice({ kind: 'error', text: result.error });
       else {
-        const copied = blocks.map((block) => ({ ...block, config: { ...block.config, product_ids: block.config.product_ids ? [...block.config.product_ids] : undefined, slides: block.config.slides?.map((slide) => ({ ...slide })), slide_targets: block.config.slide_targets?.map((target) => ({ ...target })), slide_shapes: block.config.slide_shapes ? [...block.config.slide_shapes] : undefined, slide_items: block.config.slide_items?.map((items) => items.map((item) => ({ ...item }))) } }));
-        setSavedLayouts((current) => ({ ...current, [pageKey]: copied }));
-        setSavedOrders((current) => ({ ...current, [pageKey]: [...sectionOrder] }));
-        const copiedCore = JSON.parse(JSON.stringify(currentCoreContent)) as Record<string, WebsiteCoreContent>;
-        setSavedCoreContent((current) => ({ ...current, [pageKey]: copiedCore }));
+        const copied = cloneDraftValue(payload.blocks);
+        const copiedCore = cloneDraftValue(payload.core_content);
+        updateSavedSnapshot(key, payload);
+        const signature = JSON.stringify(payload);
+        lastObservedDraft.current[key] = signature;
+        autoSavePending.current.delete(key);
+        clearLocalBackup(key);
+        updateAutoSaveState(key, 'saved');
         if (publish) {
-          setStatuses((current) => ({ ...current, [pageKey]: 'published' }));
-          setPublishedLayouts((current) => ({ ...current, [pageKey]: copied }));
-          setPublishedOrders((current) => ({ ...current, [pageKey]: [...sectionOrder] }));
-          setPublishedCoreContent((current) => ({ ...current, [pageKey]: copiedCore }));
+          setStatuses((current) => ({ ...current, [key]: 'published' }));
+          setPublishedLayouts((current) => ({ ...current, [key]: copied }));
+          setPublishedOrders((current) => ({ ...current, [key]: [...payload.section_order] }));
+          setPublishedCoreContent((current) => ({ ...current, [key]: copiedCore }));
         }
         setNotice({ kind: 'success', text: result.message });
       }
@@ -644,7 +796,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       </div>
       {pageKey === 'stores' && <label className={styles.contextPicker}>Preview store<select value={previewStoreSlug} onChange={(event) => setPreviewStoreSlug(event.target.value)}>{stores.map((store) => <option value={store.slug} key={store.id}>{store.name}</option>)}</select></label>}
       {pageKey === 'product' && <label className={styles.contextPicker}>Preview product<select value={previewProductId} onChange={(event) => setPreviewProductId(event.target.value)}>{orderedOffers.map((product) => <option value={product.productId} key={product.productId}>{product.title}</option>)}</select></label>}
-      <div className={styles.topActions}><span className={`${styles.statusChip} ${statuses[pageKey] === 'published' && !hasUnpublishedDraft && !dirty ? styles.live : ''}`}><i/>{dirty ? 'Unsaved edits' : hasUnpublishedDraft ? 'Draft saved · not live' : statuses[pageKey] === 'published' ? 'Live page' : 'Draft only'}</span><a href={customerHref} target="_blank" rel="noreferrer" aria-label="Open customer page in a new tab" title="Open customer page in a new tab"><ExternalLink aria-hidden="true"/></a></div>
+      <div className={styles.topActions}><span className={`${styles.statusChip} ${statuses[pageKey] === 'published' && !hasUnpublishedDraft && !dirty ? styles.live : ''}`}><i/>{dirty ? autoSaveStates[pageKey] === 'error' ? 'Draft save failed' : 'Saving draft…' : hasUnpublishedDraft ? 'Draft saved · not live' : statuses[pageKey] === 'published' ? 'Live page' : 'Draft only'}</span><a href={customerHref} target="_blank" rel="noreferrer" aria-label="Open customer page in a new tab" title="Open customer page in a new tab"><ExternalLink aria-hidden="true"/></a></div>
     </div>
 
     <div className={`${styles.editorGrid} ${selected || selectedCore ? styles.withInspector : ''}`}>
@@ -770,7 +922,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       </aside>}
     </div>
     <footer className={styles.saveBar}>
-      <div>{notice ? <p className={notice.kind === 'success' ? styles.success : styles.error}><i>{notice.kind === 'success' ? <Check/> : <X/>}</i>{notice.text}</p> : <p className={dirty || hasUnpublishedDraft ? styles.unsaved : styles.saved}><i>{dirty || hasUnpublishedDraft ? '!' : <Check/>}</i>{dirty ? 'Unsaved changes' : hasUnpublishedDraft ? 'Draft saved · not live' : 'All changes saved'}<small>{dirty ? 'Save draft to keep your work. Customers are not affected until you publish.' : hasUnpublishedDraft ? 'Shoppers still see the previously published layout until you publish this draft.' : 'Draft and published page are in sync.'}</small></p>}</div>
+      <div>{notice ? <p className={notice.kind === 'success' ? styles.success : styles.error}><i>{notice.kind === 'success' ? <Check/> : <X/>}</i>{notice.text}</p> : dirty && autoSaveStates[pageKey] === 'error' ? <p className={styles.error}><i><X/></i>Draft autosave failed<small>{autoSaveErrors[pageKey] ?? 'Your changes are kept in this browser. Use Save draft to retry.'}</small></p> : dirty ? <p className={styles.unsaved}><i>…</i>Saving draft…<small>Your changes are saved automatically as a draft. Customers only see them after you publish.</small></p> : hasUnpublishedDraft ? <p className={styles.unsaved}><i>!</i>Draft saved · not live<small>Shoppers still see the previously published layout until you publish this draft.</small></p> : <p className={styles.saved}><i><Check/></i>All changes saved<small>Draft and published page are in sync.</small></p>}</div>
       <div className={styles.saveActions}><button type="button" className={styles.saveDraft} onClick={() => void save(false)} disabled={busy || !canEdit}>{busy ? 'Saving…' : 'Save draft'}</button><button type="button" className={styles.publish} onClick={() => void save(true)} disabled={busy || !canEdit}>{busy ? 'Publishing…' : 'Publish changes'}<ChevronRight/></button></div>
     </footer>
   </section>{heroComposer && <HeroLinkComposer stores={stores} products={products} categories={categories} initialItem={composerItem} blockType={blocks.find((block) => block.id === heroComposer.blockId)?.block_type === 'banner' ? 'banner' : 'hero'} onClose={() => setHeroComposer(null)} onSave={(item) => saveHeroItem(heroComposer.blockId, heroComposer.slideIndex, heroComposer.itemIndex, item)}/>}</>;
