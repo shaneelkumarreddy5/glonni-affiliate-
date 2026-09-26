@@ -179,7 +179,7 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
       const storeName = ordered[0]?.merchants?.name;
       return <section key={block.id} className={`${styles.productBlock} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`}>
         <header><div><p className="eyebrow">{block.block_type === 'store_rail' ? `${storeName ?? 'STORE'} DEALS` : 'FEATURED PRODUCTS'}</p><h2>{renderWebsiteRichText(block.title || (block.block_type === 'store_rail' ? `Deals at ${storeName ?? 'this store'}` : 'Featured products'))}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
-        <HomeOfferRail offers={ordered} shape={config.visual_shape ?? 'standard'}/>
+        <HomeOfferRail offers={ordered}/>
       </section>;
     }
 
