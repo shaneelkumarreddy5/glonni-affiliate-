@@ -37,7 +37,9 @@ const sections = [
   ] },
   { title: 'PARTNERS & GROWTH', icon: Cable, links: [
     { label: 'Affiliate Providers', href: '/admin/providers', icon: Cable }, { label: 'API Integrations', href: '/admin/integrations', icon: PlugZap },
-    { label: 'Postback Logs', href: '/admin/postbacks', icon: FolderKanban }, { label: 'Ads Manager', href: '/admin/ads', icon: Megaphone },
+    { label: 'Postback Logs', href: '/admin/postbacks', icon: FolderKanban }, { label: 'Ads Manager', href: '/admin/ads', icon: Megaphone, children: [
+      { label: 'Content Manager', href: '/admin/content-manager', icon: PenTool },
+    ] },
     { label: 'Ad Platforms', href: '/admin/ad-platforms', icon: PlugZap }, { label: 'Social Accounts', href: '/admin/social-accounts', icon: Share2 },
     { label: 'Social Analytics', href: '/admin/social-analytics', icon: BarChart3 },
   ] },
@@ -90,7 +92,8 @@ export function AdminSidebar() {
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
-  const sectionOpen = (title: string, links: readonly { href: string }[]) => !collapsed && (expanded === title || (expanded === null && links.some((link) => active(link.href))));
+  const linkActive = (link: { href: string; children?: readonly { href: string }[] }) => active(link.href) || Boolean(link.children?.some((child) => active(child.href)));
+  const sectionOpen = (title: string, links: readonly { href: string; children?: readonly { href: string }[] }[]) => !collapsed && (expanded === title || (expanded === null && links.some(linkActive)));
 
   function choosePeriod(value: string) {
     setPeriod(value);
@@ -106,7 +109,7 @@ export function AdminSidebar() {
       </a>
       <button className="sidebar-toggle" type="button" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggle}><ChevronLeft/></button>
     </div>
-    <nav>{sections.map((section) => { const SectionIcon = section.icon; const isOpen = sectionOpen(section.title, section.links); return <section key={section.title} className={isOpen ? 'open' : ''}><button className="nav-group" type="button" title={section.title} onClick={() => setExpanded(isOpen ? null : section.title)}><span><SectionIcon size={16}/><b>{section.title}</b></span><ChevronDown size={15}/></button><div className="nav-links">{section.links.map((link) => { const Icon = link.icon; const isActive = active(link.href); return <a key={link.href} className={isActive ? 'selected' : ''} href={link.href} title={link.label} aria-current={isActive ? 'page' : undefined}><span className="nav-icon"><Icon className="nav-symbol" size={17}/></span><span className="nav-label">{link.label}</span></a>; })}</div></section>; })}</nav>
+    <nav>{sections.map((section) => { const SectionIcon = section.icon; const isOpen = sectionOpen(section.title, section.links); return <section key={section.title} className={isOpen ? 'open' : ''}><button className="nav-group" type="button" title={section.title} onClick={() => setExpanded(isOpen ? null : section.title)}><span><SectionIcon size={16}/><b>{section.title}</b></span><ChevronDown size={15}/></button><div className="nav-links">{section.links.map((link) => { const Icon = link.icon; const isActive = active(link.href); const hasChildren = 'children' in link; const children = hasChildren ? link.children : undefined; const isParentActive = isActive || Boolean(children?.some((child) => active(child.href))); return <div className={children ? 'nav-item-with-children' : undefined} key={link.href}><a className={isParentActive ? 'selected' : ''} href={link.href} title={link.label} aria-current={isActive ? 'page' : undefined}><span className="nav-icon"><Icon className="nav-symbol" size={17}/></span><span className="nav-label">{link.label}</span></a>{children?.length ? <div className="nav-sub-links">{children.map((child) => { const ChildIcon = child.icon; const childActive = active(child.href); return <a key={child.href} className={childActive ? 'selected' : ''} href={child.href} title={child.label} aria-current={childActive ? 'page' : undefined}><span className="nav-icon"><ChildIcon className="nav-symbol" size={15}/></span><span className="nav-label">{child.label}</span></a>; })}</div> : null}</div>; })}</div></section>; })}</nav>
   </aside><AdminTabRepair/><AdminActionRepair/><CampaignUiRepair/><header className="admin-global-topbar" aria-label="Admin workspace controls">
     <form action="/admin/search" role="search"><Search size={18}/><input name="q" placeholder="Search users, offers, partners, or activity…" aria-label="Search admin workspace"/></form>
     <div className="topbar-period-wrap"><button className="topbar-period" type="button" aria-label="Dashboard reporting period" aria-expanded={periodOpen} onClick={() => setPeriodOpen(value => !value)}><Clock3 size={17}/>{period}<ChevronDown size={14}/></button>{periodOpen&&<div className="topbar-period-menu" role="menu"><button type="button" onClick={() => choosePeriod('Today')}>Today</button><button type="button" onClick={() => choosePeriod('Last 7 days')}>Last 7 days</button><button type="button" onClick={() => choosePeriod('This month')}>This month</button><button type="button" onClick={() => choosePeriod('This quarter')}>This quarter</button></div>}</div>
