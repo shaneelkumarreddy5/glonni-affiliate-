@@ -48,6 +48,10 @@
 .slideEditor{display:grid;gap:9px;padding:10px;border:1px solid #e0e6f0;border-radius:9px;background:#fbfcfe}
 .slideEditor>header{display:flex;align-items:center;justify-content:space-between;padding-bottom:7px;border-bottom:1px solid #e8edf5}
 .slideEditor>header>b{font:800 10px 'Plus Jakarta Sans',sans-serif}
+.slideEditorSelected{border-color:#8db0f5;background:#f5f8ff;box-shadow:0 0 0 2px #1554d11a}
+.slideSelect{display:flex;align-items:center;gap:7px;padding:0;border:0;background:transparent;color:#1d2d4b;font:800 10px 'Plus Jakarta Sans',sans-serif;text-align:left;cursor:pointer}
+.slideSelect small{padding:4px 6px;border:1px solid #d6e3fa;border-radius:12px;background:#f3f7ff;color:#3566ba;font:700 8px 'DM Sans',sans-serif}
+.slideSelect:hover{color:#1554d1}
 .slideEditor>header>small{color:#8793a7;font-size:8px}
 .previewBannerTrack{display:flex;gap:0;margin:7px 14px 9px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:thin}
 .previewBannerTrack .previewBanner{flex:0 0 100%;min-width:0;margin:0;scroll-snap-align:start}
@@ -110,7 +114,9 @@
 .promotionShapeNote{display:grid;gap:4px;padding:9px 10px;border:1px solid #dce6f5;border-radius:8px;background:#f7faff;color:#465773}.promotionShapeNote>span{font-size:8px;font-weight:800}.promotionShapeNote>b{font-size:10px;color:#1c2c49}.promotionShapeNote>small{font-size:8px;color:#78869d}
 .previewBannerTrack{gap:12px;padding:4px 3px 10px;scroll-padding-inline:8px}
 .previewBannerTrack .previewBanner{box-sizing:border-box;scroll-snap-stop:always}
-.previewSlideNumber{position:absolute;z-index:2;top:8px;right:8px;padding:4px 6px;border:1px solid #dce4f0;border-radius:20px;background:#ffffffed;color:#61718b!important;font-size:7px!important;font-weight:800;letter-spacing:0!important}
+.previewSlideNumber{position:absolute;z-index:2;top:8px;right:8px;padding:4px 7px;border:1px solid #dce4f0;border-radius:20px;background:#ffffffed;color:#61718b;font:800 7px 'DM Sans',sans-serif;letter-spacing:0;cursor:pointer}
+.previewSlideNumber:hover{border-color:#8db0f5;background:#f2f7ff;color:#1554d1}
+.previewBanner[data-slide-selected="true"]{outline:2px solid #1554d1;outline-offset:2px}
 .previewSlideEmpty{justify-content:center;text-align:center;border-style:dashed!important;background:#f8faff!important}
 .previewSlideEmpty>div{max-width:42ch}
 

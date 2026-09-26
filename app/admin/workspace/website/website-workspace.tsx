@@ -274,6 +274,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const [statuses, setStatuses] = useState(pageStatuses);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCoreKey, setSelectedCoreKey] = useState<string | null>(null);
+  const [activeBannerSlide, setActiveBannerSlide] = useState<{ blockId: string; slideIndex: number } | null>(null);
   const [device, setDevice] = useState<Device>('desktop');
   const [addOpen, setAddOpen] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -305,7 +306,25 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const currentCoreContent = coreContent[pageKey] ?? {};
   const stageScrollerRef = useRef<HTMLDivElement>(null);
   const previewSectionRefs = useRef(new Map<string, HTMLDivElement>());
+  const inspectorBodyRef = useRef<HTMLDivElement>(null);
+  const slideEditorRefs = useRef(new Map<string, HTMLElement>());
   const selectedToken = selectedId ? `block:${selectedId}` : selectedCoreKey ? `core:${selectedCoreKey}` : null;
+  function focusBannerSlide(blockId: string, slideIndex: number) {
+    setSelectedId(blockId);
+    setSelectedCoreKey(null);
+    setActiveBannerSlide({ blockId, slideIndex });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const previewSection = previewSectionRefs.current.get(`block:${blockId}`);
+      const previewSlide = previewSection?.querySelector<HTMLElement>(`[data-banner-slide-index="${slideIndex}"]`);
+      previewSlide?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      const editor = slideEditorRefs.current.get(`${blockId}:${slideIndex}`);
+      const inspector = inspectorBodyRef.current;
+      if (editor && inspector) {
+        const top = editor.getBoundingClientRect().top - inspector.getBoundingClientRect().top + inspector.scrollTop - 8;
+        inspector.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+      }
+    }));
+  }
   useEffect(() => () => bannerButtonCleanup.current?.(), []);
   useEffect(() => {
     if (!selectedToken) return;
@@ -574,6 +593,11 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   function deleteBannerSlide(blockId: string, index: number) {
     const block = blocks.find((item) => item.id === blockId);
     if (!block) return;
+    setActiveBannerSlide((current) => {
+      if (current?.blockId !== blockId) return current;
+      if ((block.config.slide_count ?? 1) <= 1 || current.slideIndex === index) return null;
+      return current.slideIndex > index ? { ...current, slideIndex: current.slideIndex - 1 } : current;
+    });
     if ((block.config.slide_count ?? 1) <= 1) {
       setLayouts((current) => ({ ...current, [pageKey]: current[pageKey].filter((item) => item.id !== blockId) }));
       setOrders((current) => ({ ...current, [pageKey]: current[pageKey].filter((token) => token !== `block:${blockId}`) }));
@@ -907,8 +931,8 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
         const buttonStyle = { '--cta-x': `${buttonLayout.x}%`, '--cta-y': `${buttonLayout.y}%`, '--cta-width': `${buttonLayout.width}px`, '--cta-height': `${buttonLayout.height}px`, '--preview-banner-background': block.config.background ?? '#f2f6ff', '--accent': block.config.accent ?? '#1554d1' } as React.CSSProperties;
         const hasSingleCta = Boolean(destination && slide.cta_label && resolvedItems.length <= 1);
         const isAdjustingButton = previewButtonAdjustment?.blockId === block.id && previewButtonAdjustment.slideIndex === index;
-        return <article key={`${block.id}-preview-${index}`} data-banner-slide data-has-image={Boolean(image)} data-button-adjusting={isAdjustingButton} className={`${styles.previewBanner} ${!hasContent ? styles.previewSlideEmpty : ''} ${styles[`size_${shape}`]}`} style={{ ...buttonStyle, background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
-          <small className={styles.previewSlideNumber}>Slide {index + 1} of {slides.length}</small>
+        return <article key={`${block.id}-preview-${index}`} data-banner-slide data-banner-slide-index={index} data-slide-selected={activeBannerSlide?.blockId === block.id && activeBannerSlide.slideIndex === index} data-has-image={Boolean(image)} data-button-adjusting={isAdjustingButton} className={`${styles.previewBanner} ${!hasContent ? styles.previewSlideEmpty : ''} ${styles[`size_${shape}`]}`} style={{ ...buttonStyle, background: block.config.background ?? '#f2f6ff', borderColor: block.config.accent ?? '#1554d1' }}>
+          <button type="button" className={styles.previewSlideNumber} onClick={() => focusBannerSlide(block.id, index)} aria-label={`Edit slide ${index + 1} in section settings`}>Slide {index + 1} of {slides.length} · Edit</button>
           {image && <img src={image} alt=""/>}<div>{hasContent ? <>{slide.title && <b>{renderRichPreview(slide.title)}</b>}{slide.body && <span>{renderRichPreview(slide.body)}</span>}{resolvedItems.length > 1 && <div className={styles.previewSlideLinks}>{resolvedItems.map((item) => <a href={item.href} key={`${item.type}-${item.id}`} target="_blank" rel="noreferrer"><span><b>{item.name}</b><small>{item.type === 'store' ? 'Store page' : item.type === 'category' ? 'Category page' : item.type === 'product' ? 'Product page' : 'Manual link'}</small></span></a>)}</div>}</> : <><b>Slide {index + 1} is not ready</b><span>{destination || resolvedItems.length ? 'Its destination is saved. Add an image, heading, supporting text, or button label to make it visible.' : 'Add an image, heading, supporting text, or button label in the settings. This placeholder is only shown in the admin preview.'}</span></>}</div>
           <div className={styles.previewCtaGuides} data-button-guides aria-hidden="true">
             <i className={styles.previewCtaGuideVertical} style={{ left: '25%' }}/><i className={styles.previewCtaGuideVertical} style={{ left: '50%' }}/><i className={styles.previewCtaGuideVertical} style={{ left: '75%' }}/>
@@ -986,7 +1010,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
 
   return <><section className={styles.workspace}>
     <div className={styles.toolbar}>
-      <label className={styles.pagePicker}><LayoutTemplate/><span>Editing page</span><select value={pageKey} onChange={(event) => { const nextPage = event.target.value as WebsitePageKey; setPageKey(nextPage); setSelectedId(null); setSelectedCoreKey(null); setInsertAtIndex(orders[nextPage]?.length ?? 0); setAddOpen(false); setNotice(null); }}><option value="home">Home page</option><option value="stores">Store page</option><option value="product">Product page</option></select><ChevronDown size={15}/></label>
+      <label className={styles.pagePicker}><LayoutTemplate/><span>Editing page</span><select value={pageKey} onChange={(event) => { const nextPage = event.target.value as WebsitePageKey; setPageKey(nextPage); setSelectedId(null); setSelectedCoreKey(null); setActiveBannerSlide(null); setInsertAtIndex(orders[nextPage]?.length ?? 0); setAddOpen(false); setNotice(null); }}><option value="home">Home page</option><option value="stores">Store page</option><option value="product">Product page</option></select><ChevronDown size={15}/></label>
       <div className={styles.devicePicker} role="group" aria-label="Preview size">
         <button className={device === 'desktop' ? styles.deviceActive : ''} onClick={() => setDevice('desktop')} title="Desktop preview" aria-pressed={device === 'desktop'}><Monitor/> <span>Desktop</span></button>
         <button className={device === 'tablet' ? styles.deviceActive : ''} onClick={() => setDevice('tablet')} title="Tablet preview" aria-pressed={device === 'tablet'}><Tablet/> <span>Tablet</span></button>
@@ -1005,7 +1029,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
             <button className={`${styles.dropMarker} ${draggedId ? styles.dropReady : ''}`} type="button" disabled={!canEdit} onClick={() => addAt(index)} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, index); setDraggedId(null); }} aria-label={`Add a section before ${item.core?.title ?? item.block?.title ?? 'this section'}`}><i/><span>＋ Add here</span><small>Insert at this exact position</small></button>
             <article draggable={canEdit} className={`${styles.sectionCard} ${draggedId === item.token ? styles.dragging : ''} ${selectedId === item.block?.id && !selectedCoreKey || selectedCoreKey === item.core?.key ? styles.selected : ''} ${item.block && !item.block.is_active ? styles.hiddenCard : ''}`} onDragStart={(event) => { if (!canEdit) return; setDraggedId(item.token); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', item.token); }} onDragEnd={() => setDraggedId(null)} onDragOver={(event) => { if (canEdit) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }} onDrop={(event) => { if (!canEdit) return; event.preventDefault(); event.stopPropagation(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, index); setDraggedId(null); }}>
               <button type="button" className={styles.dragHandle} aria-label={`Drag ${item.core?.title ?? item.block?.title ?? 'section'}`} title="Drag to move this whole section"><GripVertical/></button>
-              <button type="button" className={styles.sectionSelect} onClick={() => { setSelectedId(item.block?.id ?? null); setSelectedCoreKey(item.core?.key ?? null); }}><span className={styles.sectionThumb}>{item.block ? item.block.block_type.includes('rail') ? <span className={styles.thumbCards}>▥</span> : item.block.image_url ? <img src={item.block.image_url} alt=""/> : <ImagePlus/> : <LayoutTemplate/>}</span><span><b>{item.core?.title ?? item.block?.title ?? titleForType(item.block!.block_type)}</b><small>{item.core?.note ?? `${titleForType(item.block!.block_type)} · ${item.block!.config.count ?? item.block!.config.slide_count ?? 1} ${item.block!.block_type === 'hero' || item.block!.block_type === 'banner' ? 'slides' : 'items'}`}</small></span></button>
+              <button type="button" className={styles.sectionSelect} onClick={() => { setSelectedId(item.block?.id ?? null); setSelectedCoreKey(item.core?.key ?? null); setActiveBannerSlide(null); }}><span className={styles.sectionThumb}>{item.block ? item.block.block_type.includes('rail') ? <span className={styles.thumbCards}>▥</span> : item.block.image_url ? <img src={item.block.image_url} alt=""/> : <ImagePlus/> : <LayoutTemplate/>}</span><span><b>{item.core?.title ?? item.block?.title ?? titleForType(item.block!.block_type)}</b><small>{item.core?.note ?? `${titleForType(item.block!.block_type)} · ${item.block!.config.count ?? item.block!.config.slide_count ?? 1} ${item.block!.block_type === 'hero' || item.block!.block_type === 'banner' ? 'slides' : 'items'}`}</small></span></button>
               <div className={styles.sectionActions}>
                 {item.block && <button type="button" disabled={!canEdit} className={styles.miniToggle} aria-label={`${item.block.is_active ? 'Hide' : 'Show'} ${item.block.title}`} aria-pressed={item.block.is_active} onClick={(event) => { event.stopPropagation(); updateBlock(item.block!.id, (current) => ({ ...current, is_active: !current.is_active })); }}><i/></button>}
                 <button type="button" disabled={!canEdit} className={styles.miniRemove} aria-label={`Remove ${item.core?.title ?? item.block?.title ?? 'section'}`} title="Remove section" onClick={(event) => { event.stopPropagation(); if (item.core) removeCoreSection(item.core.key); else if (item.block) removeBlockSection(item.block.id); }}><Trash2/></button>
@@ -1059,7 +1083,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           <footer className={styles.inspectorFooter}><button type="button" className={styles.deleteButton} onClick={() => removeCoreSection(selectedCore.key)}><Trash2/> Remove section</button><span>Removes this section from the page layout only.</span></footer>
         </> : selected ? <>
           <header className={styles.inspectorHeader}><div><small>SECTION SETTINGS</small><b>{selected.title || titleForType(selected.block_type)}</b></div><button type="button" onClick={() => setSelectedId(null)} aria-label="Close section settings"><X/></button></header>
-          <div className={styles.inspectorBody}>
+          <div className={styles.inspectorBody} ref={inspectorBodyRef}>
             {(selected.block_type === 'hero' || selected.block_type === 'banner') ? <>
               <div className={styles.bannerSectionTitle}><b>{selected.block_type === 'banner' ? 'Promotion card content' : 'Banner content'}</b><small>Each {selected.block_type === 'banner' ? 'card' : 'slide'} keeps its own shape, image, text and destination.</small></div>
               <label>Number of slides<input type="number" min={1} max={10} value={selected.config.slide_count ?? 1} onChange={(event) => setBannerSlideCount(selected.id, Number(event.target.value))}/></label>
@@ -1074,7 +1098,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
                 const hasOneLinkedItem = onlySlideItem?.type === 'manual' ? Boolean(onlySlideItem.href ?? onlySlideItem.id) : onlySlideItem ? Boolean(slideItem({ type: onlySlideItem.type, id: onlySlideItem.id })?.href) : false;
                 const hasButtonDestination = hasOneLinkedItem || (!slideItems.length && Boolean(values.cta_href.trim() || slideItem(slideTarget)?.href));
                 const canAdjustButton = Boolean(values.cta_label.trim() && hasButtonDestination && slideItems.length <= 1);
-                return <section className={styles.slideEditor} key={`${selected.id}-slide-editor-${slideIndex}`}><header><b>{selected.block_type === 'banner' ? 'Promotion card' : 'Slide'} {slideIndex + 1}</b><button type="button" className={styles.deleteSlide} onClick={() => deleteBannerSlide(selected.id, slideIndex)} aria-label={(selected.config.slide_count ?? 1) > 1 ? `Delete ${selected.block_type === 'banner' ? 'promotion card' : 'slide'} ${slideIndex + 1}` : `Delete only ${selected.block_type === 'banner' ? 'promotion card' : 'slide'} and banner section`}><Trash2/> {(selected.config.slide_count ?? 1) > 1 ? selected.block_type === 'banner' ? 'Delete card' : 'Delete slide' : selected.block_type === 'banner' ? 'Delete card & section' : 'Delete slide & section'}</button></header>
+                return <section ref={(node) => { const key = `${selected.id}:${slideIndex}`; if (node) slideEditorRefs.current.set(key, node); else slideEditorRefs.current.delete(key); }} data-slide-editor-index={slideIndex} className={`${styles.slideEditor} ${activeBannerSlide?.blockId === selected.id && activeBannerSlide.slideIndex === slideIndex ? styles.slideEditorSelected : ''}`} key={`${selected.id}-slide-editor-${slideIndex}`}><header><button type="button" className={styles.slideSelect} onClick={() => focusBannerSlide(selected.id, slideIndex)} title="Show this slide in the preview">{selected.block_type === 'banner' ? 'Promotion card' : 'Slide'} {slideIndex + 1}<small>Show in preview</small></button><button type="button" className={styles.deleteSlide} onClick={() => deleteBannerSlide(selected.id, slideIndex)} aria-label={(selected.config.slide_count ?? 1) > 1 ? `Delete ${selected.block_type === 'banner' ? 'promotion card' : 'slide'} ${slideIndex + 1}` : `Delete only ${selected.block_type === 'banner' ? 'promotion card' : 'slide'} and banner section`}><Trash2/> {(selected.config.slide_count ?? 1) > 1 ? selected.block_type === 'banner' ? 'Delete card' : 'Delete slide' : selected.block_type === 'banner' ? 'Delete card & section' : 'Delete slide & section'}</button></header>
                   {selected.block_type === 'banner' ? <div className={styles.promotionShapeNote}><span>Card shape</span><b>Curved full-width strip</b><small>Promotion banners use this compact strip layout on every device.</small></div> : <label>Card shape<select value={selected.config.slide_shapes?.[slideIndex] ?? selected.config.banner_size ?? 'wide'} onChange={(event) => setBannerSlideShape(selected.id, slideIndex, event.target.value as NonNullable<WebsiteDraftBlock['config']['banner_size']>)}><option value="wide">Full-width banner</option><option value="strip">Promotional strip</option><option value="square">Square card</option><option value="rectangle_horizontal">Horizontal rectangle card</option><option value="rectangle_vertical">Vertical rectangle card</option></select></label>}
                   <div className={styles.slideContents}><div><b>Link destinations on this slide</b><small>Add a store, category, subcategory, product, or manual URL. Each item creates only a link; it never expands into product cards.</small></div>{slideItems.length < 12 && <button type="button" onClick={() => setHeroComposer({ blockId: selected.id, slideIndex })}><Plus/> Add item</button>}</div>
                   {slideItems.map((item, itemIndex) => {
