@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronRight, ExternalLink, GripVertical, ImagePlus, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
@@ -314,8 +314,8 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const stageScrollerRef = useRef<HTMLDivElement>(null);
   const previewSectionRefs = useRef(new Map<string, HTMLDivElement>());
   const inspectorBodyRef = useRef<HTMLDivElement>(null);
-  const slideSettingsTrackRef = useRef<HTMLDivElement>(null);
-  const slideSettingsDragRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number; moved: boolean } | null>(null);
+  const previewSlideDragRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number; moved: boolean } | null>(null);
+  const suppressPreviewClickRef = useRef(false);
   const slideEditorRefs = useRef(new Map<string, HTMLElement>());
   const selectedToken = selectedId ? `block:${selectedId}` : selectedCoreKey ? `core:${selectedCoreKey}` : null;
   function focusBannerSlide(blockId: string, slideIndex: number) {
@@ -328,26 +328,20 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       previewSlide?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       const editor = slideEditorRefs.current.get(`${blockId}:${slideIndex}`);
       const inspector = inspectorBodyRef.current;
-      const slideTrack = slideSettingsTrackRef.current;
-      if (editor && slideTrack) {
-        const trackBounds = slideTrack.getBoundingClientRect();
-        const editorBounds = editor.getBoundingClientRect();
-        slideTrack.scrollTo({ left: slideTrack.scrollLeft + editorBounds.left - trackBounds.left, behavior: 'smooth' });
-      }
       if (editor && inspector) {
         const top = editor.getBoundingClientRect().top - inspector.getBoundingClientRect().top + inspector.scrollTop - 8;
         inspector.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
       }
     }));
   }
-  function beginSlideSettingsDrag(event: ReactPointerEvent<HTMLDivElement>) {
+  function beginPreviewSlideDrag(event: ReactPointerEvent<HTMLDivElement>) {
     if (event.pointerType !== 'mouse' || event.button !== 0 || (event.target as HTMLElement).closest('button,input,select,textarea,label,a')) return;
     const track = event.currentTarget;
-    slideSettingsDragRef.current = { pointerId: event.pointerId, startX: event.clientX, startScrollLeft: track.scrollLeft, moved: false };
+    previewSlideDragRef.current = { pointerId: event.pointerId, startX: event.clientX, startScrollLeft: track.scrollLeft, moved: false };
     track.setPointerCapture(event.pointerId);
   }
-  function moveSlideSettingsDrag(event: ReactPointerEvent<HTMLDivElement>) {
-    const drag = slideSettingsDragRef.current;
+  function movePreviewSlideDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = previewSlideDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
     const delta = event.clientX - drag.startX;
     if (Math.abs(delta) > 4) drag.moved = true;
@@ -357,12 +351,22 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       event.preventDefault();
     }
   }
-  function endSlideSettingsDrag(event: ReactPointerEvent<HTMLDivElement>) {
-    const drag = slideSettingsDragRef.current;
+  function endPreviewSlideDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = previewSlideDragRef.current;
     if (!drag || drag.pointerId !== event.pointerId) return;
-    slideSettingsDragRef.current = null;
+    previewSlideDragRef.current = null;
     event.currentTarget.dataset.dragging = 'false';
+    if (drag.moved) {
+      suppressPreviewClickRef.current = true;
+      window.setTimeout(() => { suppressPreviewClickRef.current = false; }, 0);
+    }
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+  function suppressPreviewClickAfterDrag(event: ReactMouseEvent<HTMLDivElement>) {
+    if (!suppressPreviewClickRef.current) return;
+    suppressPreviewClickRef.current = false;
+    event.preventDefault();
+    event.stopPropagation();
   }
   useEffect(() => () => bannerButtonCleanup.current?.(), []);
   useEffect(() => {
@@ -959,7 +963,8 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       const slides = [{ title: block.title, body: block.body, image_url: block.image_url, cta_label: block.cta_label, cta_href: block.cta_href }, ...(block.config.slides ?? [])].slice(0, Math.max(1, Math.min(10, Number(block.config.slide_count ?? 1))));
       return <section className={styles.previewBannerSection} key={block.id}>
         {block.config.section_heading && <h2 className={styles.previewSectionHeading}>{renderRichPreview(block.config.section_heading)}</h2>}
-        <div className={`${styles.previewBannerTrack} ${block.block_type === 'banner' ? styles.previewPromotionTrack : ''}`}>{slides.map((slide, index) => {
+        <div className={`${styles.previewBannerTrack} ${block.block_type === 'banner' ? styles.previewPromotionTrack : ''}`} onPointerDown={beginPreviewSlideDrag} onPointerMove={movePreviewSlideDrag} onPointerUp={endPreviewSlideDrag} onPointerCancel={endPreviewSlideDrag} onClickCapture={suppressPreviewClickAfterDrag}>
+        {slides.map((slide, index) => {
         const target = block.config.slide_targets?.[index];
         const linkedItem = slideItem(target);
         const resolvedItems = resolveWebsiteSlideItems(block.config.slide_items?.[index] ?? [], stores.map((store) => ({ id: store.id, name: store.name, slug: store.slug })), categories, products.map((product) => ({ id: product.productId, title: product.title, slug: product.slug, categoryId: product.categoryId, storeSlug: product.storeSlug, price: product.price, cashback: product.cashback, brand: product.brand })));
@@ -983,7 +988,8 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           </div>
           {hasContent && hasSingleCta && <button type="button" data-banner-cta className={styles.previewCtaButton} style={buttonStyle} aria-label={`${slide.cta_label}: drag to reposition`} title="Drag to move · drag the corner to resize" onPointerDown={(event) => beginBannerButtonAdjustment(event, block.id, index, 'move', buttonLayout)}>{slide.cta_label}<span className={styles.previewCtaResize} aria-hidden="true" title="Drag to resize" onPointerDown={(event) => beginBannerButtonAdjustment(event, block.id, index, 'resize', buttonLayout)}/></button>}
         </article>;
-      })}</div>
+        })}
+        </div>
       </section>;
     }
     if (block.block_type === 'category_rail') {
@@ -1131,7 +1137,6 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
               <div className={styles.bannerSectionTitle}><b>{selected.block_type === 'banner' ? 'Promotion card content' : 'Banner content'}</b><small>Each {selected.block_type === 'banner' ? 'card' : 'slide'} keeps its own shape, image, text and destination.</small></div>
               <label>Number of slides<input type="number" min={1} max={10} value={selected.config.slide_count ?? 1} onChange={(event) => setBannerSlideCount(selected.id, Number(event.target.value))}/></label>
               <small className={styles.shapeHint}>Choose the shape and linked item separately for each slide below.</small>
-              <div className={styles.bannerSlideSettingsTrack} ref={slideSettingsTrackRef} onPointerDown={beginSlideSettingsDrag} onPointerMove={moveSlideSettingsDrag} onPointerUp={endSlideSettingsDrag} onPointerCancel={endSlideSettingsDrag} aria-label="Slide settings; drag left or right to move between slides">
               {Array.from({ length: selected.config.slide_count ?? 1 }, (_, slideIndex) => {
                 const extra = selected.config.slides?.[slideIndex - 1];
                 const values = slideIndex === 0 ? { title: selected.title, body: selected.body, image_url: selected.image_url, cta_label: selected.cta_label, cta_href: selected.cta_href } : extra ?? { title: '', body: '', image_url: '', cta_label: '', cta_href: '' };
@@ -1157,7 +1162,6 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
                   {canAdjustButton && <div className={styles.bannerButtonControls}><b>Button position and size</b><small>Drag the button to move it and its corner to resize. Alignment guides appear on the slide; the button stays within its edges. Default: centered, slightly above the bottom edge.</small><div className={styles.twoFields}><label>Width (px)<input type="number" min={88} max={480} step={4} value={buttonLayout.width} onChange={(event) => updateBannerButtonSize(selected.id, slideIndex, 'width', Number(event.target.value))}/></label><label>Height (px)<input type="number" min={36} max={128} step={2} value={buttonLayout.height} onChange={(event) => updateBannerButtonSize(selected.id, slideIndex, 'height', Number(event.target.value))}/></label></div><button type="button" onClick={() => saveBannerButtonLayout(selected.id, slideIndex, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT)}>Reset position and size</button></div>}
                 </section>;
               })}
-              </div>
               <label className={styles.uploadField}>Mobile image for first slide (optional)<span className={styles.uploadRow}><input value={selected.config.mobile_image_url ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, mobile_image_url: event.target.value } }))} placeholder="Use a crop suited to mobile"/><label className={styles.uploadButton}><Upload/>{uploading === 'mobile_image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('mobile_image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label>
               <div className={styles.twoFields}><label>Starts (optional)<input type="datetime-local" value={toLocalDateTime(selected.config.starts_at)} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, starts_at: fromLocalDateTime(event.target.value) } }))}/></label><label>Ends (optional)<input type="datetime-local" value={toLocalDateTime(selected.config.ends_at)} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, ends_at: fromLocalDateTime(event.target.value) } }))}/></label></div>
             </> : <>
