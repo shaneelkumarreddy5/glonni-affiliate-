@@ -185,9 +185,52 @@ export function applyWebsiteTextStyle(value: string, start: number, end: number,
   const from = Math.max(0, Math.min(visibleLength, start));
   const to = Math.max(from, Math.min(visibleLength, end));
   if (from === to) return value;
-  const [throughEnd, after] = splitNodesAt(parsed.children, to);
-  const [before, selected] = splitNodesAt(throughEnd, from);
-  const formatted: WebsiteRichTextNode[] = [...before, { type: 'style', style: patch, children: selected }, ...after];
+
+  // Flatten inherited inline formatting into plain-text runs before applying a
+  // replacement. Wrapping a new style around an older style leaves the old
+  // inner span in control of the same CSS property (for example, Arial/12px
+  // would continue to override a later Georgia/32px choice).
+  const runs: Array<{ text: string; style: WebsiteInlineTextStyle }> = [];
+  const collectRuns = (nodes: WebsiteRichTextNode[], inherited: WebsiteInlineTextStyle) => {
+    for (const node of nodes) {
+      if (node.type === 'text') {
+        if (node.value) runs.push({ text: node.value, style: inherited });
+      } else if (node.type === 'style') {
+        collectRuns(node.children, { ...inherited, ...node.style });
+      } else {
+        collectRuns(node.children, inherited);
+      }
+    }
+  };
+  collectRuns(parsed.children, {});
+
+  const styledRuns: typeof runs = [];
+  const appendRun = (text: string, style: WebsiteInlineTextStyle) => {
+    if (!text) return;
+    const previous = styledRuns.at(-1);
+    if (previous && styleAttributes(previous.style) === styleAttributes(style)) previous.text += text;
+    else styledRuns.push({ text, style });
+  };
+  let cursor = 0;
+  for (const run of runs) {
+    const runStart = cursor;
+    const runEnd = cursor + run.text.length;
+    cursor = runEnd;
+    if (runEnd <= from || runStart >= to) {
+      appendRun(run.text, run.style);
+      continue;
+    }
+    const selectedStart = Math.max(from, runStart) - runStart;
+    const selectedEnd = Math.min(to, runEnd) - runStart;
+    appendRun(run.text.slice(0, selectedStart), run.style);
+    appendRun(run.text.slice(selectedStart, selectedEnd), { ...run.style, ...patch });
+    appendRun(run.text.slice(selectedEnd), run.style);
+  }
+
+  const formatted: WebsiteRichTextNode[] = styledRuns.map(({ text, style }) => {
+    const child: WebsiteRichTextNode = { type: 'text', value: text };
+    return styleAttributes(style) ? { type: 'style', style, children: [child] } : child;
+  });
   return serializeWebsiteRichText(withRootAlignment(formatted, parsed.alignment));
 }
 

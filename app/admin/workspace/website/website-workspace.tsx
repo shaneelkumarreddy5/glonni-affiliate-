@@ -25,9 +25,13 @@ function RichTextField({ value, onChange, placeholder, maxLength = 1800, singleL
   const selectedText = selection.current.end > selection.current.start;
   const alignment = getWebsiteTextAlignment(value);
   const textSizes = [8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 64, 72, 96];
-  function rememberSelection(element = input.current) {
+  function rememberSelection(element = input.current, preserveRangeOnBlur = false) {
     if (!element) return;
-    selection.current = { start: element.selectionStart, end: element.selectionEnd };
+    const next = { start: element.selectionStart, end: element.selectionEnd };
+    // Some browsers collapse textarea selection when a native select or color
+    // input takes focus. Keep the last real range so toolbar changes still
+    // apply to the text the admin highlighted.
+    if (!(preserveRangeOnBlur && next.end <= next.start && selection.current.end > selection.current.start)) selection.current = next;
     refreshToolbar((current) => current + 1);
   }
   function restoreSelection() {
@@ -84,7 +88,7 @@ function RichTextField({ value, onChange, placeholder, maxLength = 1800, singleL
         <button type="button" title="Justify" aria-label="Justify" aria-pressed={alignment === 'justify'} className={alignment === 'justify' ? styles.formatActive : ''} onMouseDown={(event) => event.preventDefault()} onClick={() => setAlignment('justify')}><AlignJustify/></button>
       </div>
     </div>
-    <textarea ref={input} maxLength={maxLength} rows={singleLine ? 1 : 4} wrap={singleLine ? 'off' : 'soft'} value={plainValue} onChange={(event) => updateText(event.target.value)} onSelect={() => rememberSelection()} onKeyUp={() => rememberSelection()} onMouseUp={() => rememberSelection()} onBlur={() => rememberSelection()} onKeyDown={(event) => { if (singleLine && event.key === 'Enter') event.preventDefault(); }} placeholder={placeholder}/>
+    <textarea ref={input} maxLength={maxLength} rows={singleLine ? 1 : 4} wrap={singleLine ? 'off' : 'soft'} value={plainValue} onChange={(event) => updateText(event.target.value)} onSelect={() => rememberSelection()} onKeyUp={() => rememberSelection()} onMouseUp={() => rememberSelection()} onBlur={() => rememberSelection(input.current, true)} onKeyDown={(event) => { if (singleLine && event.key === 'Enter') event.preventDefault(); }} placeholder={placeholder}/>
   </div>;
 }
 
