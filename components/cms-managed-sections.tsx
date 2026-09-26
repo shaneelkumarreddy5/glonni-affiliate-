@@ -160,10 +160,11 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
 
     if (block.block_type === 'product_rail' || block.block_type === 'store_rail') {
       if (config.source_mode === 'curated' && !config.product_ids?.length) return null;
+      const curated = config.source_mode === 'curated';
       const filtered = allOffers.filter((offer) => {
-        if ((block.block_type === 'store_rail' || config.store_slug) && offer.merchants?.slug !== config.store_slug) return false;
-        if (config.category_slug && !categoryBranches.get(block.id)?.has(offer.products?.categories?.id ?? '')) return false;
-        if (config.source_mode === 'curated' && config.product_ids?.length && !config.product_ids.includes(offer.products?.id ?? '')) return false;
+        if ((block.block_type === 'store_rail' || (!curated && config.store_slug)) && offer.merchants?.slug !== config.store_slug) return false;
+        if (!curated && config.category_slug && !categoryBranches.get(block.id)?.has(offer.products?.categories?.id ?? '')) return false;
+        if (curated && config.product_ids?.length && !config.product_ids.includes(offer.products?.id ?? '')) return false;
         return true;
       });
       let ordered: CatalogOffer[];

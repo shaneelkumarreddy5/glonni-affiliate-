@@ -210,6 +210,130 @@ function HeroLinkComposer({ stores, products, categories, initialItem, blockType
   </div>;
 }
 
+type ProductSelection = { productIds: string[]; storeSlug: string };
+
+function ProductSelectionComposer({ stores, products, categories, selectedIds, initialStoreSlug, singleStore, sectionName, onClose, onSave }: {
+  stores: WebsiteWorkspaceStore[];
+  products: WebsiteWorkspaceProduct[];
+  categories: CategoryOption[];
+  selectedIds: string[];
+  initialStoreSlug?: string;
+  singleStore: boolean;
+  sectionName: string;
+  onClose: () => void;
+  onSave: (selection: ProductSelection) => void;
+}) {
+  const firstSelectedStore = products.find((product) => selectedIds.includes(product.productId))?.storeSlug;
+  const [storeSlug, setStoreSlug] = useState(initialStoreSlug || firstSelectedStore || '');
+  const [categoryId, setCategoryId] = useState('');
+  const [step, setStep] = useState<1 | 2 | 3>(initialStoreSlug || firstSelectedStore ? 2 : 1);
+  const [search, setSearch] = useState('');
+  const [selectedProductIds, setSelectedProductIds] = useState(() => [...new Set(selectedIds)].filter((id) => products.some((product) => product.productId === id)).slice(0, 50));
+  const currentStore = stores.find((store) => store.slug === storeSlug);
+  const storeCategories = useMemo(() => categoriesForStore(storeSlug, products, categories), [storeSlug, products, categories]);
+  const selectedCategory = storeCategories.find((category) => category.id === categoryId);
+  const categoryIds = selectedCategory ? categoryBranch(selectedCategory.slug, categories) : null;
+  const availableProducts = useMemo(() => {
+    if (!storeSlug || (categoryId !== '__all__' && !categoryIds)) return [];
+    const unique = new Map<string, WebsiteWorkspaceProduct>();
+    for (const product of products) {
+      if (product.storeSlug !== storeSlug || (categoryIds && !categoryIds.has(product.categoryId))) continue;
+      const current = unique.get(product.productId);
+      if (!current || ((product.price ?? Infinity) - (product.cashback ?? 0)) < ((current.price ?? Infinity) - (current.cashback ?? 0))) unique.set(product.productId, product);
+    }
+    const needle = search.trim().toLowerCase();
+    return [...unique.values()].filter((product) => !needle || `${product.title} ${product.brand ?? ''} ${product.categoryName}`.toLowerCase().includes(needle));
+  }, [storeSlug, categoryId, categoryIds, products, search]);
+  const selectedProducts = selectedProductIds.map((id) => products.find((product) => product.productId === id && (!singleStore || product.storeSlug === storeSlug)) ?? products.find((product) => product.productId === id)).filter((product): product is WebsiteWorkspaceProduct => Boolean(product));
+
+  function chooseStore(nextSlug: string) {
+    setStoreSlug(nextSlug);
+    setCategoryId('');
+    setSearch('');
+    setStep(2);
+    if (singleStore) {
+      const validIds = new Set(products.filter((product) => product.storeSlug === nextSlug).map((product) => product.productId));
+      setSelectedProductIds((current) => current.filter((id) => validIds.has(id)));
+    }
+  }
+
+  function toggleProduct(id: string) {
+    setSelectedProductIds((current) => current.includes(id) ? current.filter((value) => value !== id) : current.length < 50 ? [...current, id] : current);
+  }
+
+  function moveProduct(id: string, direction: -1 | 1) {
+    setSelectedProductIds((current) => moveSelectedId(current, id, direction));
+  }
+
+  function categoryDepth(category: CategoryOption) {
+    let depth = 0;
+    let parentId = category.parentId;
+    const visited = new Set<string>();
+    while (parentId && !visited.has(parentId)) {
+      visited.add(parentId);
+      depth += 1;
+      parentId = categories.find((entry) => entry.id === parentId)?.parentId ?? null;
+    }
+    return depth;
+  }
+
+  return <div className={styles.productSelectionOverlay} role="dialog" aria-modal="true" aria-label={`Choose products for ${sectionName}`}>
+    <section className={styles.productSelectionComposer}>
+      <header className={styles.productSelectionHeader}>
+        <div><small>{sectionName.toUpperCase()} · PRODUCT SELECTION</small><h2>Choose products for this section</h2><p>Choose a store, then a category or subcategory. Select the exact products you want displayed.</p></div>
+        <button type="button" onClick={onClose} aria-label="Close product selector"><X/></button>
+      </header>
+      <nav className={styles.productSelectionSteps} aria-label="Product selection steps">
+        <button type="button" className={step === 1 ? styles.productSelectionStepActive : step > 1 ? styles.productSelectionStepDone : ''} onClick={() => setStep(1)}><i>1</i><span>Store</span></button>
+        <span aria-hidden="true"/>
+        <button type="button" disabled={!storeSlug} className={step === 2 ? styles.productSelectionStepActive : step > 2 ? styles.productSelectionStepDone : ''} onClick={() => storeSlug && setStep(2)}><i>2</i><span>Category</span></button>
+        <span aria-hidden="true"/>
+        <button type="button" disabled={!storeSlug || !categoryId} className={step === 3 ? styles.productSelectionStepActive : ''} onClick={() => storeSlug && categoryId && setStep(3)}><i>3</i><span>Products</span></button>
+      </nav>
+      <div className={styles.productSelectionBody}>
+        {step === 1 && <section className={styles.productSelectionPane}>
+          <div className={styles.productSelectionPaneHeading}><b>Select a store</b><small>Only active connected stores are listed.</small></div>
+          <div className={styles.productSelectionStoreList}>{stores.map((store) => <button type="button" key={store.id} aria-pressed={store.slug === storeSlug} className={store.slug === storeSlug ? styles.productSelectionStoreActive : ''} onClick={() => chooseStore(store.slug)}><span>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}</span><b>{store.name}</b><ChevronRight/></button>)}</div>
+          {!stores.length && <p className={styles.productSelectionEmpty}>No active connected stores are available.</p>}
+        </section>}
+        {step === 2 && <section className={styles.productSelectionPane}>
+          <div className={styles.productSelectionPaneHeading}><b>Choose a category or subcategory</b><small>Products will be limited to {currentStore?.name ?? 'the selected store'}.</small></div>
+          <div className={styles.productSelectionCategoryList}>
+            <button type="button" aria-pressed={categoryId === '__all__'} className={categoryId === '__all__' ? styles.productSelectionChoiceActive : ''} onClick={() => setCategoryId('__all__')}><b>All categories</b><small>Search every product at this store</small></button>
+            {storeCategories.map((category) => <button type="button" key={category.id} aria-pressed={categoryId === category.id} className={categoryId === category.id ? styles.productSelectionChoiceActive : ''} style={{ paddingLeft: `${12 + categoryDepth(category) * 17}px` }} onClick={() => setCategoryId(category.id)}><b>{category.name}</b><small>{formatCategory(category, categories)}</small></button>)}
+            {!storeCategories.length && <p className={styles.productSelectionEmpty}>No categories with available products were found for this store. Choose “All categories” to search its products.</p>}
+          </div>
+          <div className={styles.productSelectionPaneFooter}><button type="button" className={styles.productSelectionPrimary} disabled={!categoryId} onClick={() => { setSearch(''); setStep(3); }}>Continue to products<ChevronRight/></button></div>
+        </section>}
+        {step === 3 && <section className={styles.productSelectionPane}>
+          <div className={styles.productSelectionPaneHeading}><b>Search and select products</b><small>{currentStore?.name} · {categoryId === '__all__' ? 'All categories' : selectedCategory ? formatCategory(selectedCategory, categories) : ''}</small></div>
+          <label className={styles.productSelectionSearch}><span>⌕</span><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search products by name or brand…" aria-label="Search products by name or brand"/></label>
+          <div className={styles.productSelectionResults}>
+            {availableProducts.slice(0, 100).map((product) => <label key={product.productId} className={styles.productSelectionResult}>
+              <input type="checkbox" checked={selectedProductIds.includes(product.productId)} onChange={() => toggleProduct(product.productId)} disabled={!selectedProductIds.includes(product.productId) && selectedProductIds.length >= 50}/>
+              <span className={styles.productSelectionImage}>{product.imageUrl ? <img src={product.imageUrl} alt=""/> : product.title.slice(0, 1)}</span>
+              <span className={styles.productSelectionProductInfo}><b>{product.title}</b><small>{product.brand || product.storeName} · {formatCategory(categories.find((category) => category.id === product.categoryId) ?? { id: '', name: product.categoryName || 'Uncategorised', slug: '', parentId: null }, categories)}</small></span>
+              <strong>{money(product.price)}</strong>
+            </label>)}
+            {!availableProducts.length && <p className={styles.productSelectionEmpty}>{search ? 'No products match this search in the selected category.' : 'No available products match this store and category.'}</p>}
+            {availableProducts.length > 100 && <small className={styles.productSelectionLimit}>Showing 100 matches. Refine your search to find other products.</small>}
+          </div>
+          <div className={styles.productSelectionPaneFooter}><button type="button" className={styles.productSelectionBack} onClick={() => setStep(2)}>Back to categories</button><small>Up to 50 products can be added to this section.</small></div>
+        </section>}
+        <aside className={styles.productSelectionSummary}>
+          <div className={styles.productSelectionPaneHeading}><b>Selected products</b><small>{selectedProductIds.length} selected</small></div>
+          <div className={styles.productSelectionSelectedList}>
+            {selectedProducts.map((product, index) => <article key={product.productId}><span>{product.imageUrl ? <img src={product.imageUrl} alt=""/> : product.title.slice(0, 1)}</span><div><b>{product.title}</b><small>{product.storeName} · {money(product.price)}</small></div><div className={styles.productSelectionItemActions}><button type="button" disabled={index === 0} onClick={() => moveProduct(product.productId, -1)} aria-label={`Move ${product.title} up`}>↑</button><button type="button" onClick={() => setSelectedProductIds((current) => current.filter((id) => id !== product.productId))} aria-label={`Remove ${product.title}`}><X/></button></div></article>)}
+            {!selectedProducts.length && <p className={styles.productSelectionEmpty}>Products you select will be listed here.</p>}
+          </div>
+          <div className={styles.productSelectionSummaryFooter}><b>{selectedProductIds.length} of 50</b><small>Cards will appear in this order in the preview.</small></div>
+        </aside>
+      </div>
+      <footer className={styles.productSelectionFooter}><button type="button" className={styles.productSelectionBack} onClick={onClose}>Cancel</button><button type="button" className={styles.productSelectionPrimary} disabled={!storeSlug} onClick={() => onSave({ productIds: selectedProductIds, storeSlug })}>{selectedProductIds.length ? `Add ${selectedProductIds.length} products` : 'Save selection'}<ChevronRight/></button></footer>
+    </section>
+  </div>;
+}
+
 function newBlock(type: WebsiteBlockType, page: WebsitePageKey, storeSlug?: string): WebsiteDraftBlock {
   const slot = page === 'home' ? 'after_price_drops' : page === 'stores' ? 'store_before_products' : 'after_summary';
   const title = type === 'hero' ? 'Your featured campaign' : type === 'banner' ? '' : type === 'store_rail' ? 'Top deals at this store' : type === 'category_rail' ? 'Browse categories' : type === 'store_directory' ? 'Shop by store' : 'Featured products';
@@ -307,7 +431,6 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const [insertAtIndex, setInsertAtIndex] = useState(initialOrders[initialPage]?.length ?? 0);
   const [previewStoreSlug, setPreviewStoreSlug] = useState(stores[0]?.slug ?? '');
   const [previewProductId, setPreviewProductId] = useState(products[0]?.productId ?? '');
-  const [productSearch, setProductSearch] = useState('');
   const [catalogueSearch, setCatalogueSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
@@ -316,6 +439,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const [draftBackupsLoaded, setDraftBackupsLoaded] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [heroComposer, setHeroComposer] = useState<{ blockId: string; slideIndex: number; itemIndex?: number } | null>(null);
+  const [productComposerBlockId, setProductComposerBlockId] = useState<string | null>(null);
   const [previewButtonAdjustment, setPreviewButtonAdjustment] = useState<{ blockId: string; slideIndex: number; layout: WebsiteBannerButtonLayout; mode: BannerButtonInteraction['mode'] } | null>(null);
   const bannerButtonInteraction = useRef<BannerButtonInteraction | null>(null);
   const previewButtonLayout = useRef<WebsiteBannerButtonLayout | null>(null);
@@ -586,22 +710,6 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     }
     return [...byProduct.values()];
   }, [products]);
-
-  const choices = useMemo(() => {
-    let source = products;
-    if (selected?.config.store_slug) source = source.filter((product) => product.storeSlug === selected.config.store_slug);
-    const categoryIds = categoryBranch(selected?.config.category_slug, categories);
-    if (categoryIds) source = source.filter((product) => categoryIds.has(product.categoryId));
-    const listByProduct = new Map<string, WebsiteWorkspaceProduct>();
-    for (const product of source) {
-      const current = listByProduct.get(product.productId);
-      if (!current || ((product.price ?? Infinity) - (product.cashback ?? 0)) < ((current.price ?? Infinity) - (current.cashback ?? 0))) listByProduct.set(product.productId, product);
-    }
-    let list = [...listByProduct.values()];
-    const search = productSearch.trim().toLowerCase();
-    if (search) list = list.filter((product) => `${product.title} ${product.brand ?? ''} ${product.storeName}`.toLowerCase().includes(search));
-    return list;
-  }, [products, selected, productSearch, categories]);
 
   const coreProductChoices = useMemo(() => {
     const search = catalogueSearch.trim().toLowerCase();
@@ -970,10 +1078,10 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
 
   function blockProducts(block: WebsiteDraftBlock) {
     let source = products;
-    if (block.block_type === 'store_rail' || block.config.store_slug) source = source.filter((product) => product.storeSlug === block.config.store_slug);
-    const categoryIds = categoryBranch(block.config.category_slug, categories);
-    if (categoryIds) source = source.filter((product) => categoryIds.has(product.categoryId));
     const curated = block.config.source_mode === 'curated';
+    if (block.block_type === 'store_rail' || (!curated && block.config.store_slug)) source = source.filter((product) => product.storeSlug === block.config.store_slug);
+    const categoryIds = curated ? null : categoryBranch(block.config.category_slug, categories);
+    if (categoryIds) source = source.filter((product) => categoryIds.has(product.categoryId));
     if (curated) {
       const index = new Map((block.config.product_ids ?? []).map((id, position) => [id, position]));
       source = source.filter((product) => index.has(product.productId)).sort((a, b) => (index.get(a.productId) ?? 99) - (index.get(b.productId) ?? 99));
@@ -1088,6 +1196,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const widthClass = device === 'desktop' ? styles.desktop : device === 'tablet' ? styles.tablet : styles.mobile;
   const customerHref = pageKey === 'home' ? '/' : pageKey === 'stores' ? `/store/${activeStore?.slug ?? ''}` : `/product/${activeProduct?.slug ?? ''}`;
   const composerItem = heroComposer && heroComposer.itemIndex !== undefined ? blocks.find((block) => block.id === heroComposer.blockId)?.config.slide_items?.[heroComposer.slideIndex]?.[heroComposer.itemIndex] : undefined;
+  const productComposerBlock = productComposerBlockId ? blocks.find((block) => block.id === productComposerBlockId) ?? null : null;
 
   return <><section className={styles.workspace}>
     <div className={styles.toolbar}>
@@ -1216,14 +1325,18 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
             </>}
             {(selected.block_type === 'product_rail' || selected.block_type === 'store_rail') && <>
               <div className={styles.globalSectionNote}><b>Shared product card</b><span>Product rails use the existing standard product card. These settings control only which products appear in this section.</span></div>
-              {selected.block_type === 'store_rail' && <label>Store<select value={selected.config.store_slug ?? ''} onChange={(event) => updateBlock(selected.id, (block) => { const previousHref = block.config.store_slug ? `/store/${block.config.store_slug}` : '/deals'; const nextSlug = event.target.value; return { ...block, cta_href: block.cta_href === previousHref || block.cta_href === '/deals' ? `/store/${nextSlug}` : block.cta_href, config: { ...block.config, store_slug: nextSlug } }; })}><option value="">Choose a connected store</option>{stores.map((store) => <option value={store.slug} key={store.id}>{store.name}</option>)}</select></label>}
-              <label>Product source<select value={selected.config.source_mode ?? 'all'} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, source_mode: event.target.value as 'all' | 'curated' } }))}><option value="all">All matching active products</option><option value="curated">Choose specific products</option></select></label>
-              {selected.block_type === 'product_rail' && <>
-                <label>Filter by store (optional)<select value={selected.config.store_slug ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, store_slug: event.target.value || undefined } }))}><option value="">All connected stores</option>{stores.map((store) => <option value={store.slug} key={store.id}>{store.name}</option>)}</select></label>
+              <label>Product source<select value={selected.config.source_mode ?? 'all'} onChange={(event) => { const sourceMode = event.target.value as 'all' | 'curated'; updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, source_mode: sourceMode } })); if (sourceMode === 'curated') setProductComposerBlockId(selected.id); }}><option value="all">All matching active products</option><option value="curated">Choose specific products</option></select></label>
+              {selected.config.source_mode !== 'curated' && <>
+                {selected.block_type === 'store_rail' && <label>Store<select value={selected.config.store_slug ?? ''} onChange={(event) => updateBlock(selected.id, (block) => { const previousHref = block.config.store_slug ? `/store/${block.config.store_slug}` : '/deals'; const nextSlug = event.target.value; return { ...block, cta_href: block.cta_href === previousHref || block.cta_href === '/deals' ? `/store/${nextSlug}` : block.cta_href, config: { ...block.config, store_slug: nextSlug } }; })}><option value="">Choose a connected store</option>{stores.map((store) => <option value={store.slug} key={store.id}>{store.name}</option>)}</select></label>}
+                {selected.block_type === 'product_rail' && <label>Filter by store (optional)<select value={selected.config.store_slug ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, store_slug: event.target.value || undefined } }))}><option value="">All connected stores</option>{stores.map((store) => <option value={store.slug} key={store.id}>{store.name}</option>)}</select></label>}
+                <label>Filter by category (optional)<select value={selected.config.category_slug ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, category_slug: event.target.value || undefined } }))}><option value="">All categories</option>{categories.map((category) => <option value={category.slug} key={category.id}>{formatCategory(category, categories)}</option>)}</select></label>
+                <div className={styles.twoFields}><label>Number of products<input type="number" min={1} max={50} value={selected.config.count ?? 10} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) } }))}/></label><label>Sort by<select value={selected.config.sort ?? 'best_deal'} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, sort: event.target.value as 'best_deal' | 'trending' | 'price_drop' | 'newest' } }))}><option value="best_deal">Best effective price</option><option value="trending">Top rated first</option><option value="price_drop">Highest discount first</option><option value="newest">Recently updated</option></select></label></div>
               </>}
-              <label>Filter by category (optional)<select value={selected.config.category_slug ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, category_slug: event.target.value || undefined } }))}><option value="">All categories</option>{categories.map((category) => <option value={category.slug} key={category.id}>{formatCategory(category, categories)}</option>)}</select></label>
-              <div className={styles.twoFields}><label>Number of products<input type="number" min={1} max={50} value={selected.config.count ?? 10} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) } }))}/></label><label>Sort by<select value={selected.config.sort ?? 'best_deal'} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, sort: event.target.value as 'best_deal' | 'trending' | 'price_drop' | 'newest' } }))}><option value="best_deal">Best effective price</option><option value="trending">Top rated first</option><option value="price_drop">Highest discount first</option><option value="newest">Recently updated</option></select></label></div>
-              {selected.config.source_mode === 'curated' && <><CataloguePicker key={`products-${selected.id}`} defaultOpen title="Choose products" items={choices.map((product) => ({ id: product.productId, label: product.title, detail: `${product.storeName} · ${product.categoryName || 'Uncategorised'} · ${money(product.price)} · /product/${product.slug}`, image: product.imageUrl }))} selectedIds={selected.config.product_ids ?? []} search={productSearch} onSearch={setProductSearch} onToggle={(id) => toggleBlockPick(selected.id, 'product_ids', id)}/><small className={styles.sourceNote}>Can’t find a product? Save this draft first, then <a href="/admin/products?view=manual" target="_blank" rel="noreferrer">create or fetch it in Products ↗</a> Once published, reload this editor and select it.</small></>}
+              {selected.config.source_mode === 'curated' && <>
+                <div className={styles.productSelectionSettings}><div><b>{selected.config.product_ids?.length ?? 0} products selected</b><small>{selected.block_type === 'store_rail' ? 'Choose the store and exact products for this store deals rail.' : 'Choose exact products; you can include products from different stores.'}</small></div><button type="button" onClick={() => setProductComposerBlockId(selected.id)}>{selected.config.product_ids?.length ? 'Edit selection' : 'Choose products'}<ChevronRight/></button></div>
+                {(selected.config.product_ids?.length ?? 0) > 0 && <SelectedOrderList items={products.filter((product, index, list) => list.findIndex((candidate) => candidate.productId === product.productId) === index).map((product) => ({ id: product.productId, label: product.title, detail: `${product.storeName} · ${money(product.price)}`, image: product.imageUrl }))} selectedIds={selected.config.product_ids ?? []} entityName="product" onMove={(id, direction) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, product_ids: moveSelectedId(block.config.product_ids ?? [], id, direction) } }))}/>}
+                <small className={styles.sourceNote}>Can’t find a product? Add or publish it in Products, then reopen this selector. Only active, approved catalogue offers can appear to customers.</small>
+              </>}
               <small className={styles.sourceNote}><Check/> Sections show products only when their store offer is active and approved in the customer catalogue.</small>
             </>}
             {(selected.block_type === 'product_rail' || selected.block_type === 'store_rail' || selected.block_type === 'category_rail' || selected.block_type === 'store_directory') && <>
@@ -1242,5 +1355,5 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       <div>{notice ? <p className={notice.kind === 'success' ? styles.success : styles.error}><i>{notice.kind === 'success' ? <Check/> : <X/>}</i>{notice.text}</p> : dirty && autoSaveStates[pageKey] === 'error' ? <p className={styles.error}><i><X/></i>Draft autosave failed<small>{autoSaveErrors[pageKey] ?? 'Your changes are kept in this browser. Use Save draft to retry.'}</small></p> : dirty ? <p className={styles.unsaved}><i>…</i>Saving draft…<small>Your changes are saved automatically as a draft. Customers only see them after you publish.</small></p> : hasUnpublishedDraft ? <p className={styles.unsaved}><i>!</i>Draft saved · not live<small>Shoppers still see the previously published layout until you publish this draft.</small></p> : <p className={styles.saved}><i><Check/></i>All changes saved<small>Draft and published page are in sync.</small></p>}</div>
       <div className={styles.saveActions}><button type="button" className={styles.saveDraft} onClick={() => void save(false)} disabled={busy || !canEdit}>{busy ? 'Saving…' : 'Save draft'}</button><button type="button" className={styles.publish} onClick={() => void save(true)} disabled={busy || !canEdit}>{busy ? 'Publishing…' : 'Publish changes'}<ChevronRight/></button></div>
     </footer>
-  </section>{heroComposer && <HeroLinkComposer stores={stores} products={products} categories={categories} initialItem={composerItem} blockType={blocks.find((block) => block.id === heroComposer.blockId)?.block_type === 'banner' ? 'banner' : 'hero'} onClose={() => setHeroComposer(null)} onSave={(item) => saveHeroItem(heroComposer.blockId, heroComposer.slideIndex, heroComposer.itemIndex, item)}/>}</>;
+  </section>{heroComposer && <HeroLinkComposer stores={stores} products={products} categories={categories} initialItem={composerItem} blockType={blocks.find((block) => block.id === heroComposer.blockId)?.block_type === 'banner' ? 'banner' : 'hero'} onClose={() => setHeroComposer(null)} onSave={(item) => saveHeroItem(heroComposer.blockId, heroComposer.slideIndex, heroComposer.itemIndex, item)} />}{productComposerBlock && <ProductSelectionComposer stores={stores} products={products} categories={categories} selectedIds={productComposerBlock.config.product_ids ?? []} initialStoreSlug={productComposerBlock.config.store_slug} singleStore={productComposerBlock.block_type === 'store_rail'} sectionName={productComposerBlock.block_type === 'store_rail' ? 'Deals from one store' : 'Product cards'} onClose={() => setProductComposerBlockId(null)} onSave={({ productIds, storeSlug }) => { updateBlock(productComposerBlock.id, (block) => { const previousHref = block.config.store_slug ? `/store/${block.config.store_slug}` : '/deals'; const nextConfig = { ...block.config, product_ids: productIds, count: productIds.length || block.config.count || 10, ...(block.block_type === 'store_rail' ? { store_slug: storeSlug } : {}) }; const nextHref = block.block_type === 'store_rail' && (block.cta_href === previousHref || block.cta_href === '/deals') ? `/store/${storeSlug}` : block.cta_href; return { ...block, config: nextConfig, cta_href: nextHref }; }); setProductComposerBlockId(null); }}/>}</>;
 }
