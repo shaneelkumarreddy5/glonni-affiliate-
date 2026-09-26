@@ -58,9 +58,10 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
     const imageUrl = String(item.image_url ?? '').trim();
     const deviceVisibility = String(item.device_visibility ?? 'all');
     const rawConfig = item.config && typeof item.config === 'object' ? item.config as Record<string, unknown> : {};
+    const sectionHeading = String(rawConfig.section_heading ?? '').trim();
     const slot = String(rawConfig.slot ?? '');
     if (!allowedSlots.has(slot as never)) return 'Choose a valid placement for this page.';
-    if (title.length > 8000 || body.length > 20000 || websiteRichTextToPlainText(title).length > 120 || websiteRichTextToPlainText(body).length > 1800 || ctaLabel.length > 60 || ctaHref.length > 500 || imageUrl.length > 1000) return 'A section has text or an image address that is too long.';
+    if (title.length > 8000 || body.length > 20000 || sectionHeading.length > 8000 || websiteRichTextToPlainText(title).length > 120 || websiteRichTextToPlainText(body).length > 1800 || websiteRichTextToPlainText(sectionHeading).length > 120 || ctaLabel.length > 60 || ctaHref.length > 500 || imageUrl.length > 1000) return 'A section has text or an image address that is too long.';
     if (!validLink(ctaHref) || !validImage(imageUrl)) return 'Buttons and images must use a safe site path or HTTPS address.';
     if (!['all', 'desktop', 'mobile'].includes(deviceVisibility)) return 'Choose a supported device visibility.';
 
@@ -152,6 +153,7 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
       is_active: item.is_active !== false,
       config: {
         slot: slot as WebsiteDraftBlock['config']['slot'],
+        section_heading: type === 'hero' || type === 'banner' ? sectionHeading || undefined : undefined,
         store_slug: storeSlug || undefined,
         category_slug: categorySlug || undefined,
         category_ids: categoryIds,

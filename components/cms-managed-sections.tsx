@@ -140,7 +140,9 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
         return [{ slide, index, href, image: slide.image_url, catalogueItems }];
       });
       if (!visibleSlides.length) return null;
-      return <div key={block.id} className={`${styles.bannerSlides} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`} aria-label={`${block.title || 'Promotion'} banner slides`}>
+      return <section key={block.id} className={styles.bannerSection} data-device={visibility}>
+        {config.section_heading && <h2 className={styles.sectionHeading}>{renderWebsiteRichText(config.section_heading)}</h2>}
+        <div className={styles.bannerSlides} aria-label={`${config.section_heading || block.title || 'Promotion'} banner slides`}>
         {visibleSlides.map(({ slide, index, href, image, catalogueItems }) => {
         const destinationLinks = catalogueItems.length > 1 ? catalogueItems : [];
         const buttonLayout = normalizeWebsiteBannerButtonLayout(config.slide_button_layouts?.[index]);
@@ -150,7 +152,8 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
           const slideStyle = { '--accent': accent, '--background': background, '--cta-x': `${buttonLayout.x}%`, '--cta-y': `${buttonLayout.y}%`, '--cta-width': `${buttonLayout.width}px`, '--cta-height': `${buttonLayout.height}px` } as React.CSSProperties;
           return href ? <a key={`${block.id}-slide-${index}`} href={href} className={`${slideClass} ${styles.bannerSlideLink}`} style={slideStyle} aria-label={slide.title || slide.cta_label || 'Open linked destination'}>{content}</a> : <section key={`${block.id}-slide-${index}`} className={slideClass} style={slideStyle}>{content}</section>;
         })}
-      </div>;
+        </div>
+      </section>;
     }
 
     if (block.block_type === 'product_rail' || block.block_type === 'store_rail') {

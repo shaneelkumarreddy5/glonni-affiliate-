@@ -109,6 +109,7 @@ export function websiteItemHref(type: Exclude<WebsiteSlideTarget['type'], 'manua
 
 export type WebsiteBlockConfig = {
   slot?: WebsiteSlot;
+  section_heading?: string;
   store_slug?: string;
   category_slug?: string;
   category_ids?: string[];
