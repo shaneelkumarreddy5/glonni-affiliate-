@@ -1,7 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronRight, ExternalLink, GripVertical, ImagePlus, Italic, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Underline, Upload, X } from 'lucide-react';
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronRight, ExternalLink, GripVertical, ImagePlus, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { applyWebsiteTextStyle, getWebsiteTextAlignment, getWebsiteTextStyleAt, setWebsiteTextAlignment, WEBSITE_TEXT_FONTS, websiteRichTextToPlainText, updateWebsiteRichTextText, type WebsiteTextAlignment } from '@/lib/website-rich-text-format';
@@ -20,11 +20,11 @@ function RichTextField({ value, onChange, placeholder, maxLength = 1800, singleL
   const input = useRef<HTMLTextAreaElement>(null);
   const selection = useRef({ start: 0, end: 0 });
   const [, refreshToolbar] = useState(0);
-  const [fontSizeDraft, setFontSizeDraft] = useState<string | null>(null);
   const plainValue = websiteRichTextToPlainText(value);
   const selectedStyle = getWebsiteTextStyleAt(value, selection.current.start);
   const selectedText = selection.current.end > selection.current.start;
   const alignment = getWebsiteTextAlignment(value);
+  const textSizes = [8, 10, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 40, 48, 64, 72, 96];
   function rememberSelection(element = input.current) {
     if (!element) return;
     selection.current = { start: element.selectionStart, end: element.selectionEnd };
@@ -43,12 +43,6 @@ function RichTextField({ value, onChange, placeholder, maxLength = 1800, singleL
     if (end <= start) return;
     onChange(applyWebsiteTextStyle(value, start, end, patch));
     if (restoreFocus) restoreSelection();
-  }
-  function commitFontSize(restoreFocus = false) {
-    if (fontSizeDraft === null) return;
-    const size = Number(fontSizeDraft);
-    if (Number.isFinite(size) && size >= 8 && size <= 96 && selection.current.end > selection.current.start) applyStyle({ size }, restoreFocus);
-    setFontSizeDraft(null);
   }
   function setAlignment(next: WebsiteTextAlignment) {
     onChange(setWebsiteTextAlignment(value, next));
@@ -76,10 +70,11 @@ function RichTextField({ value, onChange, placeholder, maxLength = 1800, singleL
         <label className={styles.richColorControl} title="Text color" aria-label="Text color"><span>A</span><input type="color" value={selectedStyle.color ?? '#1554d1'} disabled={!selectedText} onChange={(event) => applyStyle({ color: event.target.value }, false)}/></label>
       </div>
       <div className={styles.richToolbarMiddle}>
-        <label className={styles.richFontSize} title="Text size"><input type="number" aria-label="Text size in pixels" min={8} max={96} value={fontSizeDraft ?? selectedStyle.size ?? 24} disabled={!selectedText} onChange={(event) => setFontSizeDraft(event.target.value)} onBlur={() => commitFontSize(false)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); commitFontSize(false); } }}/><span>px</span></label>
+        <select className={styles.richFontSize} aria-label="Text size" title="Text size" value={selectedStyle.size ?? 24} disabled={!selectedText} onChange={(event) => applyStyle({ size: Number(event.target.value) })}>
+          {!textSizes.includes(selectedStyle.size ?? 24) && <option value={selectedStyle.size}>{selectedStyle.size} px</option>}
+          {textSizes.map((size) => <option value={size} key={size}>{size} px</option>)}
+        </select>
         {toolbarButton('Bold', <Bold/>, Boolean(selectedStyle.bold), () => applyStyle({ bold: !selectedStyle.bold }))}
-        {toolbarButton('Italic', <Italic/>, Boolean(selectedStyle.italic), () => applyStyle({ italic: !selectedStyle.italic }))}
-        {toolbarButton('Underline', <Underline/>, Boolean(selectedStyle.underline), () => applyStyle({ underline: !selectedStyle.underline }))}
         <small>{selectedText ? 'Formatting applies to selected text' : 'Select text to format'}</small>
       </div>
       <div className={styles.richToolbarAlignment} aria-label="Text alignment">

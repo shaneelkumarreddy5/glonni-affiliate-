@@ -77,14 +77,11 @@
 .richColorControl{position:relative;display:grid;place-items:center;height:34px;border:1px solid #dfe6f0;border-radius:7px;background:#fff;color:#1554d1;font:900 16px 'DM Sans',sans-serif;cursor:pointer}
 .richColorControl input{position:absolute;right:3px;top:4px;width:29px;height:24px;padding:1px!important;border:0!important;background:transparent;cursor:pointer}
 .richToolbarMiddle{display:flex;align-items:center;gap:5px}
-.richFontSize{display:flex;align-items:center;justify-content:center;gap:4px;width:92px;padding:0 5px}
-.richFontSize input{width:54px;border:0!important;padding:0!important;text-align:center;color:#33435e;font:11px 'DM Sans',sans-serif;outline:none}
-.richFontSize input::-webkit-inner-spin-button{opacity:1}
-.richFontSize span{color:#8592a7;font-size:9px}
+.richFontSize{width:84px;padding:0 7px;cursor:pointer}
 .richToolbar button{width:34px;height:32px;flex:0 0 auto;display:grid;place-items:center;border:1px solid #dfe6f0;border-radius:7px;background:#fff;color:#425472;cursor:pointer;transition:background .12s,border-color .12s,color .12s}
 .richToolbar button svg{width:15px;height:15px}
 .richToolbar button:hover:not(:disabled){border-color:#9cb8ed;color:#1554d1}
-.richToolbar button:disabled,.richToolbarTop select:disabled,.richColorControl input:disabled,.richFontSize input:disabled{opacity:.45;cursor:not-allowed}
+.richToolbar button:disabled,.richToolbarTop select:disabled,.richColorControl input:disabled,.richFontSize:disabled{opacity:.45;cursor:not-allowed}
 .richToolbar button.formatActive{border-color:#1554d1;background:#1554d1;color:#fff}
 .richToolbarMiddle>small{margin-left:auto;color:#8693a8;font-size:8px;line-height:1.25;text-align:right}
 .richToolbarAlignment{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
