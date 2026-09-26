@@ -9,7 +9,7 @@ const platformType = (platform: string) => platform === 'instagram' || platform 
 const clean = (value: FormDataEntryValue | null, max = 5000) => String(value ?? '').trim().slice(0, max);
 const back = (tab: string, status: 'success' | 'error', message: string) => `/admin/content-manager?tab=${tab}&${status}=${encodeURIComponent(message)}`;
 
-async function contentOperator(approval = false) {
+async function contentOperator() {
   const supabase = await createClient();
   const [{ data: { user } }, { data: assurance }] = await Promise.all([
     supabase.auth.getUser(), supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
@@ -19,7 +19,7 @@ async function contentOperator(approval = false) {
     supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
     supabase.from('employees').select('status').eq('profile_id', user.id).maybeSingle(),
   ]);
-  const allowed = approval ? ['owner', 'admin'] : ['owner', 'admin', 'editor'];
+  const allowed = ['owner', 'admin', 'editor'];
   if (!profile || !allowed.includes(profile.role) || employee?.status !== 'active') throw new Error('An active staff account with two-factor authentication is required.');
   return { supabase, user };
 }
@@ -34,6 +34,7 @@ function refreshContent() {
   revalidatePath('/admin/ai-agents');
   revalidatePath('/admin/ai-agents/ceo-operations');
   revalidatePath('/admin/ads');
+  revalidatePath('/admin/social-manager');
 }
 
 export async function saveContentDraft(form: FormData) {
@@ -191,22 +192,4 @@ export async function submitContentForCeoReview(form: FormData) {
   await recordEvent(supabase, campaignId, user.id, 'sent_to_ceo_review', null, { work_item_ids: workItems.map((item) => item.id) });
   refreshContent();
   redirect(back('drafts', 'success', 'Sent to CEO review. This does not publish or spend ad budget.'));
-}
-
-export async function decideContentForAdmin(form: FormData) {
-  const { supabase, user } = await contentOperator(true);
-  const campaignId = clean(form.get('campaignId'), 80);
-  const decision = clean(form.get('decision'), 20);
-  const note = clean(form.get('note'), 1000);
-  if (!['admin_approved', 'rejected'].includes(decision)) redirect(back('drafts', 'error', 'Choose approve or reject.'));
-  const { data: campaign } = await supabase.from('content_campaigns').select('id,status').eq('id', campaignId).maybeSingle();
-  if (!campaign || campaign.status !== 'approved') redirect(back('drafts', 'error', 'CEO approval is required before final admin approval.'));
-  const nextStatus = decision;
-  const { error: campaignError } = await supabase.from('content_campaigns').update({ status: nextStatus, decided_by: user.id, decision_note: note || null, decided_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', campaignId);
-  if (campaignError) redirect(back('drafts', 'error', campaignError.message));
-  const { error: assetError } = await supabase.from('content_campaign_assets').update({ status: nextStatus, updated_at: new Date().toISOString() }).eq('campaign_id', campaignId).eq('status', 'approved');
-  if (assetError) throw new Error(assetError.message);
-  await recordEvent(supabase, campaignId, user.id, decision === 'admin_approved' ? 'admin_final_approval' : 'admin_rejection', null, { note, execution: 'not_dispatched' });
-  refreshContent();
-  redirect(back('drafts', 'success', decision === 'admin_approved' ? 'Final admin approval recorded. External delivery remains blocked until the selected accounts are connected.' : 'Content draft rejected and recorded.'));
 }

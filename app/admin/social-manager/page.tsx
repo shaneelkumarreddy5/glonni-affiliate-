@@ -1,0 +1,20 @@
+import Link from 'next/link';
+import { AdminSidebar } from '@/components/admin-sidebar';
+import { loadApprovedContentQueue } from '@/lib/admin-content-queue';
+import { Bell, CalendarClock, Image, Link2, PenLine, Share2, ShieldCheck } from 'lucide-react';
+
+export const dynamic = 'force-dynamic';
+
+const platformName: Record<string, string> = { instagram: 'Instagram', facebook: 'Facebook' };
+
+export default async function SocialMediaManagerPage() {
+  const { queue, error } = await loadApprovedContentQueue('social');
+  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><header className="admin-top"><Share2 size={21}/><b>Social Media Manager</b><span className="dashboard-date">Approved organic content queue</span><Bell size={19}/><span className="avatar">SR</span></header><main className="admin-content">
+    <div className="admin-title"><div><p>ORGANIC GROWTH</p><h1>Social Media Manager</h1><span>Approved social creatives arrive here separately from paid advertising.</span></div><Link className="add-store" href="/admin/social-accounts">Social accounts</Link></div>
+    <p className="preview-note">This page receives only social assets after CEO review and final admin approval. It does not create the creative, approve it again, or publish automatically. No connected social account means posts remain queued.</p>
+    <section className="admin-stats"><article><Share2/><div><small>Approved social assets</small><b>{queue.length}</b><em>Received from Content Manager</em></div></article><article><Link2/><div><small>Connected profiles</small><b>0</b><em>None connected</em></div></article><article><CalendarClock/><div><small>Scheduled posts</small><b>0</b><em>Publishing unavailable</em></div></article><article><PenLine/><div><small>Needs creative edits</small><b>0</b><em>Changes return to Content Manager</em></div></article><article><ShieldCheck/><div><small>Approval status</small><b>Approved</b><em>Final approval is required upstream</em></div></article></section>
+    <section className="social-manager-panel"><header><div><p>FINAL-APPROVED HANDOFF</p><h2>Social publishing queue</h2><span>Only assets whose destination is Social and whose final admin approval is recorded appear here.</span></div><b>{queue.length} items</b></header>
+      {error ? <div className="ads-queue-empty"><ShieldCheck/><b>Social queue could not load</b><span>{error}</span></div> : queue.length ? <div className="social-queue-list">{queue.map(asset => { const snapshot = (asset.campaign?.offer_snapshot ?? {}) as Record<string, unknown>; return <article className="social-queue-card" key={asset.id}><div className="social-queue-image">{asset.mediaUrl ? <img src={asset.mediaUrl} alt="Approved social creative"/> : <Image/>}</div><div className="social-queue-info"><div><span className="ads-queue-pill">{platformName[asset.platform_key] ?? asset.platform_key}</span><b className="ads-queue-approved">Admin approved</b></div><h3>{asset.campaign?.title}</h3><p className="social-source">{String(snapshot.product ?? 'Product')} · {String(snapshot.store ?? 'Store')}</p><strong>{asset.headline || 'No headline added'}</strong><p>{asset.caption || asset.description || 'No post copy added'}</p><div className="ads-queue-links"><a href={asset.destination_url} target="_blank" rel="noreferrer">Review tracked destination ↗</a><Link href="/admin/social-accounts">Connect social account</Link><Link href="/admin/content-manager?tab=drafts">Open source draft</Link></div></div><aside><b>Queued · not published</b><small>Connect an account and configure post timing before publishing is enabled.</small><span>Format: {asset.creative_format}</span></aside></article>; })}</div> : <div className="ads-queue-empty"><Share2/><b>No social assets have been routed</b><span>Final-approved Instagram and Facebook content will appear here. Drafts and approvals stay in their own workspaces.</span><Link href="/admin/content-manager">Open Content Manager</Link></div>}
+    </section>
+  </main></section></main>;
+}

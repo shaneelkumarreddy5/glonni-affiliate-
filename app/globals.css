@@ -405,3 +405,62 @@ nav.deals-pagination{height:auto;min-height:52px;border:0;padding:0;margin-top:2
 
 .store-directory-grid{display:grid;grid-template-columns:repeat(auto-fill,138px);justify-content:start;align-items:start;gap:12px}
 @media(max-width:700px){.store-directory-grid{grid-template-columns:repeat(auto-fill,138px)}}
+
+/* Distinct channel queues for Content Manager handoffs. */
+.ads-queue-list,.social-queue-list{display:grid;gap:12px;padding:14px}
+.ads-queue-card,.social-queue-card{display:grid;grid-template-columns:150px minmax(0,1fr) 190px;gap:14px;align-items:start;padding:13px;border:1px solid #e4eaf3;border-radius:10px;background:#fff}
+.ads-queue-image,.social-queue-image{display:grid;place-items:center;min-height:130px;overflow:hidden;border:1px solid #edf0f5;border-radius:8px;background:#f7f9fc;color:#94a1b4}
+.ads-queue-image img,.social-queue-image img{width:100%;height:100%;max-height:190px;object-fit:contain}
+.ads-queue-image svg,.social-queue-image svg{width:28px;height:28px}
+.ads-queue-info,.social-queue-info{display:grid;gap:7px;min-width:0}
+.ads-queue-info>div:first-child,.social-queue-info>div:first-child{display:flex;flex-wrap:wrap;align-items:center;gap:7px}
+.ads-queue-pill,.ads-queue-approved{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;background:#edf3ff;color:#2458ae;font-size:9px;font-weight:800;text-transform:capitalize}
+.ads-queue-approved{background:#e6f7ed;color:#18834a;text-transform:none}
+.ads-queue-info h2,.social-queue-info h3{margin:0;color:#202d45;font:700 14px 'Plus Jakarta Sans'}
+.ads-queue-info p,.social-queue-info p{margin:0;color:#748198;font-size:10px;line-height:1.45}
+.ads-queue-info>strong,.social-queue-info>strong{color:#34425a;font-size:10px}
+.ads-queue-info>span{color:#748198;font-size:9px;line-height:1.45}
+.ads-queue-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:3px}
+.ads-queue-links a{color:#1857c5;font-size:9px;font-weight:750;text-decoration:none}
+.ads-queue-links a:hover{text-decoration:underline}
+.ads-queue-card>aside,.social-queue-card>aside{display:grid;gap:7px;padding:11px;border:1px solid #eee5cf;border-radius:8px;background:#fffbf1}
+.ads-queue-card>aside b,.social-queue-card>aside b{color:#76530e;font-size:10px}
+.ads-queue-card>aside small,.social-queue-card>aside small,.ads-queue-card>aside span,.social-queue-card>aside span{color:#7d725a;font-size:8px;line-height:1.45}
+.ads-queue-empty{display:grid;justify-items:center;gap:8px;padding:36px 18px;text-align:center;color:#77849a}
+.ads-queue-empty>svg{width:27px;height:27px;color:#3470d8}
+.ads-queue-empty b{color:#27354d;font-size:12px}
+.ads-queue-empty span{max-width:620px;font-size:9px;line-height:1.5}
+.ads-queue-empty a{margin-top:4px;color:#1857c5;font-size:10px;font-weight:800;text-decoration:none}
+.social-manager-panel{overflow:hidden;border:1px solid #e4eaf3;border-radius:11px;background:#fff}
+.social-manager-panel>header{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:16px;border-bottom:1px solid #e9edf3}
+.social-manager-panel>header p{margin:0 0 4px;color:#6c7c96;font-size:8px;font-weight:850;letter-spacing:.8px}
+.social-manager-panel>header h2{margin:0;color:#202d45;font:700 15px 'Plus Jakarta Sans'}
+.social-manager-panel>header span{display:block;margin-top:4px;color:#78859a;font-size:9px}
+.social-manager-panel>header>b{flex:none;padding:7px 9px;border-radius:8px;background:#eef4ff;color:#2458ae;font-size:9px}
+.social-source{color:#8893a4!important}
+.ceo-final-content{margin:0 17px 17px;overflow:hidden;border:1px solid #dce6f4;border-radius:10px;background:#fbfcff}
+.ceo-final-content>header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid #e7edf5;background:#f5f8ff}
+.ceo-final-content>header p{margin:0 0 4px;color:#2162e8;font-size:8px;font-weight:900;letter-spacing:.8px}
+.ceo-final-content>header h3{margin:0;color:#1d2b45;font:700 13px 'Plus Jakarta Sans'}
+.ceo-final-content>header span{display:block;margin-top:4px;color:#718097;font-size:8px;line-height:1.45}
+.ceo-final-content>header>b{flex:none;padding:6px 8px;border-radius:999px;background:#eaf2ff;color:#1857c5;font-size:8px}
+.ceo-final-content-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:10px;padding:12px}
+.ceo-final-content-grid>article{overflow:hidden;border:1px solid #e1e8f1;border-radius:9px;background:#fff}
+.ceo-final-content-grid>article>img,.ceo-final-placeholder{display:grid;width:100%;height:155px;place-items:center;object-fit:contain;background:#f5f7fb;color:#8c99ac}
+.ceo-final-placeholder svg{width:28px}
+.ceo-final-content-body{display:grid;gap:7px;padding:11px}
+.ceo-final-content-label{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ceo-final-content-label b{color:#2256a6;font-size:8px}
+.ceo-final-content-label small{color:#8190a6;font-size:8px;text-transform:capitalize}
+.ceo-final-content-body h4{margin:0;color:#26344d;font:700 11px 'Plus Jakarta Sans'}
+.ceo-final-content-body>p{margin:0;color:#67758d;font-size:8px;line-height:1.45}
+.ceo-final-content-body>small{color:#8490a1;font-size:7px}
+.ceo-final-content-body>a{color:#1857c5;font-size:8px;font-weight:750;text-decoration:none}
+.ceo-final-content-body form{display:grid;gap:7px;margin-top:3px;padding-top:8px;border-top:1px solid #edf0f5}
+.ceo-final-content-body form>input{height:30px;padding:0 8px;border:1px solid #dce4ef;border-radius:6px;font:8px 'DM Sans'}
+.ceo-final-content-body form>div{display:flex;gap:7px}
+.ceo-final-content-body form button{min-height:30px;padding:0 9px;border:1px solid #c6d6ed;border-radius:6px;background:#fff;color:#315174;font:800 8px 'DM Sans';cursor:pointer}
+.ceo-final-content-body form button.approve{border-color:#b6e1c6;background:#e8f8ed;color:#167940}
+.ceo-final-content-body form button.reject{border-color:#f0c6c2;background:#fff2f0;color:#a9433c}
+@media(max-width:900px){.ads-queue-card,.social-queue-card{grid-template-columns:110px minmax(0,1fr)}.ads-queue-card>aside,.social-queue-card>aside{grid-column:2}.ads-queue-image,.social-queue-image{min-height:110px}}
+@media(max-width:600px){.ads-queue-list,.social-queue-list{padding:9px}.ads-queue-card,.social-queue-card{grid-template-columns:1fr}.ads-queue-card>aside,.social-queue-card>aside{grid-column:auto}.ads-queue-image,.social-queue-image{height:160px}.social-manager-panel>header{align-items:flex-start}.ceo-final-content{margin:0 10px 12px}.ceo-final-content-grid{grid-template-columns:1fr}.ceo-final-content>header{align-items:flex-start}}
