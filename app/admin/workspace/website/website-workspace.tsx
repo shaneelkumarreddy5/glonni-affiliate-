@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronRight, ExternalLink, GripVertical, ImagePlus, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
@@ -215,6 +215,9 @@ function titleForType(type: WebsiteBlockType) {
 
 function money(value: number | null) { return value == null ? 'Check price' : `₹${Math.round(value).toLocaleString('en-IN')}`; }
 function renderRichPreview(value: string) { return <>{renderWebsiteRichText(value)}</>; }
+function plainRichLabel(value: string | null | undefined, fallback = '') {
+  return websiteRichTextToPlainText(value ?? '').trim() || fallback;
+}
 function toLocalDateTime(value?: string) {
   if (!value) return '';
   const date = new Date(value);
@@ -311,6 +314,8 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const stageScrollerRef = useRef<HTMLDivElement>(null);
   const previewSectionRefs = useRef(new Map<string, HTMLDivElement>());
   const inspectorBodyRef = useRef<HTMLDivElement>(null);
+  const slideSettingsTrackRef = useRef<HTMLDivElement>(null);
+  const slideSettingsDragRef = useRef<{ pointerId: number; startX: number; startScrollLeft: number; moved: boolean } | null>(null);
   const slideEditorRefs = useRef(new Map<string, HTMLElement>());
   const selectedToken = selectedId ? `block:${selectedId}` : selectedCoreKey ? `core:${selectedCoreKey}` : null;
   function focusBannerSlide(blockId: string, slideIndex: number) {
@@ -323,11 +328,41 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       previewSlide?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       const editor = slideEditorRefs.current.get(`${blockId}:${slideIndex}`);
       const inspector = inspectorBodyRef.current;
+      const slideTrack = slideSettingsTrackRef.current;
+      if (editor && slideTrack) {
+        const trackBounds = slideTrack.getBoundingClientRect();
+        const editorBounds = editor.getBoundingClientRect();
+        slideTrack.scrollTo({ left: slideTrack.scrollLeft + editorBounds.left - trackBounds.left, behavior: 'smooth' });
+      }
       if (editor && inspector) {
         const top = editor.getBoundingClientRect().top - inspector.getBoundingClientRect().top + inspector.scrollTop - 8;
         inspector.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
       }
     }));
+  }
+  function beginSlideSettingsDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== 'mouse' || event.button !== 0 || (event.target as HTMLElement).closest('button,input,select,textarea,label,a')) return;
+    const track = event.currentTarget;
+    slideSettingsDragRef.current = { pointerId: event.pointerId, startX: event.clientX, startScrollLeft: track.scrollLeft, moved: false };
+    track.setPointerCapture(event.pointerId);
+  }
+  function moveSlideSettingsDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = slideSettingsDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const delta = event.clientX - drag.startX;
+    if (Math.abs(delta) > 4) drag.moved = true;
+    if (drag.moved) {
+      event.currentTarget.dataset.dragging = 'true';
+      event.currentTarget.scrollLeft = drag.startScrollLeft - delta;
+      event.preventDefault();
+    }
+  }
+  function endSlideSettingsDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = slideSettingsDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    slideSettingsDragRef.current = null;
+    event.currentTarget.dataset.dragging = 'false';
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
   }
   useEffect(() => () => bannerButtonCleanup.current?.(), []);
   useEffect(() => {
@@ -1033,13 +1068,13 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
         <header><div><small>PAGE CONTENT</small><b>Sections</b><span>{orderedItems.length} sections · all movable</span></div></header>
         <div className={styles.sectionList}>
           {orderedItems.map((item, index) => <Fragment key={item.token}>
-            <button className={`${styles.dropMarker} ${draggedId ? styles.dropReady : ''}`} type="button" disabled={!canEdit} onClick={() => addAt(index)} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, index); setDraggedId(null); }} aria-label={`Add a section before ${item.core?.title ?? item.block?.title ?? 'this section'}`}><i/><span>＋ Add here</span><small>Insert at this exact position</small></button>
+            <button className={`${styles.dropMarker} ${draggedId ? styles.dropReady : ''}`} type="button" disabled={!canEdit} onClick={() => addAt(index)} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, index); setDraggedId(null); }} aria-label={`Add a section before ${plainRichLabel(item.core?.title ?? item.block?.title, 'this section')}`}><i/><span>＋ Add here</span><small>Insert at this exact position</small></button>
             <article draggable={canEdit} className={`${styles.sectionCard} ${draggedId === item.token ? styles.dragging : ''} ${selectedId === item.block?.id && !selectedCoreKey || selectedCoreKey === item.core?.key ? styles.selected : ''} ${item.block && !item.block.is_active ? styles.hiddenCard : ''}`} onDragStart={(event) => { if (!canEdit) return; setDraggedId(item.token); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', item.token); }} onDragEnd={() => setDraggedId(null)} onDragOver={(event) => { if (canEdit) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }} onDrop={(event) => { if (!canEdit) return; event.preventDefault(); event.stopPropagation(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, index); setDraggedId(null); }}>
-              <button type="button" className={styles.dragHandle} aria-label={`Drag ${item.core?.title ?? item.block?.title ?? 'section'}`} title="Drag to move this whole section"><GripVertical/></button>
-              <button type="button" className={styles.sectionSelect} onClick={() => { setSelectedId(item.block?.id ?? null); setSelectedCoreKey(item.core?.key ?? null); setActiveBannerSlide(null); }}><span className={styles.sectionThumb}>{item.block ? item.block.block_type.includes('rail') ? <span className={styles.thumbCards}>▥</span> : item.block.image_url ? <img src={item.block.image_url} alt=""/> : <ImagePlus/> : <LayoutTemplate/>}</span><span><b>{item.core?.title ?? item.block?.config.section_heading ?? item.block?.title ?? titleForType(item.block!.block_type)}</b><small>{item.core?.note ?? `${titleForType(item.block!.block_type)} · ${item.block!.config.count ?? item.block!.config.slide_count ?? 1} ${item.block!.block_type === 'hero' || item.block!.block_type === 'banner' ? 'slides' : 'items'}`}</small></span></button>
+              <button type="button" className={styles.dragHandle} aria-label={`Drag ${plainRichLabel(item.core?.title ?? item.block?.title, 'section')}`} title="Drag to move this whole section"><GripVertical/></button>
+              <button type="button" className={styles.sectionSelect} onClick={() => { setSelectedId(item.block?.id ?? null); setSelectedCoreKey(item.core?.key ?? null); setActiveBannerSlide(null); }}><span className={styles.sectionThumb}>{item.block ? item.block.block_type.includes('rail') ? <span className={styles.thumbCards}>▥</span> : item.block.image_url ? <img src={item.block.image_url} alt=""/> : <ImagePlus/> : <LayoutTemplate/>}</span><span><b>{item.core?.title ?? (item.block ? plainRichLabel(item.block.config.section_heading ?? item.block.title, titleForType(item.block.block_type)) : '')}</b><small>{item.core?.note ?? `${titleForType(item.block!.block_type)} · ${item.block!.config.count ?? item.block!.config.slide_count ?? 1} ${item.block!.block_type === 'hero' || item.block!.block_type === 'banner' ? 'slides' : 'items'}`}</small></span></button>
               <div className={styles.sectionActions}>
-                {item.block && <button type="button" disabled={!canEdit} className={styles.miniToggle} aria-label={`${item.block.is_active ? 'Hide' : 'Show'} ${item.block.title}`} aria-pressed={item.block.is_active} onClick={(event) => { event.stopPropagation(); updateBlock(item.block!.id, (current) => ({ ...current, is_active: !current.is_active })); }}><i/></button>}
-                <button type="button" disabled={!canEdit} className={styles.miniRemove} aria-label={`Remove ${item.core?.title ?? item.block?.title ?? 'section'}`} title="Remove section" onClick={(event) => { event.stopPropagation(); if (item.core) removeCoreSection(item.core.key); else if (item.block) removeBlockSection(item.block.id); }}><Trash2/></button>
+                {item.block && <button type="button" disabled={!canEdit} className={styles.miniToggle} aria-label={`${item.block.is_active ? 'Hide' : 'Show'} ${plainRichLabel(item.block.title, titleForType(item.block.block_type))}`} aria-pressed={item.block.is_active} onClick={(event) => { event.stopPropagation(); updateBlock(item.block!.id, (current) => ({ ...current, is_active: !current.is_active })); }}><i/></button>}
+                <button type="button" disabled={!canEdit} className={styles.miniRemove} aria-label={`Remove ${plainRichLabel(item.core?.title ?? item.block?.title, 'section')}`} title="Remove section" onClick={(event) => { event.stopPropagation(); if (item.core) removeCoreSection(item.core.key); else if (item.block) removeBlockSection(item.block.id); }}><Trash2/></button>
               </div>
             </article>
           </Fragment>)}
@@ -1062,7 +1097,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
               const selectedBlock = token.startsWith('block:') ? blocks.find((block) => block.id === token.slice(6)) : null;
               const emptyPromotion = token === selectedToken && selectedBlock?.block_type === 'banner' && !selectedBlock.title && !selectedBlock.body && !selectedBlock.image_url && !selectedBlock.config.slides?.some((slide) => slide.title || slide.body || slide.image_url);
               return <div key={token} ref={(node) => { if (node) previewSectionRefs.current.set(token, node); else previewSectionRefs.current.delete(token); }} className={`${styles.previewSectionTarget} ${token === selectedToken ? styles.previewSectionTargetActive : ''}`} data-preview-section={token}>
-                {content ?? (token === selectedToken && selectedBlock ? <div className={styles.previewSelectionPlaceholder}><b>{emptyPromotion ? 'Promotion strip · ready to edit' : selectedBlock.title || titleForType(selectedBlock.block_type)}</b><span>{emptyPromotion ? 'Add your own image, heading or supporting text. This blank draft stays off the customer site until it has content.' : !selectedBlock.is_active ? 'This section is paused. Turn it on to show it to customers.' : 'This section has no content in the current preview. Check its device and schedule settings or add content.'}</span></div> : null)}
+                {content ?? (token === selectedToken && selectedBlock ? <div className={styles.previewSelectionPlaceholder}><b>{emptyPromotion ? 'Promotion strip · ready to edit' : plainRichLabel(selectedBlock.title, titleForType(selectedBlock.block_type))}</b><span>{emptyPromotion ? 'Add your own image, heading or supporting text. This blank draft stays off the customer site until it has content.' : !selectedBlock.is_active ? 'This section is paused. Turn it on to show it to customers.' : 'This section has no content in the current preview. Check its device and schedule settings or add content.'}</span></div> : null)}
               </div>;
             })}
             <footer className={styles.previewFooter}>Glonni · Shop with clear offers and cashback terms</footer>
@@ -1089,13 +1124,14 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           </div>
           <footer className={styles.inspectorFooter}><button type="button" className={styles.deleteButton} onClick={() => removeCoreSection(selectedCore.key)}><Trash2/> Remove section</button><span>Removes this section from the page layout only.</span></footer>
         </> : selected ? <>
-          <header className={styles.inspectorHeader}><div><small>SECTION SETTINGS</small><b>{selected.config.section_heading || selected.title || titleForType(selected.block_type)}</b></div><button type="button" onClick={() => setSelectedId(null)} aria-label="Close section settings"><X/></button></header>
+          <header className={styles.inspectorHeader}><div><small>SECTION SETTINGS</small><b>{plainRichLabel(selected.config.section_heading ?? selected.title, titleForType(selected.block_type))}</b></div><button type="button" onClick={() => setSelectedId(null)} aria-label="Close section settings"><X/></button></header>
           <div className={styles.inspectorBody} ref={inspectorBodyRef}>
             {(selected.block_type === 'hero' || selected.block_type === 'banner') ? <>
               <div className={styles.richFieldLabel}><span>Section heading <small>(optional · appears above all slides)</small></span><RichTextField value={selected.config.section_heading ?? ''} maxLength={120} singleLine onChange={(section_heading) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, section_heading } }))} placeholder="e.g. Featured campaigns"/></div>
               <div className={styles.bannerSectionTitle}><b>{selected.block_type === 'banner' ? 'Promotion card content' : 'Banner content'}</b><small>Each {selected.block_type === 'banner' ? 'card' : 'slide'} keeps its own shape, image, text and destination.</small></div>
               <label>Number of slides<input type="number" min={1} max={10} value={selected.config.slide_count ?? 1} onChange={(event) => setBannerSlideCount(selected.id, Number(event.target.value))}/></label>
               <small className={styles.shapeHint}>Choose the shape and linked item separately for each slide below.</small>
+              <div className={styles.bannerSlideSettingsTrack} ref={slideSettingsTrackRef} onPointerDown={beginSlideSettingsDrag} onPointerMove={moveSlideSettingsDrag} onPointerUp={endSlideSettingsDrag} onPointerCancel={endSlideSettingsDrag} aria-label="Slide settings; drag left or right to move between slides">
               {Array.from({ length: selected.config.slide_count ?? 1 }, (_, slideIndex) => {
                 const extra = selected.config.slides?.[slideIndex - 1];
                 const values = slideIndex === 0 ? { title: selected.title, body: selected.body, image_url: selected.image_url, cta_label: selected.cta_label, cta_href: selected.cta_href } : extra ?? { title: '', body: '', image_url: '', cta_label: '', cta_href: '' };
@@ -1121,6 +1157,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
                   {canAdjustButton && <div className={styles.bannerButtonControls}><b>Button position and size</b><small>Drag the button to move it and its corner to resize. Alignment guides appear on the slide; the button stays within its edges. Default: centered, slightly above the bottom edge.</small><div className={styles.twoFields}><label>Width (px)<input type="number" min={88} max={480} step={4} value={buttonLayout.width} onChange={(event) => updateBannerButtonSize(selected.id, slideIndex, 'width', Number(event.target.value))}/></label><label>Height (px)<input type="number" min={36} max={128} step={2} value={buttonLayout.height} onChange={(event) => updateBannerButtonSize(selected.id, slideIndex, 'height', Number(event.target.value))}/></label></div><button type="button" onClick={() => saveBannerButtonLayout(selected.id, slideIndex, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT)}>Reset position and size</button></div>}
                 </section>;
               })}
+              </div>
               <label className={styles.uploadField}>Mobile image for first slide (optional)<span className={styles.uploadRow}><input value={selected.config.mobile_image_url ?? ''} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, mobile_image_url: event.target.value } }))} placeholder="Use a crop suited to mobile"/><label className={styles.uploadButton}><Upload/>{uploading === 'mobile_image_url' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadImage('mobile_image_url', event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label>
               <div className={styles.twoFields}><label>Starts (optional)<input type="datetime-local" value={toLocalDateTime(selected.config.starts_at)} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, starts_at: fromLocalDateTime(event.target.value) } }))}/></label><label>Ends (optional)<input type="datetime-local" value={toLocalDateTime(selected.config.ends_at)} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, ends_at: fromLocalDateTime(event.target.value) } }))}/></label></div>
             </> : <>
