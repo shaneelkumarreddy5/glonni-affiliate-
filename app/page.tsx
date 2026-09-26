@@ -4,6 +4,7 @@ import { Header } from '@/components/header';
 import { StoreSection } from '@/components/store-section';
 import { HomeOfferRail } from '@/components/home-offer-rail';
 import { ScrollRail } from '@/components/scroll-rail';
+import { CategoryCard } from '@/components/category-card';
 import { CmsManagedSections, getPublishedWebsiteLayout } from '@/components/cms-managed-sections';
 import { CatalogOffer, getCatalogOffers, getCategories } from '@/lib/catalog';
 import { resolveWebsiteSectionOrder } from '@/lib/website-layout';
@@ -11,7 +12,6 @@ import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import './home.css';
 
 export const dynamic = 'force-dynamic';
-const icons = ['📱', '🎧', '👕', '🏠', '💄', '🏸', '🛒', '⚡', '💻', '🧸', '🧳', '🧴'];
 
 function uniqueProducts(offers: CatalogOffer[]) {
   const seen = new Set<string>();
@@ -51,7 +51,7 @@ export default async function Home() {
     'core:hero': !layout.section_order && layout.blocks.some((block) => block.config.slot === 'hero') ? null : defaultHero,
     'core:categories': <section id="categories" className="home-category-anchor" aria-labelledby="home-categories-title">
       <div className="section-title"><div><p className="eyebrow">BROWSE CATEGORIES</p><h2 id="home-categories-title">{renderWebsiteRichText(categoryContent.title || 'What are you shopping for?')}</h2>{categoryContent.body && <span className="home-managed-copy">{renderWebsiteRichText(categoryContent.body)}</span>}</div></div>
-      {displayedCategories.length ? <ScrollRail className="home-category-row" label="categories">{displayedCategories.map((category, index) => <a href={`/category/${category.slug}`} className={`home-category${categoryContent.visual_shape && categoryContent.visual_shape !== 'standard' ? ` shape-${categoryContent.visual_shape.replaceAll('_','-')}` : ''}`} key={category.id}><span>{category.image_url ? <img src={category.image_url} alt=""/> : icons[index % icons.length]}</span><b>{category.name}</b></a>)}</ScrollRail> : <div className="home-empty"><b>Categories are being prepared</b><span>They will appear here when available.</span></div>}
+      {displayedCategories.length ? <ScrollRail className="home-category-row" label="categories">{displayedCategories.map((category) => <CategoryCard href={`/category/${category.slug}`} imageUrl={category.image_url} name={category.name} key={category.id}/>)}</ScrollRail> : <div className="home-empty"><b>Categories are being prepared</b><span>They will appear here when available.</span></div>}
     </section>,
     'core:stores': <StoreSection content={coreContent.stores}/>,
     'core:best_deals': <section id="deals"><div className="section-title"><div><p className="eyebrow">BEST DEALS</p><h2>{renderWebsiteRichText(coreContent.best_deals?.title || 'Best deals right now')}</h2>{coreContent.best_deals?.body && <span className="home-managed-copy">{renderWebsiteRichText(coreContent.best_deals.body)}</span>}</div><a href="/deals?sort=best">View all deals</a></div><HomeOfferRail offers={selectedProducts('best_deals', bestDeals)} bestDeal/></section>,

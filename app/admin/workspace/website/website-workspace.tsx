@@ -102,6 +102,16 @@ function CataloguePicker({ title, items, selectedIds, search, onSearch, onToggle
   </details>;
 }
 
+function CategoryOrderList({ items, selectedIds, onMove }: { items: PickerItem[]; selectedIds: string[]; onMove: (id: string, direction: -1 | 1) => void }) {
+  const selected = selectedIds.map((id) => items.find((item) => item.id === id)).filter((item): item is PickerItem => Boolean(item));
+  if (!selected.length) return null;
+  return <div className={styles.categoryOrder}>
+    <b>Display order</b>
+    <ol>{selected.map((item, index) => <li key={item.id}><span><i>{index + 1}</i>{item.label}</span><div><button type="button" disabled={index === 0} onClick={() => onMove(item.id, -1)} aria-label={`Move ${item.label} up`} title="Move up">↑</button><button type="button" disabled={index === selected.length - 1} onClick={() => onMove(item.id, 1)} aria-label={`Move ${item.label} down`} title="Move down">↓</button></div></li>)}</ol>
+    <small>Cards follow this order on the page.</small>
+  </div>;
+}
+
 function SlideItemPicker({ title, items, selectedId, name, onSelect }: { title: string; items: PickerItem[]; selectedId?: string; name: string; onSelect: (id: string) => void }) {
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState(true);
@@ -236,6 +246,15 @@ function formatCategory(category: CategoryOption, categories: CategoryOption[]) 
     parent = found.parentId;
   }
   return names.join(' › ');
+}
+
+function moveSelectedId(ids: string[], id: string, direction: -1 | 1) {
+  const current = ids.indexOf(id);
+  const target = current + direction;
+  if (current < 0 || target < 0 || target >= ids.length) return ids;
+  const next = [...ids];
+  [next[current], next[target]] = [next[target], next[current]];
+  return next;
 }
 
 function categoryBranch(categorySlug: string | undefined, categories: CategoryOption[]) {
@@ -517,6 +536,9 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     const values = currentCoreContent[key]?.[field] ?? [];
     updateCoreContent(key, { [field]: values.includes(id) ? values.filter((item) => item !== id) : [...values, id] });
   }
+  function moveCoreCategory(key: string, id: string, direction: -1 | 1) {
+    updateCoreContent(key, { category_ids: moveSelectedId(currentCoreContent[key]?.category_ids ?? [], id, direction) });
+  }
   function removeCoreSection(key: string) {
     setOrders((current) => ({ ...current, [pageKey]: (current[pageKey] ?? []).filter((token) => token !== `core:${key}`) }));
     setCoreContent((current) => { const next = { ...current[pageKey] }; delete next[key]; return { ...current, [pageKey]: next }; });
@@ -584,7 +606,8 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     for (const product of orderedOffers) if (!search || `${product.title} ${product.brand ?? ''} ${product.storeName}`.toLowerCase().includes(search)) unique.set(product.productId, product);
     return [...unique.values()];
   }, [orderedOffers, catalogueSearch]);
-  const matchingCategoryChoices = categories.filter((category) => formatCategory(category, categories).toLowerCase().includes(catalogueSearch.trim().toLowerCase())).map((category) => ({ id: category.id, label: formatCategory(category, categories), detail: category.parentId ? 'Subcategory · opens its own category page' : 'Main category · opens its own category page', image: category.imageUrl }));
+  const allCategoryChoices = categories.map((category) => ({ id: category.id, label: formatCategory(category, categories), detail: category.parentId ? 'Subcategory · opens its own category page' : 'Main category · opens its own category page', image: category.imageUrl }));
+  const matchingCategoryChoices = allCategoryChoices.filter((category) => category.label.toLowerCase().includes(catalogueSearch.trim().toLowerCase()));
   const matchingStoreChoices = stores.filter((store) => store.name.toLowerCase().includes(catalogueSearch.trim().toLowerCase())).map((store) => ({ id: store.id, label: store.name, detail: `Store page: /store/${store.slug}`, image: store.logoUrl }));
   const matchingCoreProductChoices = coreProductChoices.map((product) => ({ id: product.productId, label: product.title, detail: `${product.storeName} · ${product.categoryName || 'Uncategorised'} · ${money(product.price)}`, image: product.imageUrl }));
 
@@ -597,6 +620,9 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       const values = block.config[field] ?? [];
       return { ...block, config: { ...block.config, [field]: values.includes(itemId) ? values.filter((value) => value !== itemId) : [...values, itemId] } };
     });
+  }
+  function moveBlockCategory(blockId: string, categoryId: string, direction: -1 | 1) {
+    updateBlock(blockId, (block) => ({ ...block, config: { ...block.config, category_ids: moveSelectedId(block.config.category_ids ?? [], categoryId, direction) } }));
   }
 
   function updateBannerSlide(blockId: string, index: number, patch: Partial<WebsiteBannerSlide>) {
@@ -996,7 +1022,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       const ids = block.config.category_ids ?? [];
       const rank = new Map(ids.map((id, index) => [id, index]));
       const list = (ids.length ? categories.filter((category) => rank.has(category.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : categories).slice(0, block.config.count ?? 10);
-      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED CATEGORIES · EACH OPENS ITS CATEGORY PAGE</small><b>{renderRichPreview(block.title)}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={`${styles.previewCards} ${styles[`shape_${(block.config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`}>{list.map((category) => <article key={category.id} className={styles.previewCatalogueCard}><span>{category.imageUrl ? <img src={category.imageUrl} alt=""/> : category.name.slice(0, 1)}</span><b>{category.name}</b><small>Opens /category/{category.slug}</small></article>)}</div></section>;
+      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED CATEGORIES · SHARED CATEGORY CARD</small><b>{renderRichPreview(block.title)}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={styles.previewCategoryCards}>{list.map((category) => <article key={category.id} className={styles.previewCategoryCard}><span>{category.imageUrl ? <img src={category.imageUrl} alt=""/> : category.name.slice(0, 1)}</span><b>{category.name}</b><small>Opens /category/{category.slug}</small></article>)}</div></section>;
     }
     if (block.block_type === 'store_directory') {
       const ids = block.config.store_ids ?? [];
@@ -1013,12 +1039,12 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     const content = currentCoreContent[key] ?? {};
     const picked = kind === 'categories' ? content.category_ids : kind === 'stores' ? content.store_ids : content.product_ids;
     const rank = new Map((picked ?? []).map((id, index) => [id, index]));
-    const shape = kind === 'products' ? 'standard' : content.visual_shape ?? 'standard';
+    const shape = kind === 'categories' || kind === 'products' ? 'standard' : content.visual_shape ?? 'standard';
     const title = content.title || defaultTitle;
     const productsPicked = kind === 'products' && picked?.length ? orderedOffers.filter((product) => rank.has(product.productId)).sort((a, b) => (rank.get(a.productId) ?? 0) - (rank.get(b.productId) ?? 0)) : orderedOffers;
-    const categoriesPicked = kind === 'categories' ? categories.filter((category) => !category.parentId && (!picked?.length || rank.has(category.id))).sort((a,b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : [];
+    const categoriesPicked = kind === 'categories' ? categories.filter((category) => picked?.length ? rank.has(category.id) : !category.parentId).sort((a,b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : [];
     const storesPicked = kind === 'stores' ? stores.filter((store) => !picked?.length || rank.has(store.id)).sort((a,b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : [];
-    return <section className={styles.lockedPreview}><header><div><small>CONNECTED LIVE CONTENT</small><b>{renderRichPreview(title)}</b></div><span>{kind === 'products' ? 'Shared product card' : shape === 'standard' ? 'Card shape: standard' : `Card shape: ${shape.replaceAll('_', ' ')}`}</span></header>{content.body && <p className={styles.previewRich}>{renderRichPreview(content.body)}</p>}{kind === 'products' ? <div className={`${styles.fakeProducts} ${styles[`shape_${shape}`]}`}>{productsPicked.slice(0, content.count ?? 4).map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><b>{product.title}</b><small>{product.storeName} · {money(product.price)}</small></article>)}</div> : kind === 'categories' ? <div className={`${styles.fakeCategories} ${styles[`shape_${shape}`]}`}>{categoriesPicked.slice(0, content.count ?? 7).map((category) => <span key={category.id}>{category.name}</span>)}</div> : <div className={`${styles.fakeStores} ${styles[`shape_${shape}`]}`}>{storesPicked.slice(0, content.count ?? 7).map((store) => <span key={store.id}>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}{store.name}</span>)}</div>}<small>{caption}</small></section>;
+    return <section className={styles.lockedPreview}><header><div><small>CONNECTED LIVE CONTENT</small><b>{renderRichPreview(title)}</b></div><span>{kind === 'products' ? 'Shared product card' : kind === 'categories' ? 'Shared category card' : shape === 'standard' ? 'Card shape: standard' : `Card shape: ${shape.replaceAll('_', ' ')}`}</span></header>{content.body && <p className={styles.previewRich}>{renderRichPreview(content.body)}</p>}{kind === 'products' ? <div className={`${styles.fakeProducts} ${styles[`shape_${shape}`]}`}>{productsPicked.slice(0, content.count ?? 4).map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><b>{product.title}</b><small>{product.storeName} · {money(product.price)}</small></article>)}</div> : kind === 'categories' ? <div className={styles.previewCategoryCards}>{categoriesPicked.slice(0, content.count ?? 10).map((category) => <article key={category.id} className={styles.previewCategoryCard}><span>{category.imageUrl ? <img src={category.imageUrl} alt=""/> : category.name.slice(0, 1)}</span><b>{category.name}</b><small>/category/{category.slug}</small></article>)}</div> : <div className={`${styles.fakeStores} ${styles[`shape_${shape}`]}`}>{storesPicked.slice(0, content.count ?? 7).map((store) => <span key={store.id}>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}{store.name}</span>)}</div>}<small>{caption}</small></section>;
   }
 
   function previewCore(key: string) {
@@ -1119,12 +1145,12 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
             <div className={styles.richFieldLabel}><span>Heading</span><RichTextField value={currentCoreContent[selectedCore.key]?.title ?? (pageKey === 'home' && selectedCore.key === 'hero' ? '' : selectedCore.title)} maxLength={120} singleLine placeholder={pageKey === 'home' && selectedCore.key === 'hero' ? 'Compare before you shop.' : 'Add a section heading'} onChange={(title) => updateCoreContent(selectedCore.key, { title })}/></div>
             <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={currentCoreContent[selectedCore.key]?.body ?? ''} onChange={(body) => updateCoreContent(selectedCore.key, { body })} placeholder="Optional description"/></div>
             {pageKey === 'home' && ['categories', 'stores', 'best_deals', 'trending', 'price_drops'].includes(selectedCore.key) && <>
-              {['best_deals', 'trending', 'price_drops'].includes(selectedCore.key) ? <label>Number of products<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? 10} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label> : <div className={styles.twoFields}><label>Number of cards<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? 10} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>
+              {['best_deals', 'trending', 'price_drops'].includes(selectedCore.key) ? <label>Number of products<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? 10} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label> : selectedCore.key === 'categories' ? <label>Number of categories<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? 10} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label> : <div className={styles.twoFields}><label>Number of cards<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? 10} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>
                 <label>Card shape<select value={currentCoreContent[selectedCore.key]?.visual_shape ?? 'standard'} onChange={(event) => updateCoreContent(selectedCore.key, { visual_shape: event.target.value as WebsiteVisualShape })}><option value="standard">Standard</option><option value="wide">Wide</option><option value="strip">Promotional strip</option><option value="square">Square</option><option value="rectangle_horizontal">Rectangle · horizontal</option><option value="rectangle_vertical">Rectangle · vertical</option></select></label></div>}
-              {selectedCore.key === 'categories' && <CataloguePicker title="Choose categories and subcategories" items={matchingCategoryChoices} selectedIds={currentCoreContent[selectedCore.key]?.category_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'category_ids', id)}/>}
+              {selectedCore.key === 'categories' && <><div className={styles.sharedCategoryCardNote}><b>Shared category card</b>Each card uses the same catalogue image, category name and category-page link. Shape stays consistent wherever categories appear.</div><CataloguePicker title="Choose categories and subcategories" items={matchingCategoryChoices} selectedIds={currentCoreContent[selectedCore.key]?.category_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'category_ids', id)}/><CategoryOrderList items={allCategoryChoices} selectedIds={currentCoreContent[selectedCore.key]?.category_ids ?? []} onMove={(id, direction) => moveCoreCategory(selectedCore.key, id, direction)}/></>}
               {selectedCore.key === 'stores' && <CataloguePicker title="Choose stores" items={matchingStoreChoices} selectedIds={currentCoreContent[selectedCore.key]?.store_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'store_ids', id)}/>}
               {['best_deals', 'trending', 'price_drops'].includes(selectedCore.key) && <CataloguePicker title="Choose products" items={matchingCoreProductChoices} selectedIds={currentCoreContent[selectedCore.key]?.product_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'product_ids', id)}/>}
-              <small className={styles.sourceNote}><Check/> Each selected card keeps its own destination: product page, category page or store page.</small>
+              <small className={styles.sourceNote}><Check/> {selectedCore.key === 'categories' ? 'Each selected category or subcategory opens its exact category page.' : 'Each selected card keeps its own destination: product page, category page or store page.'}</small>
             </>}
             <div className={styles.globalSectionNote}><b>Move it intactly</b><span>Drag the grip in the left list. This edits only the section on this page.</span></div>
           </div>
@@ -1168,12 +1194,18 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
               <div className={styles.richFieldLabel}><span>Heading</span><RichTextField value={selected.title} maxLength={120} singleLine onChange={(title) => updateBlock(selected.id, (block) => ({ ...block, title }))} placeholder="e.g. Diwali essentials"/></div>
               <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={selected.body} onChange={(body) => updateBlock(selected.id, (block) => ({ ...block, body }))} placeholder="Add a short customer-friendly description"/></div>
             </>}
-            {(selected.block_type === 'category_rail' || selected.block_type === 'store_directory') && <>
+            {selected.block_type === 'category_rail' && <>
+              <label>Number of categories<input type="number" min={1} max={50} value={selected.config.count ?? 10} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) } }))}/></label>
+              <div className={styles.sharedCategoryCardNote}><b>Shared category card</b>Cards use the catalogue image and title and link to the selected category or subcategory page. Their size and shape stay consistent across the site.</div>
+              <CataloguePicker title="Choose categories and subcategories" items={matchingCategoryChoices} selectedIds={selected.config.category_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleBlockPick(selected.id, 'category_ids', id)}/>
+              <CategoryOrderList items={allCategoryChoices} selectedIds={selected.config.category_ids ?? []} onMove={(id, direction) => moveBlockCategory(selected.id, id, direction)}/>
+              <small className={styles.sourceNote}><Check/> Each card links to its exact category page. The same category can appear in another section.</small>
+            </>}
+            {selected.block_type === 'store_directory' && <>
               <label>Card shape<select value={selected.config.visual_shape ?? 'standard'} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, visual_shape: event.target.value as WebsiteVisualShape } }))}><option value="standard">Standard</option><option value="wide">Wide</option><option value="strip">Promotional strip</option><option value="square">Square</option><option value="rectangle_horizontal">Rectangle · horizontal</option><option value="rectangle_vertical">Rectangle · vertical</option></select></label>
               <label>Number of cards<input type="number" min={1} max={50} value={selected.config.count ?? 10} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) } }))}/></label>
-              {selected.block_type === 'category_rail' && <CataloguePicker title="Choose categories and subcategories" items={matchingCategoryChoices} selectedIds={selected.config.category_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleBlockPick(selected.id, 'category_ids', id)}/>}
-              {selected.block_type === 'store_directory' && <CataloguePicker title="Choose stores" items={matchingStoreChoices} selectedIds={selected.config.store_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleBlockPick(selected.id, 'store_ids', id)}/>}
-              <small className={styles.sourceNote}><Check/> Selecting a card links to that exact category or store page. You can add the same category or store section again elsewhere.</small>
+              <CataloguePicker title="Choose stores" items={matchingStoreChoices} selectedIds={selected.config.store_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleBlockPick(selected.id, 'store_ids', id)}/>
+              <small className={styles.sourceNote}><Check/> Selecting a card links to that store page. You can add the same store section again elsewhere.</small>
             </>}
             {(selected.block_type === 'product_rail' || selected.block_type === 'store_rail') && <>
               <div className={styles.globalSectionNote}><b>Shared product card</b><span>Product rails use the existing standard product card. These settings control only which products appear in this section.</span></div>

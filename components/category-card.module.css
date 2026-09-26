@@ -1,0 +1,7 @@
+.card{box-sizing:border-box;flex:0 0 138px;width:138px;min-width:138px;min-height:128px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:12px;border:1px solid #e2e8f2;border-radius:13px;background:#fff;color:#182542;text-align:center;text-decoration:none;scroll-snap-align:start;transition:transform .16s,border-color .16s,box-shadow .16s}
+.card:hover{transform:translateY(-2px);border-color:#aac2f2;box-shadow:0 8px 22px #17376a13}
+.image{width:56px;height:56px;flex:none;display:grid;place-items:center;overflow:hidden;border-radius:12px;background:#f3f6fb;color:#1554d1;font:800 22px 'Plus Jakarta Sans',sans-serif}
+.image img{width:100%;height:100%;object-fit:contain}
+.image b{font:inherit}
+.card>strong{max-width:100%;overflow:hidden;color:#182542;font:800 12px/1.25 'Plus Jakarta Sans',sans-serif;text-overflow:ellipsis}
+.card>small{color:#78869d;font-size:9px}
