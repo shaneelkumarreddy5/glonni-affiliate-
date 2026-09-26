@@ -4,6 +4,7 @@ import { getCatalogOffers, getCategories, type CatalogOffer } from '@/lib/catalo
 import { HomeOfferRail } from '@/components/home-offer-rail';
 import { ScrollRail } from '@/components/scroll-rail';
 import { CategoryCard } from '@/components/category-card';
+import { StoreCard } from '@/components/store-card';
 import { getStores } from '@/lib/catalog';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { systemPageSlug, type SystemPageKey } from '@/lib/system-pages';
@@ -204,7 +205,7 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
       if (!selected.length) return null;
       return <section key={block.id} className={`${styles.catalogueRail} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`}>
         <header><div><p className="eyebrow">STORES</p><h2>{renderWebsiteRichText(block.title || 'Shop by store')}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
-        <ScrollRail className={styles.storeCards} label={block.title || 'stores'}>{selected.map((store) => <a className={`${styles.catalogueCard} ${styles[`shape_${(config.visual_shape ?? 'standard').replaceAll('-', '_')}`]}`} href={`/store/${store.slug}?from=/`} key={store.id}><span className={styles.storeImage}>{store.logo_url ? <img src={store.logo_url} alt=""/> : <b>{store.name.slice(0, 1)}</b>}</span><strong>{store.name}</strong><small>Shop this store</small></a>)}</ScrollRail>
+        <ScrollRail className={styles.storeCards} label={block.title || 'stores'}>{selected.map((store) => <StoreCard key={store.id} href={`/store/${store.slug}?from=/`} name={store.name} logoUrl={store.logo_url}/>)}</ScrollRail>
       </section>;
     }
 

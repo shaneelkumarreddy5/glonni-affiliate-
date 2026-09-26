@@ -3,6 +3,7 @@ import { Search, Store } from 'lucide-react';
 import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
 import { CmsManagedSections } from '@/components/cms-managed-sections';
+import { StoreCard } from '@/components/store-card';
 import { categoryBranchIds } from '@/lib/category-tree';
 import { getCatalogOffers, getCategories, getStores } from '@/lib/catalog';
 
@@ -31,11 +32,7 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
       <form className="store-directory-search" action="/stores"><Search size={18}/><input name="q" defaultValue={filters.q} aria-label="Search stores" placeholder="Search stores by name"/>{filters.category && <input type="hidden" name="category" value={filters.category}/>}<button type="submit">Search</button></form>
       <div className="store-category-filter"><b>Store category</b><div className="filter-row"><Link className={!filters.category ? 'selected' : ''} href="/stores">All categories</Link>{topCategories.map((category) => <Link className={filters.category === category.slug ? 'selected' : ''} href={`/stores?category=${encodeURIComponent(category.slug)}`} key={category.id}>{category.name}</Link>)}</div></div>
 
-      {visibleStores.length ? <><div className="store-directory-summary"><b>{visibleStores.length} {visibleStores.length === 1 ? 'store' : 'stores'}</b><span>{selectedCategory ? `with offers in ${selectedCategory.name}` : 'available to browse'}</span></div><div className="vertical-store-grid store-directory-grid">{visibleStores.map((store) => {
-        const storeOffers = categoryOffers.filter((offer) => offer.merchants?.slug === store.slug);
-        const productCount = new Set(storeOffers.map((offer) => offer.products?.id).filter(Boolean)).size;
-        return <Link href={`/store/${store.slug}?from=${encodeURIComponent('/stores')}`} key={store.id}>{store.logo_url ? <span className="directory-store-logo"><img src={store.logo_url} alt=""/></span> : <span>{store.name.slice(0, 1)}</span>}<div><b>{store.name}</b><small>{productCount} {productCount === 1 ? 'product' : 'products'} · {storeOffers.length} {storeOffers.length === 1 ? 'offer' : 'offers'}</small></div><Store size={17}/></Link>;
-      })}</div></> : <div className="empty-state store-directory-empty"><Store size={30}/><h2>No stores match your filters</h2><p>Try another name or browse all store categories.</p><Link href="/stores" className="primary">Show all stores</Link></div>}
+      {visibleStores.length ? <><div className="store-directory-summary"><b>{visibleStores.length} {visibleStores.length === 1 ? 'store' : 'stores'}</b><span>{selectedCategory ? `with offers in ${selectedCategory.name}` : 'available to browse'}</span></div><div className="store-directory-grid">{visibleStores.map((store) => <StoreCard key={store.id} href={`/store/${store.slug}?from=${encodeURIComponent('/stores')}`} name={store.name} logoUrl={store.logo_url}/>)}</div></> : <div className="empty-state store-directory-empty"><Store size={30}/><h2>No stores match your filters</h2><p>Try another name or browse all store categories.</p><Link href="/stores" className="primary">Show all stores</Link></div>}
     </section>
     <CmsManagedSections pageKey="stores" slot="page_end"/>
   </main></>;

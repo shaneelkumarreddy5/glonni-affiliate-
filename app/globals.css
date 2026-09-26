@@ -192,3 +192,6 @@ nav.deals-pagination{height:auto;min-height:52px;border:0;padding:0;margin-top:2
 .website-workspace-main{min-width:0}
 .website-access-note{margin-top:15px;padding:11px 13px;border:1px solid #f0d9a9;border-radius:9px;background:#fff9e9;color:#855c0e;font-size:11px}
 @media(max-width:700px){.admin-content.website-workspace-content{padding:6px 8px 14px}}
+
+.store-directory-grid{display:grid;grid-template-columns:repeat(auto-fill,138px);justify-content:start;align-items:start;gap:12px}
+@media(max-width:700px){.store-directory-grid{grid-template-columns:repeat(auto-fill,138px)}}
