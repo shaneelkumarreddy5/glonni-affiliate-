@@ -116,6 +116,8 @@
 .previewBannerTrack .previewBanner{box-sizing:border-box;scroll-snap-stop:always}
 .previewSlideNumber{position:absolute;z-index:2;top:8px;right:8px;padding:4px 7px;border:1px solid #dce4f0;border-radius:20px;background:#ffffffed;color:#61718b;font:800 7px 'DM Sans',sans-serif;letter-spacing:0;cursor:pointer}
 .previewSlideNumber:hover{border-color:#8db0f5;background:#f2f7ff;color:#1554d1}
+.previewBanner[data-editor-selectable="true"]{cursor:pointer}
+.previewBanner[data-editor-selectable="true"]:hover{outline:1px solid #1554d180;outline-offset:1px}
 .previewBanner[data-slide-selected="true"]{outline:2px solid #1554d1;outline-offset:2px}
 .previewSlideEmpty{justify-content:center;text-align:center;border-style:dashed!important;background:#f8faff!important}
 .previewSlideEmpty>div{max-width:42ch}
