@@ -38,6 +38,7 @@ const sections = [
   ] },
   { title: 'PARTNERS & GROWTH', icon: Cable, links: [
     { label: 'Affiliate Providers', href: '/admin/providers', icon: Cable }, { label: 'API Integrations', href: '/admin/integrations', icon: PlugZap },
+    { label: 'Vouchers & Bills', href: '/admin/vouchers-bills', icon: Gift },
     { label: 'Postback Logs', href: '/admin/postbacks', icon: FolderKanban },
     { label: 'Ads Manager', href: '/admin/ads', icon: Megaphone },
     { label: 'Social Media Manager', href: '/admin/social-manager', icon: Share2 },
