@@ -45,3 +45,23 @@
 .slideCta{position:absolute;z-index:2;left:var(--cta-x,50%);top:var(--cta-y,82%);transform:translate(-50%,-50%);box-sizing:border-box;width:var(--cta-width,124px);height:var(--cta-height,44px);max-width:calc(100% - 16px);display:inline-flex;align-items:center;justify-content:center;margin:0;padding:0 14px;overflow:hidden;border:1px solid color-mix(in srgb,var(--accent) 78%,#fff);border-radius:9px;background:var(--accent);color:#fff;font-family:'DM Sans',sans-serif;font-weight:800;font-size:13px;line-height:1.2;text-align:center;text-overflow:ellipsis;white-space:nowrap}
 .slideDestinationList .slideDestinationLink{position:static;display:inline-flex;align-items:center;justify-content:center;width:auto;height:auto;max-width:100%;margin:0;padding:9px 13px;border:1px solid color-mix(in srgb,var(--accent) 78%,#fff);border-radius:8px;background:var(--accent);color:#fff;font-size:12px;font-weight:800;text-decoration:none}
 .slideDestinationList .slideDestinationLink:hover{filter:brightness(.96)}
+
+.serviceRail{min-width:0;margin:26px 0}
+.serviceRail>header{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;margin-bottom:12px}
+.serviceRail>header>div{min-width:0}
+.serviceRail>header .eyebrow{margin:0 0 4px;color:#7f8ba0;font-size:10px;font-weight:900;letter-spacing:.8px}
+.serviceRail>header h2{margin:0;color:#16213d;font:800 22px/1.25 'Plus Jakarta Sans',sans-serif;letter-spacing:-.4px}
+.serviceRail>header span{display:block;margin-top:5px;color:#65738c;font-size:13px}
+.serviceRail>header>a{flex:none;color:#1554d1;font-size:12px;font-weight:800;white-space:nowrap}
+.serviceCards{position:relative}
+.serviceCards :global(.scroll-rail-track){gap:12px;padding:3px 1px 9px}
+.serviceCard{box-sizing:border-box;flex:0 0 min(31%,280px);min-width:230px;min-height:106px;display:grid;grid-template-columns:48px minmax(0,1fr) 16px;align-items:center;gap:11px;padding:15px;border:1px solid #e1e8f2;border-radius:14px;background:#fff;color:#1b2944;scroll-snap-align:start;transition:border-color .16s,box-shadow .16s,transform .16s}
+.serviceCard:hover{transform:translateY(-2px);border-color:#aac2f2;box-shadow:0 8px 22px #17376a13}
+.serviceCard>span{width:46px;height:46px;display:grid;place-items:center;border-radius:13px;background:#edf4ff;color:#1554d1}
+.serviceCard>span svg{width:22px;height:22px}
+.serviceCard>div{min-width:0;display:grid;gap:4px}
+.serviceCard strong{font:800 14px 'Plus Jakarta Sans',sans-serif}
+.serviceCard small{color:#728099;font-size:11px;line-height:1.35}
+.serviceCard em{color:#a36a18;font-size:9px;font-style:normal;font-weight:700}
+.serviceCard>svg{width:15px;height:15px;color:#76869e}
+@media(max-width:700px){.serviceRail{margin:20px 0}.serviceRail>header h2{font-size:18px}.serviceRail>header span{font-size:11px}.serviceRail>header>a{font-size:10px}.serviceCard{flex-basis:82%;min-width:0;min-height:94px;padding:12px}.serviceCard strong{font-size:12px}.serviceCard small{font-size:10px}}

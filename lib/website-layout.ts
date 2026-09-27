@@ -1,5 +1,17 @@
 export type WebsitePageKey = 'home' | 'stores' | 'product';
-export type WebsiteBlockType = 'hero' | 'banner' | 'product_rail' | 'store_rail' | 'category_rail' | 'store_directory';
+export type WebsiteBlockType = 'hero' | 'banner' | 'product_rail' | 'store_rail' | 'category_rail' | 'store_directory' | 'service_rail';
+export const websiteServiceTypeOptions = [
+  { key: 'gift_cards', label: 'Gift cards', href: '/vouchers-bills?type=gift-cards', description: 'Digital gift cards from supported brands' },
+  { key: 'mobile_recharge', label: 'Mobile recharge', href: '/vouchers-bills?type=mobile-recharge', description: 'Recharge services from a connected partner' },
+  { key: 'bill_payments', label: 'Pay bills', href: '/vouchers-bills?type=bill-payments', description: 'Bill services available from a connected partner' },
+] as const;
+export type WebsiteServiceType = typeof websiteServiceTypeOptions[number]['key'];
+
+export function normalizeWebsiteServiceTypes(value: unknown): WebsiteServiceType[] {
+  if (!Array.isArray(value)) return [];
+  const allowed = new Set<string>(websiteServiceTypeOptions.map((option) => option.key));
+  return [...new Set(value.filter((item): item is WebsiteServiceType => typeof item === 'string' && allowed.has(item)))];
+}
 export type WebsiteVisualShape = 'standard' | 'wide' | 'strip' | 'square' | 'rectangle_horizontal' | 'rectangle_vertical';
 export type WebsiteSlot =
   | 'hero' | 'after_hero' | 'after_categories' | 'after_stores'
@@ -116,6 +128,7 @@ export type WebsiteBlockConfig = {
   store_ids?: string[];
   source_mode?: 'all' | 'curated';
   product_ids?: string[];
+  service_types?: WebsiteServiceType[];
   count?: number;
   sort?: 'best_deal' | 'trending' | 'price_drop' | 'newest';
   mobile_image_url?: string;

@@ -1,11 +1,11 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
-import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronRight, ExternalLink, GripVertical, ImagePlus, LayoutTemplate, Monitor, Plus, Smartphone, Tablet, Trash2, Upload, X } from 'lucide-react';
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronRight, ExternalLink, Gift, GripVertical, ImagePlus, LayoutTemplate, Monitor, Plus, ReceiptText, Smartphone, Tablet, Trash2, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { applyWebsiteTextStyle, getWebsiteTextAlignment, getWebsiteTextStyleAt, setWebsiteTextAlignment, WEBSITE_TEXT_FONTS, websiteRichTextToPlainText, updateWebsiteRichTextText, type WebsiteTextAlignment } from '@/lib/website-rich-text-format';
-import { coreSectionsByPage, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, removeWebsiteBannerSlide, resolveWebsiteSlideItems, websiteItemHref, websitePageOptions, type WebsiteBannerButtonLayout, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
+import { coreSectionsByPage, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, removeWebsiteBannerSlide, resolveWebsiteSlideItems, websiteItemHref, websitePageOptions, websiteServiceTypeOptions, type WebsiteBannerButtonLayout, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
 import { autosaveWebsiteDraft, publishWebsiteLayout, saveWebsiteDraft, type WebsiteActionResult } from './actions';
 import styles from './website-workspace.module.css';
 
@@ -336,15 +336,15 @@ function ProductSelectionComposer({ stores, products, categories, selectedIds, i
 
 function newBlock(type: WebsiteBlockType, page: WebsitePageKey, storeSlug?: string): WebsiteDraftBlock {
   const slot = page === 'home' ? 'after_price_drops' : page === 'stores' ? 'store_before_products' : 'after_summary';
-  const title = type === 'hero' ? 'Your featured campaign' : type === 'banner' ? '' : type === 'store_rail' ? 'Top deals at this store' : type === 'category_rail' ? 'Browse categories' : type === 'store_directory' ? 'Shop by store' : 'Featured products';
-  const config: WebsiteDraftBlock['config'] = { slot: slot as WebsiteSlot, count: 10, slide_count: type === 'hero' || type === 'banner' ? 1 : undefined, slide_targets: type === 'hero' || type === 'banner' ? [{ type: 'manual' }] : undefined, slide_items: type === 'hero' || type === 'banner' ? [[]] : undefined, sort: 'best_deal', source_mode: type === 'product_rail' || type === 'store_rail' ? 'curated' : 'all', product_ids: [], banner_size: type === 'hero' || type === 'banner' ? (type === 'banner' ? 'strip' : 'wide') : undefined, slide_shapes: type === 'banner' ? ['strip'] : type === 'hero' ? ['wide'] : undefined, visual_shape: 'standard', accent: '#1554d1', background: '#f2f6ff' };
+  const title = type === 'hero' ? 'Your featured campaign' : type === 'banner' ? '' : type === 'store_rail' ? 'Top deals at this store' : type === 'category_rail' ? 'Browse categories' : type === 'store_directory' ? 'Shop by store' : type === 'service_rail' ? 'Vouchers & bill payments' : 'Featured products';
+  const config: WebsiteDraftBlock['config'] = { slot: slot as WebsiteSlot, count: 10, slide_count: type === 'hero' || type === 'banner' ? 1 : undefined, slide_targets: type === 'hero' || type === 'banner' ? [{ type: 'manual' }] : undefined, slide_items: type === 'hero' || type === 'banner' ? [[]] : undefined, sort: 'best_deal', source_mode: type === 'product_rail' || type === 'store_rail' ? 'curated' : 'all', product_ids: [], service_types: type === 'service_rail' ? websiteServiceTypeOptions.map((option) => option.key) : undefined, banner_size: type === 'hero' || type === 'banner' ? (type === 'banner' ? 'strip' : 'wide') : undefined, slide_shapes: type === 'banner' ? ['strip'] : type === 'hero' ? ['wide'] : undefined, visual_shape: 'standard', accent: '#1554d1', background: '#f2f6ff' };
   if (type === 'store_rail') config.store_slug = storeSlug;
   if (page === 'stores' && storeSlug) config.store_slug = storeSlug;
-  return { id: crypto.randomUUID(), block_type: type, title, body: '', cta_label: type === 'banner' ? '' : type.includes('rail') ? 'View all deals' : 'Shop now', cta_href: type === 'banner' ? '' : type === 'store_rail' && storeSlug ? `/store/${storeSlug}` : '/deals', image_url: '', config, device_visibility: 'all', is_active: true };
+  return { id: crypto.randomUUID(), block_type: type, title, body: '', cta_label: type === 'banner' ? '' : type === 'service_rail' ? 'View all services' : type.includes('rail') ? 'View all deals' : 'Shop now', cta_href: type === 'banner' ? '' : type === 'service_rail' ? '/vouchers-bills' : type === 'store_rail' && storeSlug ? `/store/${storeSlug}` : '/deals', image_url: '', config, device_visibility: 'all', is_active: true };
 }
 
 function titleForType(type: WebsiteBlockType) {
-  return type === 'hero' ? 'Hero banner' : type === 'banner' ? 'Promotion banner' : type === 'store_rail' ? 'Store deals rail' : type === 'category_rail' ? 'Category cards' : type === 'store_directory' ? 'Store cards' : 'Product collection';
+  return type === 'hero' ? 'Hero banner' : type === 'banner' ? 'Promotion banner' : type === 'store_rail' ? 'Store deals rail' : type === 'category_rail' ? 'Category cards' : type === 'store_directory' ? 'Store cards' : type === 'service_rail' ? 'Vouchers & Bills' : 'Product collection';
 }
 
 function money(value: number | null) { return value == null ? 'Check price' : `₹${Math.round(value).toLocaleString('en-IN')}`; }
@@ -976,6 +976,11 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
 
   function addSection(type: WebsiteBlockType) {
     if (type === 'hero' && pageKey !== 'home') return;
+    if (type === 'service_rail' && pageKey !== 'home') {
+      setNotice({ kind: 'error', text: 'Vouchers & Bills sections can only be added to the home page.' });
+      setAddOpen(false);
+      return;
+    }
     if ((type === 'store_rail' || type === 'store_directory') && !stores.length) {
       setNotice({ kind: 'error', text: 'Add and activate a store in Stores & Brands before creating this section.' });
       setAddOpen(false);
@@ -1133,6 +1138,18 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
         </div>
       </section>;
     }
+    if (block.block_type === 'service_rail') {
+      const selectedTypes = websiteServiceTypeOptions.filter((option) => (block.config.service_types ?? []).includes(option.key));
+      if (!selectedTypes.length) return <div className={styles.previewEmpty} key={block.id}><b>{renderRichPreview(block.title || 'Vouchers & bill payments')}</b><span>Choose one or more service types in the section settings.</span></div>;
+      return <section className={styles.previewServiceRail} key={block.id}>
+        <header><div><small>SELECTED CUSTOMER SERVICES</small><b>{renderRichPreview(block.title || 'Vouchers & bill payments')}</b></div>{block.cta_label && <span>{block.cta_label} ↗</span>}</header>
+        {block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}
+        <div className={styles.previewServiceCards}>{selectedTypes.map((option) => {
+          const ServiceIcon = option.key === 'gift_cards' ? Gift : option.key === 'mobile_recharge' ? Smartphone : ReceiptText;
+          return <article key={option.key}><span><ServiceIcon/></span><b>{option.label}</b><small>{option.description}</small><em>Provider setup pending</em></article>;
+        })}</div>
+      </section>;
+    }
     if (block.block_type === 'category_rail') {
       const ids = block.config.category_ids ?? [];
       const rank = new Map(ids.map((id, index) => [id, index]));
@@ -1219,7 +1236,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
             <button className={`${styles.dropMarker} ${draggedId ? styles.dropReady : ''}`} type="button" disabled={!canEdit} onClick={() => addAt(index)} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, index); setDraggedId(null); }} aria-label={`Add a section before ${plainRichLabel(item.core?.title ?? item.block?.title, 'this section')}`}><i/><span>＋ Add here</span><small>Insert at this exact position</small></button>
             <article draggable={canEdit} className={`${styles.sectionCard} ${draggedId === item.token ? styles.dragging : ''} ${selectedId === item.block?.id && !selectedCoreKey || selectedCoreKey === item.core?.key ? styles.selected : ''} ${item.block && !item.block.is_active ? styles.hiddenCard : ''}`} onDragStart={(event) => { if (!canEdit) return; setDraggedId(item.token); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', item.token); }} onDragEnd={() => setDraggedId(null)} onDragOver={(event) => { if (canEdit) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }} onDrop={(event) => { if (!canEdit) return; event.preventDefault(); event.stopPropagation(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, index); setDraggedId(null); }}>
               <button type="button" className={styles.dragHandle} aria-label={`Drag ${plainRichLabel(item.core?.title ?? item.block?.title, 'section')}`} title="Drag to move this whole section"><GripVertical/></button>
-              <button type="button" className={styles.sectionSelect} onClick={() => { setSelectedId(item.block?.id ?? null); setSelectedCoreKey(item.core?.key ?? null); setActiveBannerSlide(null); }}><span className={styles.sectionThumb}>{item.block ? item.block.block_type.includes('rail') ? <span className={styles.thumbCards}>▥</span> : item.block.image_url ? <img src={item.block.image_url} alt=""/> : <ImagePlus/> : <LayoutTemplate/>}</span><span><b>{item.core?.title ?? (item.block ? plainRichLabel(item.block.config.section_heading ?? item.block.title, titleForType(item.block.block_type)) : '')}</b><small>{item.core?.note ?? `${titleForType(item.block!.block_type)} · ${item.block!.config.count ?? item.block!.config.slide_count ?? 1} ${item.block!.block_type === 'hero' || item.block!.block_type === 'banner' ? 'slides' : 'items'}`}</small></span></button>
+              <button type="button" className={styles.sectionSelect} onClick={() => { setSelectedId(item.block?.id ?? null); setSelectedCoreKey(item.core?.key ?? null); setActiveBannerSlide(null); }}><span className={styles.sectionThumb}>{item.block ? item.block.block_type.includes('rail') ? <span className={styles.thumbCards}>▥</span> : item.block.image_url ? <img src={item.block.image_url} alt=""/> : <ImagePlus/> : <LayoutTemplate/>}</span><span><b>{item.core?.title ?? (item.block ? plainRichLabel(item.block.config.section_heading ?? item.block.title, titleForType(item.block.block_type)) : '')}</b><small>{item.core?.note ?? `${titleForType(item.block!.block_type)} · ${item.block!.block_type === 'service_rail' ? (item.block!.config.service_types?.length ?? 0) : item.block!.config.count ?? item.block!.config.slide_count ?? 1} ${item.block!.block_type === 'hero' || item.block!.block_type === 'banner' ? 'slides' : item.block!.block_type === 'service_rail' ? 'types' : 'items'}`}</small></span></button>
               <div className={styles.sectionActions}>
                 {item.block && <button type="button" disabled={!canEdit} className={styles.miniToggle} aria-label={`${item.block.is_active ? 'Hide' : 'Show'} ${plainRichLabel(item.block.title, titleForType(item.block.block_type))}`} aria-pressed={item.block.is_active} onClick={(event) => { event.stopPropagation(); updateBlock(item.block!.id, (current) => ({ ...current, is_active: !current.is_active })); }}><i/></button>}
                 <button type="button" disabled={!canEdit} className={styles.miniRemove} aria-label={`Remove ${plainRichLabel(item.core?.title ?? item.block?.title, 'section')}`} title="Remove section" onClick={(event) => { event.stopPropagation(); if (item.core) removeCoreSection(item.core.key); else if (item.block) removeBlockSection(item.block.id); }}><Trash2/></button>
@@ -1229,7 +1246,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           <button className={`${styles.dropMarker} ${draggedId ? styles.dropReady : ''}`} type="button" disabled={!canEdit} onClick={() => addAt(orderedItems.length)} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, orderedItems.length); setDraggedId(null); }} aria-label="Add a section at the end of the page"><i/><span>＋ Add here</span><small>Insert at the end of the page</small></button>
         </div>
         <div className={styles.addSectionWrap}>
-          {addOpen && <div className={styles.addMenu} role="menu"><button type="button" onClick={() => addSection('hero')} disabled={pageKey !== 'home'}><span>▣</span><b>Hero banner section</b><small>Add here · choose slide count and shape</small></button><button type="button" onClick={() => addSection('banner')}><span>▱</span><b>Promotion strips</b><small>Add here · compact curved full-width strips</small></button><button type="button" onClick={() => addSection('product_rail')}><span>▤</span><b>Product cards</b><small>Choose exact products from the catalogue</small></button><button type="button" onClick={() => addSection('category_rail')}><span>⌑</span><b>Category cards</b><small>Choose any categories or subcategories</small></button><button type="button" onClick={() => addSection('store_directory')}><span>▥</span><b>Store cards</b><small>Choose connected stores to feature</small></button><button type="button" onClick={() => addSection('store_rail')}><span>↗</span><b>Deals from one store</b><small>Choose a store and number of products</small></button></div>}
+          {addOpen && <div className={styles.addMenu} role="menu"><button type="button" onClick={() => addSection('hero')} disabled={pageKey !== 'home'}><span>▣</span><b>Hero banner section</b><small>Add here · choose slide count and shape</small></button><button type="button" onClick={() => addSection('banner')}><span>▱</span><b>Promotion strips</b><small>Add here · compact curved full-width strips</small></button><button type="button" onClick={() => addSection('product_rail')}><span>▤</span><b>Product cards</b><small>Choose exact products from the catalogue</small></button><button type="button" onClick={() => addSection('category_rail')}><span>⌑</span><b>Category cards</b><small>Choose any categories or subcategories</small></button><button type="button" onClick={() => addSection('store_directory')}><span>▥</span><b>Store cards</b><small>Choose connected stores to feature</small></button><button type="button" onClick={() => addSection('store_rail')}><span>↗</span><b>Deals from one store</b><small>Choose a store and number of products</small></button><button type="button" onClick={() => addSection('service_rail')} disabled={pageKey !== 'home'}><span>♧</span><b>Vouchers &amp; Bills</b><small>{pageKey === 'home' ? 'Choose gift cards, recharge, bills—or any combination' : 'Available on the home page'}</small></button></div>}
           <button className={styles.addSectionButton} type="button" disabled={!canEdit} onClick={() => setAddOpen((open) => !open)}><Plus/> Add section <ChevronDown size={15}/></button>
           <p>Choose “Add here” for exact placement. Drag any section by its grip to move it intactly.</p>
         </div>
@@ -1308,7 +1325,21 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
             </> : <>
               <div className={styles.richFieldLabel}><span>Heading</span><RichTextField value={selected.title} maxLength={120} singleLine onChange={(title) => updateBlock(selected.id, (block) => ({ ...block, title }))} placeholder="e.g. Diwali essentials"/></div>
               <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={selected.body} onChange={(body) => updateBlock(selected.id, (block) => ({ ...block, body }))} placeholder="Add a short customer-friendly description"/></div>
+              {selected.block_type === 'service_rail' && <>
+                <fieldset className={styles.serviceTypeSettings}>
+                  <legend>Choose what appears</legend>
+                  <small>Choose one or more. Only selected types appear on the customer page.</small>
+                  <div className={styles.serviceTypeActions}><button type="button" onClick={() => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, service_types: websiteServiceTypeOptions.map((option) => option.key) } }))}>Select all</button><button type="button" onClick={() => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, service_types: [] } }))}>Clear</button></div>
+                  <div className={styles.serviceTypeChoices}>{websiteServiceTypeOptions.map((option) => {
+                    const isChecked = (selected.config.service_types ?? []).includes(option.key);
+                    const ServiceIcon = option.key === 'gift_cards' ? Gift : option.key === 'mobile_recharge' ? Smartphone : ReceiptText;
+                    return <label key={option.key} className={isChecked ? styles.serviceTypeChoiceSelected : ''}><input type="checkbox" checked={isChecked} onChange={() => updateBlock(selected.id, (block) => { const current = block.config.service_types ?? []; const next = current.includes(option.key) ? current.filter((value) => value !== option.key) : [...current, option.key]; return { ...block, config: { ...block.config, service_types: websiteServiceTypeOptions.filter((item) => next.includes(item.key)).map((item) => item.key) } }; })}/><span className={styles.serviceTypeIcon}><ServiceIcon/></span><span><b>{option.label}</b><small>{option.description}</small></span></label>;
+                  })}</div>
+                </fieldset>
+                <small className={styles.sourceNote}><Check/> Offerings and availability must come from connected providers. No sample vouchers, prices, or billers are shown; provider setup is currently pending.</small>
+              </>}
             </>}
+            {selected.block_type === 'service_rail' && <div className={styles.globalSectionNote}><b>Live links stay honest</b><span>Service tiles open the relevant customer service page, which clearly shows when a provider is not connected. Saving keeps this layout in draft; customers see it only after publish.</span></div>}
             {selected.block_type === 'category_rail' && <>
               <label>Number of categories<input type="number" min={1} max={50} value={selected.config.count ?? 10} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, config: { ...block.config, count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) } }))}/></label>
               <div className={styles.sharedCategoryCardNote}><b>Shared category card</b>Cards use the catalogue image and title and link to the selected category or subcategory page. Their size and shape stay consistent across the site.</div>
@@ -1339,7 +1370,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
               </>}
               <small className={styles.sourceNote}><Check/> Sections show products only when their store offer is active and approved in the customer catalogue.</small>
             </>}
-            {(selected.block_type === 'product_rail' || selected.block_type === 'store_rail' || selected.block_type === 'category_rail' || selected.block_type === 'store_directory') && <>
+            {(selected.block_type === 'product_rail' || selected.block_type === 'store_rail' || selected.block_type === 'category_rail' || selected.block_type === 'store_directory' || selected.block_type === 'service_rail') && <>
               <label>Button label (optional)<input maxLength={60} value={selected.cta_label} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, cta_label: event.target.value }))} placeholder="e.g. View all deals"/></label>
               {selected.cta_label && <label>Button destination<input maxLength={500} value={selected.cta_href} onChange={(event) => updateBlock(selected.id, (block) => ({ ...block, cta_href: event.target.value }))} placeholder="/deals or https://…"/></label>}
             </>}

@@ -1,4 +1,5 @@
 import { cache, type ReactNode } from 'react';
+import { ArrowRight, Gift, ReceiptText, Smartphone } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { getCatalogOffers, getCategories, type CatalogOffer } from '@/lib/catalog';
 import { HomeOfferRail } from '@/components/home-offer-rail';
@@ -8,7 +9,7 @@ import { StoreCard } from '@/components/store-card';
 import { getStores } from '@/lib/catalog';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { systemPageSlug, type SystemPageKey } from '@/lib/system-pages';
-import { hasVisibleWebsiteBannerSlideContent, normalizeWebsiteBannerButtonLayout, resolveWebsiteSlideItems, websiteItemHref, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey } from '@/lib/website-layout';
+import { hasVisibleWebsiteBannerSlideContent, normalizeWebsiteBannerButtonLayout, resolveWebsiteSlideItems, websiteItemHref, websiteServiceTypeOptions, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey } from '@/lib/website-layout';
 import styles from './cms-managed-sections.module.css';
 
 type ManagedBlock = WebsiteDraftBlock & { id: string };
@@ -155,6 +156,18 @@ export async function CmsManagedSections({ pageKey, slot, blockIds, className = 
           return href ? <a key={`${block.id}-slide-${index}`} href={href} className={`${slideClass} ${styles.bannerSlideLink}`} style={slideStyle} aria-label={slide.title || slide.cta_label || 'Open linked destination'}>{content}</a> : <section key={`${block.id}-slide-${index}`} className={slideClass} style={slideStyle}>{content}</section>;
         })}
         </div>
+      </section>;
+    }
+
+    if (block.block_type === 'service_rail') {
+      const selectedTypes = websiteServiceTypeOptions.filter((option) => (config.service_types ?? []).includes(option.key));
+      if (!selectedTypes.length) return null;
+      return <section key={block.id} className={`${styles.serviceRail} ${visibility === 'mobile' ? styles.mobileOnly : visibility === 'desktop' ? styles.desktopOnly : ''}`}>
+        <header><div><p className="eyebrow">VOUCHERS &amp; BILLS</p><h2>{renderWebsiteRichText(block.title || 'Vouchers & bill payments')}</h2>{block.body && <span className={styles.richText}>{renderWebsiteRichText(block.body)}</span>}</div>{block.cta_label && block.cta_href && <a href={block.cta_href}>{block.cta_label} →</a>}</header>
+        <ScrollRail className={styles.serviceCards} label={block.title || 'Vouchers and bill payments'}>{selectedTypes.map((option) => {
+          const ServiceIcon = option.key === 'gift_cards' ? Gift : option.key === 'mobile_recharge' ? Smartphone : ReceiptText;
+          return <a key={option.key} href={option.href} className={styles.serviceCard}><span><ServiceIcon/></span><div><strong>{option.label}</strong><small>{option.description}</small><em>Coming soon · provider setup pending</em></div><ArrowRight/></a>;
+        })}</ScrollRail>
       </section>;
     }
 

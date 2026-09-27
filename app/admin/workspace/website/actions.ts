@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { coreSectionsByPage, defaultWebsiteSectionOrder, slotsByPage, websitePageOptions, type WebsiteBannerSlide, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteVisualShape } from '@/lib/website-layout';
+import { coreSectionsByPage, defaultWebsiteSectionOrder, normalizeWebsiteServiceTypes, slotsByPage, websitePageOptions, type WebsiteBannerSlide, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsiteLayoutSnapshot, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteVisualShape } from '@/lib/website-layout';
 import { websiteRichTextToPlainText } from '@/lib/website-rich-text-format';
 
 export type WebsiteActionResult = { ok: true; message: string } | { ok: false; error: string };
@@ -47,8 +47,9 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
     if (!raw || typeof raw !== 'object') return 'A section contains invalid data.';
     const item = raw as Record<string, unknown>;
     const type = item.block_type;
-    if (!['hero', 'banner', 'product_rail', 'store_rail', 'category_rail', 'store_directory'].includes(String(type))) return 'Choose a supported banner or catalogue section.';
+    if (!['hero', 'banner', 'product_rail', 'store_rail', 'category_rail', 'store_directory', 'service_rail'].includes(String(type))) return 'Choose a supported banner or catalogue section.';
     if (type === 'hero' && pageKey !== 'home') return 'Hero banners can only be added to the home page.';
+    if (type === 'service_rail' && pageKey !== 'home') return 'Vouchers & Bills sections can only be added to the home page.';
     const id = String(item.id ?? '');
     if (!/^[0-9a-f-]{36}$/i.test(id)) return 'A section identifier is invalid. Remove it and add the section again.';
     const title = String(item.title ?? '').trim();
@@ -74,6 +75,7 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
     const sort = ['best_deal', 'trending', 'price_drop', 'newest'].includes(sortValue) ? sortValue as WebsiteDraftBlock['config']['sort'] : 'best_deal';
     const count = Math.max(1, Math.min(50, Number(rawConfig.count ?? 10) || 10));
     const productIds = Array.isArray(rawConfig.product_ids) ? rawConfig.product_ids.filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50) : [];
+    const serviceTypes = normalizeWebsiteServiceTypes(rawConfig.service_types);
     const mobileImage = String(rawConfig.mobile_image_url ?? '').trim();
     const bannerSize: NonNullable<WebsiteDraftBlock['config']['banner_size']> = type === 'banner' ? 'strip' : ['wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawConfig.banner_size)) ? rawConfig.banner_size as NonNullable<WebsiteDraftBlock['config']['banner_size']> : 'wide';
     const visualShape = ['standard', 'wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(rawConfig.visual_shape)) ? rawConfig.visual_shape as WebsiteVisualShape : 'standard';
@@ -160,6 +162,7 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
         store_ids: storeIds,
         source_mode: sourceMode,
         product_ids: productIds,
+        service_types: type === 'service_rail' ? serviceTypes : undefined,
         count,
         sort,
         mobile_image_url: mobileImage || undefined,

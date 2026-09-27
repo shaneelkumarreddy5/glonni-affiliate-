@@ -96,6 +96,38 @@
 .previewStoreCard>span img{width:100%;height:100%;object-fit:contain}
 .previewStoreCard>b{max-width:100%;overflow:hidden;color:#182542;font-size:8px;text-overflow:ellipsis;white-space:nowrap}
 
+.previewServiceRail{margin:7px 14px;padding:12px;border:1px solid #dfe7f4;border-radius:10px;background:#fff}
+.previewServiceRail>header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.previewServiceRail>header>div{display:grid;gap:3px;min-width:0}
+.previewServiceRail>header small{color:#8996ab;font-size:7px;font-weight:900;letter-spacing:.6px}
+.previewServiceRail>header b{font:800 12px 'Plus Jakarta Sans',sans-serif;color:#182542}
+.previewServiceRail>header>span{color:#1554d1;font-size:8px;font-weight:800}
+.previewServiceRail>.previewRich{margin:0 0 8px;color:#75839a;font-size:8px;line-height:1.45}
+.previewServiceCards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.previewServiceCards article{min-width:0;display:grid;justify-items:start;align-content:start;gap:5px;padding:9px;border:1px solid #e3e9f2;border-radius:9px;background:#fff}
+.previewServiceCards article>span{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:#eff5ff;color:#1554d1}
+.previewServiceCards article>span svg{width:17px;height:17px}
+.previewServiceCards article>b{color:#1b2944;font-size:8px}
+.previewServiceCards article>small{color:#7b899f;font-size:7px;line-height:1.35}
+.previewServiceCards article>em{color:#a66a13;font-size:6px;font-style:normal;font-weight:800}
+.serviceTypeSettings{min-width:0;margin:0;padding:0;border:0}
+.serviceTypeSettings legend{padding:0;color:#465773;font-size:10px;font-weight:800}
+.serviceTypeSettings>small{display:block;margin:4px 0 7px;color:#8290a5;font-size:8px;line-height:1.4}
+.serviceTypeActions{display:flex;justify-content:flex-end;gap:6px;margin-bottom:6px}
+.serviceTypeActions button{padding:5px 7px;border:1px solid #dce5f2;border-radius:6px;background:#fff;color:#1554d1;font-size:8px;font-weight:800;cursor:pointer}
+.serviceTypeChoices{display:grid;gap:6px}
+.serviceTypeChoices>label{display:grid;grid-template-columns:14px 34px minmax(0,1fr);align-items:center;gap:8px;padding:8px;border:1px solid #e1e7f0;border-radius:8px;background:#fff;cursor:pointer}
+.serviceTypeChoices>label.serviceTypeChoiceSelected{border-color:#8db0f0;background:#f5f8ff}
+.serviceTypeChoices>label>input{width:14px;height:14px;margin:0;accent-color:#1554d1}
+.serviceTypeIcon{width:32px;height:32px;display:grid;place-items:center;border-radius:8px;background:#edf4ff;color:#1554d1}
+.serviceTypeIcon svg{width:16px;height:16px}
+.serviceTypeChoices>label>span:last-child{min-width:0}
+.serviceTypeChoices>label b,.serviceTypeChoices>label small{display:block}
+.serviceTypeChoices>label b{color:#273854;font-size:9px}
+.serviceTypeChoices>label small{margin-top:3px;color:#8290a5;font-size:7px;line-height:1.35}
+.inspectorBody .serviceTypeSettings input[type="checkbox"]{padding:0}
+@media(max-width:700px){.previewServiceCards{grid-template-columns:1fr}.previewServiceCards article{grid-template-columns:34px minmax(0,1fr);align-items:center}.previewServiceCards article>span{grid-row:1/4}}
+
 /* Compact, field-scoped typography controls for headings and supporting copy. */
 .richFieldLabel{gap:6px}
 .richEditor{border-radius:9px}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, defaultWebsiteSectionOrder, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, resolveWebsiteSlideItems, websiteItemHref } from '../lib/website-layout.ts';
+import { DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, defaultWebsiteSectionOrder, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, normalizeWebsiteServiceTypes, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, resolveWebsiteSlideItems, websiteItemHref, websiteServiceTypeOptions } from '../lib/website-layout.ts';
 
 const block = (id, slot) => ({
   id,
@@ -46,6 +46,16 @@ test('catalogue slide destinations open the selected product, subcategory or sto
   assert.equal(websiteItemHref('product', 'iphone-18-pro'), '/product/iphone-18-pro');
   assert.equal(websiteItemHref('category', 'mens-shirts'), '/category/mens-shirts');
   assert.equal(websiteItemHref('store', 'amazon'), '/store/amazon');
+});
+
+test('Vouchers & Bills section types accept one, multiple or all supported services only', () => {
+  assert.deepEqual(normalizeWebsiteServiceTypes(['gift_cards']), ['gift_cards']);
+  assert.deepEqual(normalizeWebsiteServiceTypes(['mobile_recharge', 'bill_payments']), ['mobile_recharge', 'bill_payments']);
+  assert.deepEqual(normalizeWebsiteServiceTypes(websiteServiceTypeOptions.map((option) => option.key)), ['gift_cards', 'mobile_recharge', 'bill_payments']);
+  assert.deepEqual(normalizeWebsiteServiceTypes(['gift_cards', 'gift_cards', 'unsupported']), ['gift_cards']);
+  assert.equal(websiteServiceTypeOptions.find((option) => option.key === 'gift_cards')?.href, '/vouchers-bills?type=gift-cards');
+  assert.equal(websiteServiceTypeOptions.find((option) => option.key === 'mobile_recharge')?.href, '/vouchers-bills?type=mobile-recharge');
+  assert.equal(websiteServiceTypeOptions.find((option) => option.key === 'bill_payments')?.href, '/vouchers-bills?type=bill-payments');
 });
 
 test('blank slides do not render live, even when they already have a destination', () => {
