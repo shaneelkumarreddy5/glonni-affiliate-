@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   BarChart3, Bell, Bot, Boxes, Building2, BriefcaseBusiness, Cable, ChartNoAxesCombined, Clock3, Headphones,
   ChevronDown, ChevronLeft, ClipboardCheck, FolderKanban, Gift, KeyRound,
-  LogOut, Megaphone, Package, PlugZap, ReceiptText, Search, Settings, Share2, ShieldCheck, Store, FileClock, Scale, GitCompareArrows,
+  LogOut, Megaphone, Menu, Package, PlugZap, ReceiptText, Search, Settings, Share2, ShieldCheck, Store, FileClock, Scale, GitCompareArrows, X,
   Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote, FlaskConical, FileSearch, ShoppingBag, PenTool,
 } from 'lucide-react';
 import { AdminTabRepair } from '@/components/admin-tab-repair';
@@ -70,6 +70,7 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const sidebarRef = useRef<HTMLElement>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [periodOpen, setPeriodOpen] = useState(false);
   const [period, setPeriod] = useState('This month');
@@ -82,6 +83,14 @@ export function AdminSidebar() {
   useEffect(() => {
     sidebarRef.current?.closest('.admin-v2')?.classList.toggle('sidebar-collapsed', collapsed);
   }, [collapsed]);
+
+  useEffect(() => {
+    sidebarRef.current?.closest('.admin-v2')?.classList.toggle('mobile-nav-open', mobileOpen);
+  }, [mobileOpen]);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   function toggle() {
     const next = !collapsed;
@@ -104,6 +113,10 @@ export function AdminSidebar() {
     window.localStorage.setItem('glonni-admin-period', value);
   }
 
+  const navLabels: Array<{ href: string; label: string }> = [];
+  sections.forEach(section => section.links.forEach(link => navLabels.push({ href: link.href, label: link.label })));
+  const currentPageLabel = navLabels.filter(link => active(link.href)).sort((a, b) => b.href.length - a.href.length)[0]?.label ?? 'Glonni Admin';
+
   return <><aside ref={sidebarRef} className="admin-side" aria-label="Admin navigation">
     <div className="sidebar-brand-row">
       <a className="admin-brand" href="/admin/dashboard" aria-label="Glonni admin dashboard">
@@ -112,7 +125,9 @@ export function AdminSidebar() {
       <button className="sidebar-toggle" type="button" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggle}><ChevronLeft/></button>
     </div>
     <nav>{sections.map((section) => { const SectionIcon = section.icon; const isOpen = sectionOpen(section.title, section.links); return <section key={section.title} className={isOpen ? 'open' : ''}><button className="nav-group" type="button" title={section.title} onClick={() => setExpanded(isOpen ? null : section.title)}><span><SectionIcon size={16}/><b>{section.title}</b></span><ChevronDown size={15}/></button><div className="nav-links">{section.links.map((link) => { const Icon = link.icon; const isActive = active(link.href); const children = ('children' in link ? link.children : undefined) as readonly { href: string; label: string; icon: LucideIcon }[] | undefined; const isParentActive = isActive || Boolean(children?.some((child) => active(child.href))); return <div className={children ? 'nav-item-with-children' : undefined} key={link.href}><a className={isParentActive ? 'selected' : ''} href={link.href} title={link.label} aria-current={isActive ? 'page' : undefined}><span className="nav-icon"><Icon className="nav-symbol" size={17}/></span><span className="nav-label">{link.label}</span></a>{children?.length ? <div className="nav-sub-links">{children.map((child) => { const ChildIcon = child.icon; const childActive = active(child.href); return <a key={child.href} className={childActive ? 'selected' : ''} href={child.href} title={child.label} aria-current={childActive ? 'page' : undefined}><span className="nav-icon"><ChildIcon className="nav-symbol" size={15}/></span><span className="nav-label">{child.label}</span></a>; })}</div> : null}</div>; })}</div></section>; })}</nav>
-  </aside><AdminTabRepair/><AdminActionRepair/><CampaignUiRepair/><header className="admin-global-topbar" aria-label="Admin workspace controls">
+  </aside><button type="button" className="admin-nav-backdrop" aria-label="Close navigation" onClick={() => setMobileOpen(false)}/><AdminTabRepair/><AdminActionRepair/><CampaignUiRepair/><header className="admin-global-topbar" aria-label="Admin workspace controls">
+    <button className="admin-mobile-nav-toggle" type="button" aria-label={mobileOpen ? 'Close admin navigation' : 'Open admin navigation'} aria-expanded={mobileOpen} onClick={() => setMobileOpen(value => !value)}>{mobileOpen ? <X size={20}/> : <Menu size={20}/>}</button>
+    <h1 className="topbar-page-title">{currentPageLabel}</h1>
     <form action="/admin/search" role="search"><Search size={18}/><input name="q" placeholder="Search users, offers, partners, or activity…" aria-label="Search admin workspace"/></form>
     <div className="topbar-period-wrap"><button className="topbar-period" type="button" aria-label="Dashboard reporting period" aria-expanded={periodOpen} onClick={() => setPeriodOpen(value => !value)}><Clock3 size={17}/>{period}<ChevronDown size={14}/></button>{periodOpen&&<div className="topbar-period-menu" role="menu"><button type="button" onClick={() => choosePeriod('Today')}>Today</button><button type="button" onClick={() => choosePeriod('Last 7 days')}>Last 7 days</button><button type="button" onClick={() => choosePeriod('This month')}>This month</button><button type="button" onClick={() => choosePeriod('This quarter')}>This quarter</button></div>}</div>
     <span className="topbar-mode">MOCK MODE · TEST DATA</span>
