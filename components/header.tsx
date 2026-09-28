@@ -16,11 +16,13 @@ export async function Header() {
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Profile';
   const initial = displayName.slice(0, 1).toUpperCase();
   const location = profile?.city || 'Location not set';
+  const siteName = identity?.site_name || 'Glonni';
+  const useGlonniLogo = ['glonni', 'glonni affiliate'].includes(siteName.trim().toLowerCase());
   const savedCount = savedResult.count ?? 0;
   const unreadNotificationCount = notificationResult.count ?? 0;
 
   return <><header className="top">
-    <a className="logo" href="/" aria-label={`${identity?.site_name || 'Glonni'} home`}>{identity?.logo_url ? <img src={identity.logo_url} alt="" style={{ maxWidth: 180, maxHeight: 44, objectFit: 'contain' }}/> : identity?.site_name || 'Glonni'}</a>
+    <a className="logo" href="/" aria-label={`${siteName} home`}>{identity?.logo_url ? <img className="brand-logo-image" src={identity.logo_url} alt=""/> : useGlonniLogo ? <img className="brand-logo-image" src="/brand/glonni-logo-horizontal-navy.svg" alt=""/> : siteName}</a>
     <form className="search" action="/deals"><input name="q" aria-label="Search products, brands and stores" placeholder="Search products, brands and stores..."/><button type="submit" aria-label="Search"><Search size={20}/></button></form>
     <div className="top-actions">
       <span className="header-location"><MapPin/><small>Shopping location</small><b>{location}</b></span>

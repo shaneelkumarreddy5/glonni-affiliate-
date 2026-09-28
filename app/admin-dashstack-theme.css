@@ -1,11 +1,11 @@
 /* DashStack-inspired visual layer. Scoped to admin so the customer site and workflows stay untouched. */
 .admin-v2 {
-  --admin-accent: #4880ff;
-  --admin-accent-dark: #326ced;
-  --admin-canvas: #f5f6fa;
-  --admin-ink: #202224;
+  --admin-accent: var(--glonni-navy);
+  --admin-accent-dark: var(--glonni-navy);
+  --admin-canvas: var(--glonni-sky-tint);
+  --admin-ink: var(--glonni-ink);
   --admin-muted: #606671;
-  --admin-border: #e8e8e8;
+  --admin-border: var(--glonni-sky-tint);
   --blue: var(--admin-accent);
   background: var(--admin-canvas);
   color: var(--admin-ink);

@@ -1,0 +1,115 @@
+/* Glonni Figma Make v24 foundations. Component/page migration is intentionally separate. */
+:root {
+  --glonni-navy: #1B2A4E;
+  --glonni-yellow: #FFBE0B;
+  --glonni-cream: #FFFDF7;
+  --glonni-kraft: #CD9860;
+  --glonni-ink: #1C1C1C;
+  --glonni-deal-red: #E11D2E;
+  --glonni-fresh-green: #12805A;
+  --glonni-sky-tint: #E8ECF5;
+
+  --glonni-font-sans: 'Poppins', system-ui, sans-serif;
+  --glonni-font-weight-regular: 400;
+  --glonni-font-weight-semibold: 600;
+  --glonni-font-weight-bold: 700;
+  --glonni-text-display: 48px;
+  --glonni-text-h1: 36px;
+  --glonni-text-h2: 28px;
+  --glonni-text-h3: 22px;
+  --glonni-text-h4: 18px;
+  --glonni-text-body-large: 16px;
+  --glonni-text-body: 14px;
+  --glonni-text-label: 14px;
+  --glonni-text-caption: 12px;
+
+  --glonni-space-1: 4px;
+  --glonni-space-2: 8px;
+  --glonni-space-3: 12px;
+  --glonni-space-4: 16px;
+  --glonni-space-5: 20px;
+  --glonni-space-6: 24px;
+  --glonni-space-8: 32px;
+  --glonni-space-10: 40px;
+  --glonni-space-12: 48px;
+  --glonni-space-16: 64px;
+  --glonni-space-20: 80px;
+  --glonni-space-24: 96px;
+
+  --glonni-radius-control: 8px;
+  --glonni-radius-card: 12px;
+  --glonni-radius-badge: 6px;
+  --glonni-radius-avatar: 50%;
+  --glonni-logo-min-width: 90px;
+
+  /* Existing site-wide aliases now resolve to the documented brand tokens. */
+  --ink: var(--glonni-ink);
+  --blue: var(--glonni-navy);
+  --yellow: var(--glonni-yellow);
+  --line: var(--glonni-sky-tint);
+  --green: var(--glonni-fresh-green);
+}
+
+body {
+  font-family: var(--glonni-font-sans);
+}
+
+.brand-logo-image {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 180px;
+  max-height: 44px;
+  object-fit: contain;
+}
+
+.admin-brand-logo-wrap {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  height: 38px;
+  overflow: hidden;
+}
+
+.admin-brand-logo-wrap img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 180px;
+  max-height: 38px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.admin-v2.sidebar-collapsed .admin-brand-logo-wrap {
+  width: 35px;
+  flex: 0 0 35px;
+  min-width: 0;
+}
+
+.admin-v2.sidebar-collapsed .admin-brand-logo-wrap img {
+  max-width: none;
+  max-height: 35px;
+}
+
+@media (max-width: 1020px) {
+  .admin-v2 .admin-brand-logo-wrap,
+  .admin-v2.sidebar-collapsed .admin-brand-logo-wrap {
+    width: 35px;
+    flex: 0 0 35px;
+  }
+
+  .admin-v2 .admin-brand-logo-wrap img,
+  .admin-v2.sidebar-collapsed .admin-brand-logo-wrap img {
+    max-width: none;
+    max-height: 35px;
+  }
+}
+
+@media (max-width: 900px) {
+  .top .brand-logo-image {
+    max-width: 140px;
+    max-height: 37px;
+  }
+}

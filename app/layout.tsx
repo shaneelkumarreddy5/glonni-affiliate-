@@ -3,6 +3,7 @@ import { SiteFooter } from '@/components/site-footer';
 import { AdminMockMode } from '@/components/admin-mock-mode';
 import { ActivityTracker } from '@/components/activity-tracker';
 import './globals.css';
+import './glonni-design-tokens.css';
 import './admin-sidebar.css';
 import './admin-theme.css';
 import './admin-stores.css';
