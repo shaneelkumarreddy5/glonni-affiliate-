@@ -8,6 +8,7 @@ import { SimpleCaptcha } from '@/components/simple-captcha';
 import { CmsManagedSections } from '@/components/cms-managed-sections';
 import './wallet.css';
 import './preview.css';
+import './wallet-figma.css';
 
 type Props = { searchParams: Promise<{ error?: string; success?: string; tab?: string; q?: string }> };
 type Claim = { id: string; order_reference: string; claimed_amount: number | null; purchase_amount: number | null; status: string; created_at: string; offers: { merchants: { name: string } | null } | null };

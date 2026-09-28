@@ -1,0 +1,56 @@
+/* Step 4 — wallet and cashback history styling aligned with the customer design system. */
+.wallet-page {
+  max-width: 1320px !important;
+  color: var(--glonni-ink);
+  background: var(--glonni-cream) !important;
+  font-family: var(--glonni-font-sans);
+}
+.wallet-crumb { font-family: var(--glonni-font-sans); }
+.wallet-crumb a { color: var(--glonni-navy); }
+.wallet-heading p,
+.payout-request > div > p { color: var(--glonni-kraft); font-family: var(--glonni-font-sans); }
+.wallet-heading h1,
+.payout-request h2 { color: var(--glonni-navy); font-family: var(--glonni-font-sans); }
+.wallet-heading > span { color: color-mix(in srgb, var(--glonni-navy) 67%, white); font-family: var(--glonni-font-sans); }
+.wallet-summary article,
+.wallet-history,
+.payout-request {
+  border-color: var(--glonni-sky-tint);
+  border-radius: var(--glonni-radius-card);
+  box-shadow: none;
+}
+.wallet-summary article > svg { color: var(--glonni-navy); background: var(--glonni-sky-tint); }
+.wallet-summary article:nth-child(2) > svg { color: var(--glonni-kraft); background: color-mix(in srgb, var(--glonni-kraft) 13%, white); }
+.wallet-summary article:nth-child(3) > svg { color: var(--glonni-fresh-green); background: color-mix(in srgb, var(--glonni-fresh-green) 10%, white); }
+.wallet-summary small,
+.wallet-summary span { font-family: var(--glonni-font-sans); }
+.wallet-summary b { color: var(--glonni-navy); font-family: var(--glonni-font-sans); }
+.withdrawable-card > a { color: var(--glonni-navy); background: var(--glonni-yellow); font-family: var(--glonni-font-sans); }
+.wallet-rule { border-color: var(--glonni-sky-tint); color: var(--glonni-navy); background: var(--glonni-sky-tint); font-family: var(--glonni-font-sans); }
+.wallet-rule svg { color: var(--glonni-navy); }
+.history-top { border-bottom-color: var(--glonni-sky-tint); }
+.history-tabs a { font-family: var(--glonni-font-sans); }
+.history-tabs a.active { border-bottom-color: var(--glonni-navy); color: var(--glonni-navy); }
+.wallet-table th,
+.wallet-table td { text-align: center; font-family: var(--glonni-font-sans); }
+.wallet-table th { color: var(--glonni-navy); background: var(--glonni-sky-tint); }
+.wallet-table td { border-top-color: var(--glonni-sky-tint); }
+.wallet-table td b,
+.wallet-table td small { overflow-wrap: anywhere; text-align: center; }
+.cashback-amount,
+.wallet-status.confirmed { color: var(--glonni-fresh-green) !important; }
+.payout-request input,
+.wallet-search { border-color: var(--glonni-sky-tint); border-radius: var(--glonni-radius-control); }
+.payout-request input,
+.wallet-search input,
+.payout-request label { font-family: var(--glonni-font-sans); }
+.payout-request .primary { color: var(--glonni-navy); background: var(--glonni-yellow); font-family: var(--glonni-font-sans); }
+
+@media (max-width: 850px) {
+  .wallet-page { padding: 18px 16px 42px !important; }
+  .wallet-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .wallet-summary { grid-template-columns: 1fr; }
+  .wallet-table { min-width: 760px; }
+}

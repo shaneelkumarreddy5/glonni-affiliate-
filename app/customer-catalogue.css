@@ -1,0 +1,196 @@
+/* Step 4 — Figma customer catalogue, store and discovery screens. */
+.top.top-brand-dark {
+  color: var(--glonni-cream);
+  border-bottom-color: rgb(255 255 255 / 12%);
+  background: var(--glonni-navy);
+}
+.top.top-brand-dark .search {
+  border-color: rgb(255 255 255 / 20%);
+  background: #fff;
+}
+.top.top-brand-dark .search input { color: var(--glonni-ink); }
+.top.top-brand-dark .top-actions,
+.top.top-brand-dark .top-actions b,
+.top.top-brand-dark .profile-trigger { color: var(--glonni-cream); }
+.top.top-brand-dark .top-actions small { color: rgb(255 253 247 / 72%); }
+.top.top-brand-dark .profile-avatar { color: var(--glonni-navy); background: var(--glonni-yellow); }
+.top.top-brand-dark .mobile-menu { color: var(--glonni-cream); }
+
+.browse-nav { color: color-mix(in srgb, var(--glonni-navy) 65%, white); }
+.browse-nav button { color: var(--glonni-navy); background: var(--glonni-sky-tint); }
+.browse-nav>a, .browse-crumb { color: color-mix(in srgb, var(--glonni-navy) 72%, white); }
+.browse-crumb b { color: var(--glonni-navy); }
+
+main.deals-page,
+main.vertical-page,
+main.store-detail-page {
+  width: min(100%, 1320px);
+  padding-top: 20px;
+}
+main.deals-page .catalog-head h1,
+main.vertical-page .vertical-hero h1 {
+  color: var(--glonni-navy);
+  font: 700 clamp(28px, 3vw, 36px)/1.18 var(--glonni-font-sans);
+  letter-spacing: -0.035em;
+}
+main.deals-page .catalog-head > p:not(.eyebrow),
+main.vertical-page .vertical-hero p:not(.eyebrow) {
+  color: color-mix(in srgb, var(--glonni-navy) 68%, white);
+  font: 400 14px/1.65 var(--glonni-font-sans);
+}
+main .eyebrow { color: color-mix(in srgb, var(--glonni-navy) 67%, white); }
+main.vertical-page .vertical-hero {
+  align-items: center;
+  border: 1px solid var(--glonni-sky-tint);
+  border-radius: var(--glonni-radius-card);
+  background: var(--glonni-sky-tint);
+}
+main.vertical-page .vertical-hero aside span { border-left-color: rgb(27 42 78 / 12%); }
+main.vertical-page .vertical-hero aside b { color: var(--glonni-navy); }
+main.vertical-page .section-title h2,
+main.deals-page .deals-toolbar > div b {
+  color: var(--glonni-navy);
+  font-family: var(--glonni-font-sans);
+}
+
+.deals-search,
+.store-directory-search,
+.category-search {
+  border-color: color-mix(in srgb, var(--glonni-navy) 14%, white);
+  border-radius: var(--glonni-radius-control);
+  box-shadow: none;
+}
+.deals-search button,
+.store-directory-search button,
+.category-search button,
+.deals-filter-form > button {
+  color: var(--glonni-navy);
+  background: var(--glonni-yellow);
+  font-family: var(--glonni-font-sans);
+}
+.deals-search input,
+.store-directory-search input,
+.category-search input,
+.deals-filter-form select,
+.deals-toolbar select,
+.store-category-select select {
+  color: var(--glonni-ink);
+  font-family: var(--glonni-font-sans);
+}
+.deals-category-tabs {
+  display: flex;
+  height: auto;
+  min-height: 0;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 4px;
+  padding: 2px 0 8px;
+  overflow-x: auto;
+  border: 0;
+  white-space: nowrap;
+}
+.deals-category-tabs > a {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border: 1px solid var(--glonni-sky-tint);
+  border-radius: 999px;
+  color: var(--glonni-navy);
+  background: #fff;
+  font: 600 12px/1.2 var(--glonni-font-sans);
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease;
+}
+.deals-category-tabs > a:hover,
+.deals-category-tabs > a.active {
+  border-color: var(--glonni-navy);
+  color: var(--glonni-cream);
+  background: var(--glonni-navy);
+}
+.deals-layout { margin-top: 18px; gap: 20px; }
+.deals-filter-panel {
+  border-color: var(--glonni-sky-tint);
+  border-radius: var(--glonni-radius-card);
+  box-shadow: 0 4px 16px rgb(27 42 78 / 5%);
+}
+.deals-filter-panel > header { background: var(--glonni-sky-tint); }
+.deals-filter-panel > header > svg,
+.deals-filter-panel > header > a { color: var(--glonni-navy); }
+.deals-filter-panel > header b,
+.deals-toolbar > div b { font-family: var(--glonni-font-sans); }
+.deals-filter-form > button { border-radius: var(--glonni-radius-control); }
+.deals-filter-form select,
+.deals-toolbar select,
+.store-category-select select { border-color: var(--glonni-sky-tint); border-radius: var(--glonni-radius-control); }
+.deals-toolbar button,
+.store-category-select button { color: var(--glonni-navy); background: var(--glonni-sky-tint); }
+.active-deal-filters > a { border-color: var(--glonni-sky-tint); color: var(--glonni-navy); background: var(--glonni-sky-tint); }
+.deals-results .offer-grid { gap: 16px; }
+.deals-pagination > a { color: var(--glonni-navy); }
+
+.category-card-rail {
+  display: flex;
+  gap: 18px;
+  padding: 4px 2px 12px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+.category-card-rail > a { flex: 0 0 88px; }
+.store-directory-summary { border-color: var(--glonni-sky-tint); }
+.store-directory-summary b { color: var(--glonni-navy); font-family: var(--glonni-font-sans); }
+.store-directory-grid {
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  align-items: stretch;
+  gap: 14px;
+}
+.store-directory-grid > a { width: 100%; min-width: 0; }
+.store-profile-hero {
+  padding: clamp(24px, 4vw, 42px);
+  border: 0;
+  border-radius: var(--glonni-radius-card);
+  color: var(--glonni-cream);
+  background: var(--glonni-navy);
+}
+.store-profile-hero .eyebrow,
+.store-profile-hero h1,
+.store-profile-hero p,
+.store-profile-hero aside b,
+.store-profile-hero aside small { color: var(--glonni-cream); }
+.store-profile-hero > div > section > p { opacity: .78; }
+.store-profile-hero aside { border-color: rgb(255 253 247 / 20%); }
+.store-profile-hero aside small { opacity: .72; }
+.store-profile-hero .store-hero-logo { border: 0; border-radius: 10px; }
+.store-profile-hero > div > span:not(.store-hero-logo) {
+  color: var(--glonni-navy);
+  background: var(--glonni-yellow);
+}
+.store-products-section .category-filter-group .filter-row a.selected,
+.category-results .category-filter-group .filter-row a.selected,
+.store-category-filter .filter-row a.selected {
+  border-color: var(--glonni-navy);
+  color: var(--glonni-cream);
+  background: var(--glonni-navy);
+}
+.vertical-section .section-title h2,
+.store-terms h2 { color: var(--glonni-navy); font-family: var(--glonni-font-sans); }
+.store-terms { border-color: color-mix(in srgb, var(--glonni-kraft) 30%, white); }
+
+@media (max-width: 700px) {
+  main.deals-page,
+  main.vertical-page,
+  main.store-detail-page { padding: 12px 16px 52px; }
+  .deals-category-tabs { margin-right: -16px; padding-right: 16px; }
+  .store-directory-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .store-directory-grid > a { min-width: 0; }
+  .store-profile-hero aside { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .store-profile-hero aside b,
+  .store-profile-hero aside small { text-align: center; }
+}
+@media (max-width: 460px) {
+  .deals-results .offer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .store-directory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .store-directory-grid > a { min-width: 0; }
+}

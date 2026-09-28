@@ -1,0 +1,74 @@
+/* Step 4 — Figma customer profile screen; retain the full account workflow. */
+.account-hub {
+  max-width: 1320px !important;
+  padding-top: 20px !important;
+  color: var(--glonni-ink);
+  background: var(--glonni-cream) !important;
+  font-family: var(--glonni-font-sans);
+}
+.account-breadcrumb { color: color-mix(in srgb, var(--glonni-navy) 58%, white); font-family: var(--glonni-font-sans); }
+.account-breadcrumb a { color: var(--glonni-navy); }
+.profile-identity {
+  border-color: var(--glonni-sky-tint);
+  border-radius: var(--glonni-radius-card);
+  background: #fff;
+  box-shadow: none;
+}
+.profile-avatar-large { background: var(--glonni-navy); color: var(--glonni-yellow); }
+.profile-identity p { color: var(--glonni-kraft); font-family: var(--glonni-font-sans); }
+.profile-identity h1 { color: var(--glonni-navy); font-family: var(--glonni-font-sans); }
+.profile-identity span { color: color-mix(in srgb, var(--glonni-navy) 66%, white); font-family: var(--glonni-font-sans); }
+.profile-edit,
+.profile-form button { border-radius: var(--glonni-radius-control); font-family: var(--glonni-font-sans); }
+.profile-edit { border-color: var(--glonni-sky-tint); color: var(--glonni-navy); }
+.account-hub-layout { gap: 16px; }
+.account-menu,
+.account-workspace {
+  border-color: var(--glonni-sky-tint);
+  border-radius: var(--glonni-radius-card);
+  box-shadow: none;
+}
+.account-menu > p { color: color-mix(in srgb, var(--glonni-navy) 56%, white); font-family: var(--glonni-font-sans); }
+.account-menu > a { color: color-mix(in srgb, var(--glonni-navy) 72%, white); font-family: var(--glonni-font-sans); }
+.account-menu > a:hover { color: var(--glonni-navy); background: var(--glonni-sky-tint); }
+.account-menu > a.selected { color: var(--glonni-cream); background: var(--glonni-navy); box-shadow: none; }
+.account-menu > a.selected small { color: rgb(255 253 247 / 72%); }
+.workspace-title { border-bottom-color: var(--glonni-sky-tint); }
+.workspace-title p { color: var(--glonni-kraft); font-family: var(--glonni-font-sans); }
+.workspace-title h2 { color: var(--glonni-navy); font-family: var(--glonni-font-sans); }
+.workspace-title > span { color: color-mix(in srgb, var(--glonni-navy) 68%, white); font-family: var(--glonni-font-sans); }
+.profile-form label,
+.profile-form input,
+.profile-form button,
+.profile-preferences legend,
+.profile-preferences fieldset > div span { font-family: var(--glonni-font-sans); }
+.profile-form input,
+.profile-form .avatar-upload { border-color: var(--glonni-sky-tint); }
+.profile-form input:focus { outline: 2px solid color-mix(in srgb, var(--glonni-yellow) 68%, white); outline-offset: 1px; }
+.profile-form button { color: var(--glonni-navy); background: var(--glonni-yellow); }
+.security-note { border-color: var(--glonni-sky-tint); background: var(--glonni-sky-tint); }
+.security-note svg { color: var(--glonni-navy); }
+.workspace-cards > a,
+.workspace-cards > article,
+.profile-section,
+.profile-support-card,
+.profile-faq-card,
+.profile-policy-grid > a {
+  border-color: var(--glonni-sky-tint);
+  border-radius: var(--glonni-radius-card);
+  box-shadow: none;
+}
+.workspace-cards > a:hover { border-color: var(--glonni-kraft); box-shadow: 0 4px 14px rgb(27 42 78 / 7%); }
+.workspace-cards svg { color: var(--glonni-navy); background: var(--glonni-sky-tint); }
+.profile-preferences fieldset > div input:checked + span { border-color: var(--glonni-navy); color: var(--glonni-navy); background: var(--glonni-sky-tint); }
+.profile-preferences .preference-toggles input:checked + i { background: var(--glonni-fresh-green); }
+.profile-preferences > button { color: var(--glonni-navy); background: var(--glonni-yellow); font-family: var(--glonni-font-sans); }
+
+@media (max-width: 800px) {
+  .account-hub { padding: 16px 16px 42px !important; }
+  .account-menu { position: static; }
+}
+@media (max-width: 520px) {
+  .profile-identity { padding: 16px; }
+  .account-workspace { padding: 18px; }
+}

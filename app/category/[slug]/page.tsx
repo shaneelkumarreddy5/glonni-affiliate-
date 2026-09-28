@@ -8,6 +8,7 @@ import { getCatalogOffers, getCategories, getStores } from '@/lib/catalog';
 import { categoryBranchIds } from '@/lib/category-tree';
 import { hasCashback } from '@/lib/rewards';
 import { CmsManagedSections } from '@/components/cms-managed-sections';
+import { CategoryCard } from '@/components/ui/catalog-cards';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,7 +69,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
     </section>
     <CmsManagedSections pageKey="category" slot="after_heading"/>
 
-    {children.length > 0 && <section className="vertical-section category-children"><div className="section-title"><div><p className="eyebrow">ONE LEVEL AT A TIME</p><h2>Explore {category.name}</h2></div><small>Select a subcategory to open its next level</small></div><div className="category-grid">{children.map((child) => <Link href={`/category/${child.slug}`} key={child.id}><span className="category-icon">{child.image_url ? <img src={child.image_url} alt=""/> : '›'}</span><span><b>{child.name}</b><small>Open category</small></span></Link>)}</div></section>}
+    {children.length > 0 && <section className="vertical-section category-children"><div className="section-title"><div><p className="eyebrow">ONE LEVEL AT A TIME</p><h2>Explore {category.name}</h2></div><small>Select a subcategory to open its next level</small></div><div className="category-card-rail">{children.map((child) => <CategoryCard href={`/category/${child.slug}`} name={child.name} imageUrl={child.image_url} subtitle="Browse category" key={child.id}/>)}</div></section>}
 
     <CmsManagedSections pageKey="category" slot="before_results"/>
     <section className="vertical-section category-results">

@@ -21,8 +21,10 @@ export async function Header() {
   const savedCount = savedResult.count ?? 0;
   const unreadNotificationCount = notificationResult.count ?? 0;
 
-  return <><header className="top">
-    <a className="logo" href="/" aria-label={`${siteName} home`}>{identity?.logo_url ? <img className="brand-logo-image" src={identity.logo_url} alt=""/> : useGlonniLogo ? <img className="brand-logo-image" src="/brand/glonni-logo-horizontal-navy.svg" alt=""/> : siteName}</a>
+  const darkBrandHeader = !identity?.logo_url && useGlonniLogo;
+
+  return <><header className={`top${darkBrandHeader ? ' top-brand-dark' : ''}`}>
+    <a className="logo" href="/" aria-label={`${siteName} home`}>{identity?.logo_url ? <img className="brand-logo-image" src={identity.logo_url} alt=""/> : useGlonniLogo ? <img className="brand-logo-image" src={darkBrandHeader ? '/brand/glonni-logo-horizontal-white-on-navy.svg' : '/brand/glonni-logo-horizontal-navy.svg'} alt=""/> : siteName}</a>
     <form className="search" action="/deals"><input name="q" aria-label="Search products, brands and stores" placeholder="Search products, brands and stores..."/><button type="submit" aria-label="Search"><Search size={20}/></button></form>
     <div className="top-actions">
       <span className="header-location"><MapPin/><small>Shopping location</small><b>{location}</b></span>

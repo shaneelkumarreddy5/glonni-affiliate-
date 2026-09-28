@@ -1,0 +1,83 @@
+/* Step 4 — Figma product-detail page skin; route actions and offer data stay unchanged. */
+.pdp {
+  max-width: 1320px;
+  color: var(--glonni-ink);
+  font-family: var(--glonni-font-sans);
+}
+.pdp h1,
+.pdp h2,
+.pdp h3 { color: var(--glonni-navy); font-family: var(--glonni-font-sans); }
+.pdp-hero { gap: clamp(24px, 4vw, 52px); }
+.pdp-main-image,
+.pdp-gallery-missing { border-color: var(--glonni-sky-tint); border-radius: var(--glonni-radius-card); background: var(--glonni-cream); }
+.pdp-thumbs button { border-color: var(--glonni-sky-tint); border-radius: var(--glonni-radius-control); }
+.pdp-thumbs button.active { border-color: var(--glonni-navy); }
+.pdp-brand { color: var(--glonni-kraft); font-family: var(--glonni-font-sans); }
+.pdp-summary h1 { color: var(--glonni-navy); font-family: var(--glonni-font-sans); font-size: clamp(25px, 2.6vw, 36px); line-height: 1.2; letter-spacing: -0.035em; }
+.pdp-summary > p:not(.pdp-brand),
+.pdp-rating small { color: color-mix(in srgb, var(--glonni-navy) 67%, white); font-family: var(--glonni-font-sans); font-size: 14px; line-height: 1.6; }
+.pdp-rating span,
+.pdp-rating svg { color: var(--glonni-yellow); }
+.pdp-save-row { flex-wrap: wrap; }
+.pdp-best { border-color: color-mix(in srgb, var(--glonni-fresh-green) 23%, white); background: color-mix(in srgb, var(--glonni-fresh-green) 6%, white); }
+.pdp-best > span { border-color: color-mix(in srgb, var(--glonni-fresh-green) 16%, white); }
+.pdp-best small,
+.pdp-best em { font-family: var(--glonni-font-sans); }
+.pdp-best b { color: var(--glonni-fresh-green); font-family: var(--glonni-font-sans); }
+.pdp-primary-deal-link {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 12px 22px;
+  border-radius: var(--glonni-radius-control);
+  color: var(--glonni-navy);
+  background: var(--glonni-yellow);
+  font: 600 14px/1.3 var(--glonni-font-sans);
+  text-align: center;
+  transition: filter 140ms ease;
+}
+.pdp-primary-deal-link:hover { filter: brightness(.96); }
+.pdp-compare-link {
+  min-height: 44px;
+  height: auto;
+  border: 1px solid var(--glonni-sky-tint);
+  color: var(--glonni-navy);
+  background: #fff;
+  font: 600 13px/1.3 var(--glonni-font-sans);
+}
+.pdp-card,
+.pdp-information-grid article,
+.pdp-store-policies,
+.pdp-related { border-color: var(--glonni-sky-tint); border-radius: var(--glonni-radius-card); box-shadow: 0 4px 16px rgb(27 42 78 / 5%); }
+.pdp-card > header { border-bottom-color: var(--glonni-sky-tint); }
+.pdp-card h2,
+.pdp-related h2 { color: var(--glonni-navy); font-family: var(--glonni-font-sans); }
+.pdp-card header p,
+.pdp-related header p { color: color-mix(in srgb, var(--glonni-navy) 58%, white); font: 400 12px/1.5 var(--glonni-font-sans); }
+.pdp-table-head { background: var(--glonni-sky-tint); }
+.pdp-table-head > b,
+.pdp-offer > div,
+.pdp-offer > span,
+.pdp-offer > strong { text-align: center; }
+.pdp-offer { border-top-color: var(--glonni-sky-tint); }
+.pdp-store strong,
+.pdp-store small { justify-content: center; }
+.pdp-cashback { color: var(--glonni-fresh-green); }
+.pdp-effective { color: var(--glonni-navy); }
+.pdp-view { color: var(--glonni-navy); background: var(--glonni-yellow); font: 600 12px/1.2 var(--glonni-font-sans); }
+.pdp-spec-icon { color: var(--glonni-navy); background: var(--glonni-sky-tint); }
+.pdp-specifications article { border-bottom-color: var(--glonni-sky-tint); }
+.pdp-related .offer-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.pdp-related .offer-grid > article { min-width: 0; }
+.pdp-disclosure { color: color-mix(in srgb, var(--glonni-navy) 60%, white); font: 400 12px/1.6 var(--glonni-font-sans); }
+
+@media (max-width: 900px) {
+  .pdp-related .offer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .pdp-primary-deal-link { display: flex; width: 100%; }
+  .pdp-related .offer-grid { display: flex; gap: 12px; }
+  .pdp-related .offer-grid > article { min-width: 180px; flex: 0 0 180px; }
+}

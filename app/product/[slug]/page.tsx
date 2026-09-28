@@ -3,6 +3,7 @@ import { BrowseNav } from "@/components/browse-nav";
 import { PriceAlertButton } from "@/components/price-alert-button";
 import { SaveOfferButton } from "@/components/save-offer-button";
 import { ProductGallery } from "@/components/product-gallery";
+import { OfferGrid } from "@/components/offer-grid";
 import {
   getCatalogOffers,
   getProductOffers,
@@ -457,9 +458,10 @@ export default async function ProductPage({
                 <em>on {bestEffectiveOffer.merchants?.name}</em>
               </span>
             </div>
-            <a className="pdp-compare-link" href="#offers">
-              Compare prices across stores
+            <a className="pdp-primary-deal-link" href={`/out/${bestEffectiveOffer.id}?source=product&medium=product-summary&placement=best-offer`}>
+              View deal at {bestEffectiveOffer.merchants?.name ?? 'store'}
             </a>
+            <a className="pdp-compare-link" href="#offers">Compare prices across stores</a>
           </div>
         </section>
         </div>
@@ -700,19 +702,7 @@ export default async function ProductPage({
                 View all
               </a>
             </header>
-            <div>
-              {related.map((offer) => (
-                <a
-                  key={offer.id}
-                  href={`/product/${offer.products?.slug}?from=${encodeURIComponent(parent)}`}
-                >
-                  <img src={offer.products?.image_url || ""} alt="" />
-                  <small>{offer.products?.brand ?? "GLONNI"}</small>
-                  <b>{offer.products?.title}</b>
-                  <strong>{money(offer.current_price)}</strong>
-                </a>
-              ))}
-            </div>
+            <OfferGrid offers={related} contextHref={parent}/>
           </section>
         )}
         </div>

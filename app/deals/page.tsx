@@ -45,6 +45,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   const filters = await searchParams;
   const [allOffers, stores, categories] = await Promise.all([getCatalogOffers(), getStores(), getCategories()]);
   const orderedCategories = orderCategoryTree(categories);
+  const topCategories = orderedCategories.filter((category) => !category.parent_id);
   const selectedCategory = categories.find((category) => category.slug === filters.category);
   const categoryIds = selectedCategory ? categoryBranchIds(categories, selectedCategory.id) : null;
   const categoryPaths = new Map(orderedCategories.map((category) => [category.id, category.treePath.toLowerCase()]));
@@ -99,6 +100,11 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
     <CmsManagedSections pageKey="deals" slot="after_heading"/>
 
     <form className="deals-search" action="/deals"><Search size={20}/><input name="q" defaultValue={filters.q} aria-label="Search products, brands, stores and categories" placeholder="Search products, brands, stores and categories"/>{filters.category && <input type="hidden" name="category" value={filters.category}/>}<button type="submit">Search deals</button></form>
+
+    <nav className="deals-category-tabs" aria-label="Browse deals by category">
+      <Link href={dealsLink(filters, { category: '', page: '' })} className={!filters.category ? 'active' : ''}>All deals</Link>
+      {topCategories.map((category) => <Link href={dealsLink(filters, { category: category.slug, page: '' })} className={filters.category === category.slug ? 'active' : ''} key={category.id}>{category.name}</Link>)}
+    </nav>
 
     <CmsManagedSections pageKey="deals" slot="before_results"/>
     <div className="deals-layout">

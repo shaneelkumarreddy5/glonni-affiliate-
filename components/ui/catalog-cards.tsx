@@ -86,18 +86,20 @@ export interface CategoryCardProps {
   href?: string
   name: string
   imageUrl?: string | null
+  subtitle?: string | null
   storeCount?: number | null
   interactive?: boolean
   className?: string
 }
 
-export function CategoryCard({ href, name, imageUrl, storeCount, interactive = true, className }: CategoryCardProps) {
+export function CategoryCard({ href, name, imageUrl, subtitle, storeCount, interactive = true, className }: CategoryCardProps) {
   const content = (
     <>
       <span className={styles.categoryImage} aria-hidden="true">
         {imageUrl ? <img src={imageUrl} alt="" loading="lazy"/> : name.trim().slice(0, 1).toUpperCase() || '•'}
       </span>
       <span className={styles.categoryName}>{name}</span>
+      {subtitle && <span className={styles.categoryMeta}>{subtitle}</span>}
       {storeCount != null && <span className={styles.categoryMeta}>{storeCount.toLocaleString()} stores</span>}
     </>
   )

@@ -11,6 +11,7 @@ import './account.css';
 import './profile-details.css';
 import './referral.css';
 import '../wallet/referral.css';
+import './account-figma.css';
 
 type Props = { searchParams: Promise<{ error?: string; success?: string; section?: string }> };
 type Preference = { favourite_categories: string[]; favourite_stores: string[]; price_drop_alerts: boolean; deal_expiry_alerts: boolean; marketing_updates: boolean; email_deal_updates: boolean; whatsapp_deal_updates: boolean; sms_deal_updates: boolean } | null;
