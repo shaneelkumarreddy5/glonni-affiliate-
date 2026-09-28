@@ -1,8 +1,42 @@
-import Link from 'next/link';
-import { CatalogOffer } from '@/lib/catalog';
-import { hasCashback, rewardLabel } from '@/lib/rewards';
+import { ProductCard } from '@/components/ui/catalog-cards';
 import { ScrollRail } from '@/components/scroll-rail';
+import type { CatalogOffer } from '@/lib/catalog';
+import { hasCashback, rewardLabel } from '@/lib/rewards';
+import styles from '@/components/ui/catalog-cards.module.css';
+
+function formatPrice(value: number | null | undefined) {
+  return value == null ? 'Price unavailable' : `₹${value.toLocaleString('en-IN')}`;
+}
 
 export function HomeOfferRail({ offers, bestDeal = false }: { offers: CatalogOffer[]; bestDeal?: boolean }) {
-  return <ScrollRail className="home-offer-rail" label="deals">{offers.map((offer, index) => { const discount = offer.current_price && offer.list_price ? Math.round((1 - offer.current_price / offer.list_price) * 100) : null; const cashback = hasCashback(offer); return <Link className="home-offer-card" href={`/product/${offer.products?.slug}?from=/`} key={offer.id}><div className="home-offer-merchant">{offer.merchants?.name || 'Store'}</div><div className="home-offer-image">{discount && <em>{discount}% OFF</em>}<img src={offer.products?.image_url || ''} alt={offer.products?.title || ''}/></div><div className="home-offer-body"><h3>{offer.products?.title}</h3><p>{offer.products?.brand || offer.products?.categories?.name || 'Glonni deal'}</p><b>₹{offer.current_price?.toLocaleString('en-IN')}</b>{offer.list_price && <del>₹{offer.list_price.toLocaleString('en-IN')}</del>}</div><strong className={cashback ? 'home-offer-strip cashback-strip' : bestDeal || index === 0 ? 'home-offer-strip best-strip' : 'home-offer-strip'}>{cashback ? rewardLabel(offer) : bestDeal || index === 0 ? 'Best deal' : 'Compare this offer'}</strong></Link> })}</ScrollRail>;
+  return <ScrollRail className="home-offer-rail" label="deals">
+    {offers.map((offer, index) => {
+      const product = offer.products;
+      const merchant = offer.merchants;
+      const discount = offer.current_price != null && offer.list_price != null && offer.list_price > offer.current_price
+        ? Math.round((1 - offer.current_price / offer.list_price) * 100)
+        : null;
+      const benefit = hasCashback(offer)
+        ? rewardLabel(offer)
+        : bestDeal || index === 0 ? 'Best deal' : 'Compare this offer';
+      return <ProductCard
+        key={offer.id}
+        className={styles.railProductCard}
+        href={`/product/${product?.slug ?? ''}?from=/`}
+        title={product?.title ?? 'Product details unavailable'}
+        storeName={merchant?.name ?? 'Store'}
+        storeLogoUrl={merchant?.logo_url}
+        imageUrl={product?.image_url}
+        subtitle={product?.brand || product?.categories?.name || 'Glonni deal'}
+        price={formatPrice(offer.current_price)}
+        originalPrice={offer.list_price == null ? null : formatPrice(offer.list_price)}
+        rating={offer.customer_rating}
+        ratingCount={offer.rating_count}
+        badgeText={discount ? `${discount}% OFF` : null}
+        badgeVariant="sale"
+        rewardText={benefit}
+        rewardTone={hasCashback(offer) ? 'cashback' : bestDeal || index === 0 ? 'best' : 'neutral'}
+      />;
+    })}
+  </ScrollRail>;
 }

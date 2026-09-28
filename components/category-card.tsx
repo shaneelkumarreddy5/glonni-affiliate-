@@ -1,17 +1,13 @@
-import styles from './category-card.module.css';
+import { CategoryCard as SharedCategoryCard } from '@/components/ui/catalog-cards';
 
 type Props = {
   href: string;
   name: string;
   imageUrl?: string | null;
+  storeCount?: number | null;
+  interactive?: boolean;
 };
 
-export function CategoryCard({ href, name, imageUrl }: Props) {
-  return <a className={styles.card} href={href}>
-    <span className={styles.image} aria-hidden="true">
-      {imageUrl ? <img src={imageUrl} alt=""/> : <b>{name.trim().slice(0, 1).toUpperCase()}</b>}
-    </span>
-    <strong>{name}</strong>
-    <small>Explore category</small>
-  </a>;
+export function CategoryCard({ href, name, imageUrl, storeCount, interactive = true }: Props) {
+  return <SharedCategoryCard href={href} name={name} imageUrl={imageUrl} storeCount={storeCount} interactive={interactive}/>;
 }

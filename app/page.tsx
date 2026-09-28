@@ -1,10 +1,11 @@
 import { Fragment, type ReactNode } from 'react';
-import { ArrowRight, BadgeCheck, CircleHelp, ShieldCheck, Sparkles } from 'lucide-react';
+import { BadgeCheck, CircleHelp, ShieldCheck, Sparkles } from 'lucide-react';
 import { Header } from '@/components/header';
 import { StoreSection } from '@/components/store-section';
 import { HomeOfferRail } from '@/components/home-offer-rail';
 import { ScrollRail } from '@/components/scroll-rail';
 import { CategoryCard } from '@/components/category-card';
+import { HeroBanner } from '@/components/ui/catalog-cards';
 import { CmsManagedSections, getPublishedWebsiteLayout } from '@/components/cms-managed-sections';
 import { CatalogOffer, getCatalogOffers, getCategories } from '@/lib/catalog';
 import { resolveWebsiteSectionOrder } from '@/lib/website-layout';
@@ -43,10 +44,10 @@ export default async function Home() {
     return source.filter((offer) => rank.has(offer.products?.id ?? '')).sort((a, b) => (rank.get(a.products?.id ?? '') ?? 0) - (rank.get(b.products?.id ?? '') ?? 0)).slice(0, coreContent[key]?.count ?? 10);
   }
   const defaultHero = <ScrollRail className="home-banner-rail" label="featured banners">
-      <article className="home-banner"><p>FEATURED DEALS</p><h2>{renderWebsiteRichText(coreContent.hero?.title || 'Compare before you shop.')}</h2><span>{coreContent.hero?.body ? renderWebsiteRichText(coreContent.hero.body) : 'Find the right deal across configured stores, in one clean place.'}</span><a href="/deals?sort=best">Explore deals <ArrowRight size={15}/></a><div className="banner-icon">🛒️</div><div className="banner-chip">Compare store offers</div></article>
-      <article className="home-banner"><p>SEASONAL PICKS</p><h2>Fresh finds for every cart.</h2><span>Explore fashion, tech, beauty and everyday essentials.</span><a href="#categories">Browse categories <ArrowRight size={15}/></a><div className="banner-icon">✨</div><div className="banner-chip">New curated picks</div></article>
-      <article className="home-banner"><p>ELIGIBLE CASHBACK</p><h2>Rewards only where approved.</h2><span>See exact cashback on the offers that actually support it.</span><a href="/deals?cashback=yes">Find eligible offers <ArrowRight size={15}/></a><div className="banner-icon">₹</div><div className="banner-chip">Offer-specific benefit</div></article>
-    </ScrollRail>;
+    <HeroBanner layout="rail" theme="navy" eyebrow="Featured deals" headline={renderWebsiteRichText(coreContent.hero?.title || 'Compare before you shop.')} subline={renderWebsiteRichText(coreContent.hero?.body || 'Find the right deal across configured stores, in one clean place.')} ctaLabel="Explore deals" ctaHref="/deals?sort=best"/>
+    <HeroBanner layout="rail" theme="yellow" eyebrow="Seasonal picks" headline="Fresh finds for every cart." subline="Explore fashion, tech, beauty and everyday essentials." ctaLabel="Browse categories" ctaHref="#categories"/>
+    <HeroBanner layout="rail" theme="navy" eyebrow="Eligible cashback" headline="Rewards only where approved." subline="See exact cashback on the offers that actually support it." ctaLabel="Find eligible offers" ctaHref="/deals?cashback=yes"/>
+  </ScrollRail>;
   const homeSections: Record<string, ReactNode> = {
     'core:hero': !layout.section_order && layout.blocks.some((block) => block.config.slot === 'hero') ? null : defaultHero,
     'core:categories': <section id="categories" className="home-category-anchor" aria-labelledby="home-categories-title">

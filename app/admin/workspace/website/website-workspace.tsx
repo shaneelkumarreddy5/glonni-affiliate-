@@ -4,6 +4,9 @@ import { Fragment, useEffect, useMemo, useRef, useState, type MouseEvent as Reac
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Check, ChevronDown, ChevronRight, ExternalLink, Gift, GripVertical, ImagePlus, LayoutTemplate, Monitor, Plus, ReceiptText, Smartphone, Tablet, Trash2, Upload, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
+import { ScrollRail } from '@/components/scroll-rail';
+import { CategoryCard, HeroBanner, ProductCard, StoreCard } from '@/components/ui/catalog-cards';
+import cardStyles from '@/components/ui/catalog-cards.module.css';
 import { applyWebsiteTextStyle, getWebsiteTextAlignment, getWebsiteTextStyleAt, setWebsiteTextAlignment, WEBSITE_TEXT_FONTS, websiteRichTextToPlainText, updateWebsiteRichTextText, type WebsiteTextAlignment } from '@/lib/website-rich-text-format';
 import { coreSectionsByPage, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, removeWebsiteBannerSlide, resolveWebsiteSlideItems, websiteItemHref, websitePageOptions, websiteServiceTypeOptions, type WebsiteBannerButtonLayout, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
 import { autosaveWebsiteDraft, publishWebsiteLayout, saveWebsiteDraft, type WebsiteActionResult } from './actions';
@@ -1101,6 +1104,29 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     return [...list.values()].slice(0, block.config.count ?? 10);
   }
 
+  function previewProductCard(product: WebsiteWorkspaceProduct) {
+    const discount = product.price != null && product.listPrice != null && product.listPrice > product.price
+      ? Math.round((1 - product.price / product.listPrice) * 100)
+      : null;
+    return <ProductCard
+      key={`${product.productId}-${product.offerId}`}
+      className={cardStyles.railProductCard}
+      href={`/product/${product.slug}`}
+      title={product.title}
+      storeName={product.storeName}
+      storeLogoUrl={stores.find((store) => store.slug === product.storeSlug)?.logoUrl}
+      imageUrl={product.imageUrl}
+      subtitle={product.brand || product.categoryName}
+      price={money(product.price)}
+      originalPrice={product.listPrice == null ? null : money(product.listPrice)}
+      rewardText={product.cashback ? `₹${Math.round(product.cashback).toLocaleString('en-IN')} cashback` : null}
+      rating={product.rating}
+      ratingCount={product.ratingCount}
+      badgeText={discount ? `${discount}% OFF` : null}
+      interactive={false}
+    />;
+  }
+
   function previewBlock(block: WebsiteDraftBlock) {
     if (block.device_visibility === 'mobile' && device !== 'mobile') return null;
     if (block.device_visibility === 'desktop' && device === 'mobile') return null;
@@ -1154,34 +1180,42 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       const ids = block.config.category_ids ?? [];
       const rank = new Map(ids.map((id, index) => [id, index]));
       const list = (ids.length ? categories.filter((category) => rank.has(category.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : categories).slice(0, block.config.count ?? 10);
-      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED CATEGORIES · SHARED CATEGORY CARD</small><b>{renderRichPreview(block.title)}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={styles.previewCategoryCards}>{list.map((category) => <article key={category.id} className={styles.previewCategoryCard}><span>{category.imageUrl ? <img src={category.imageUrl} alt=""/> : category.name.slice(0, 1)}</span><b>{category.name}</b><small>Opens /category/{category.slug}</small></article>)}</div></section>;
+      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED CATEGORIES · SHARED CATEGORY CARD</small><b>{renderRichPreview(block.title)}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<ScrollRail className={styles.previewSharedRail} label={`${block.title || 'categories'} preview`}>{list.map((category) => <CategoryCard key={category.id} href={`/category/${category.slug}`} name={category.name} imageUrl={category.imageUrl} interactive={false}/>)}</ScrollRail></section>;
     }
     if (block.block_type === 'store_directory') {
       const ids = block.config.store_ids ?? [];
       const rank = new Map(ids.map((id, index) => [id, index]));
       const list = (ids.length ? stores.filter((store) => rank.has(store.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : stores).slice(0, block.config.count ?? 10);
-      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED STORES · SHARED STORE CARD</small><b>{renderRichPreview(block.title)}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={styles.previewStoreCards}>{list.map((store) => <article key={store.id} className={styles.previewStoreCard}><span>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}</span><b>{store.name}</b></article>)}</div></section>;
+      return <section className={styles.previewRail} key={block.id}><header><div><small>SELECTED STORES · SHARED STORE CARD</small><b>{renderRichPreview(block.title)}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<ScrollRail className={styles.previewSharedRail} label={`${block.title || 'stores'} preview`}>{list.map((store) => <StoreCard key={store.id} href={`/store/${store.slug}`} name={store.name} logoUrl={store.logoUrl} interactive={false}/>)}</ScrollRail></section>;
     }
     const productsHere = blockProducts(block);
     if (!productsHere.length) return <div className={styles.previewEmpty} key={block.id}><b>{renderRichPreview(block.title || 'Product section')}</b><span>{block.config.source_mode === 'curated' && !block.config.product_ids?.length ? 'Choose products in the section settings. Nothing will appear to customers until you do.' : 'No matching published products yet. Check the store and category filters.'}</span></div>;
-    return <section className={styles.previewRail} key={block.id}><header><div><small>{block.block_type === 'store_rail' ? `STORE DEALS · ${stores.find((store) => store.slug === block.config.store_slug)?.name ?? 'Selected store'}` : 'CURATED CATALOGUE · PRODUCT CARDS OPEN PDP'}</small><b>{renderRichPreview(block.title)}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<div className={`${styles.previewCards} ${styles.shape_standard}`}>{productsHere.map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><small>{product.storeName} · {product.brand ?? product.categoryName}</small><b>{product.title}</b><strong>{money(product.price)}</strong>{product.cashback ? <em>₹{Math.round(product.cashback).toLocaleString('en-IN')} cashback</em> : null}<small>Opens /product/{product.slug}</small></article>)}</div></section>;
+    return <section className={styles.previewRail} key={block.id}><header><div><small>{block.block_type === 'store_rail' ? `STORE DEALS · ${stores.find((store) => store.slug === block.config.store_slug)?.name ?? 'Selected store'}` : 'CURATED CATALOGUE · PRODUCT CARDS OPEN PDP'}</small><b>{renderRichPreview(block.title)}</b></div><span>View all ↗</span></header>{block.body && <p className={styles.previewRich}>{renderRichPreview(block.body)}</p>}<ScrollRail className={styles.previewSharedRail} label={`${block.title || 'products'} preview`}>{productsHere.map((product) => previewProductCard(product))}</ScrollRail></section>;
   }
 
   function cataloguePreview(key: string, defaultTitle: string, caption: string, kind: 'categories' | 'stores' | 'products') {
     const content = currentCoreContent[key] ?? {};
     const picked = kind === 'categories' ? content.category_ids : kind === 'stores' ? content.store_ids : content.product_ids;
     const rank = new Map((picked ?? []).map((id, index) => [id, index]));
-    const shape = kind === 'categories' || kind === 'products' || kind === 'stores' ? 'standard' : content.visual_shape ?? 'standard';
     const title = content.title || defaultTitle;
     const productsPicked = kind === 'products' && picked?.length ? orderedOffers.filter((product) => rank.has(product.productId)).sort((a, b) => (rank.get(a.productId) ?? 0) - (rank.get(b.productId) ?? 0)) : orderedOffers;
     const categoriesPicked = kind === 'categories' ? categories.filter((category) => picked?.length ? rank.has(category.id) : !category.parentId).sort((a,b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : [];
     const storesPicked = kind === 'stores' ? stores.filter((store) => !picked?.length || rank.has(store.id)).sort((a,b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)) : [];
-    return <section className={styles.lockedPreview}><header><div><small>CONNECTED LIVE CONTENT</small><b>{renderRichPreview(title)}</b></div><span>{kind === 'products' ? 'Shared product card' : kind === 'categories' ? 'Shared category card' : kind === 'stores' ? 'Shared store card' : shape === 'standard' ? 'Card shape: standard' : `Card shape: ${shape.replaceAll('_', ' ')}`}</span></header>{content.body && <p className={styles.previewRich}>{renderRichPreview(content.body)}</p>}{kind === 'products' ? <div className={`${styles.fakeProducts} ${styles[`shape_${shape}`]}`}>{productsPicked.slice(0, content.count ?? 4).map((product) => <article key={product.productId}><img src={product.imageUrl ?? ''} alt=""/><b>{product.title}</b><small>{product.storeName} · {money(product.price)}</small></article>)}</div> : kind === 'categories' ? <div className={styles.previewCategoryCards}>{categoriesPicked.slice(0, content.count ?? 10).map((category) => <article key={category.id} className={styles.previewCategoryCard}><span>{category.imageUrl ? <img src={category.imageUrl} alt=""/> : category.name.slice(0, 1)}</span><b>{category.name}</b><small>/category/{category.slug}</small></article>)}</div> : kind === 'stores' ? <div className={styles.previewStoreCards}>{storesPicked.slice(0, content.count ?? 10).map((store) => <article key={store.id} className={styles.previewStoreCard}><span>{store.logoUrl ? <img src={store.logoUrl} alt=""/> : store.name.slice(0, 1)}</span><b>{store.name}</b></article>)}</div> : null}<small>{caption}</small></section>;
+    return <section className={styles.lockedPreview}><header><div><small>CONNECTED LIVE CONTENT</small><b>{renderRichPreview(title)}</b></div><span>{kind === 'products' ? 'Shared product card' : kind === 'categories' ? 'Shared category card' : 'Shared store card'}</span></header>{content.body && <p className={styles.previewRich}>{renderRichPreview(content.body)}</p>}
+      {kind === 'products' && <ScrollRail className={styles.previewSharedRail} label={`${title} preview`}>{productsPicked.slice(0, content.count ?? 4).map((product) => previewProductCard(product))}</ScrollRail>}
+      {kind === 'categories' && <ScrollRail className={styles.previewSharedRail} label={`${title} preview`}>{categoriesPicked.slice(0, content.count ?? 10).map((category) => <CategoryCard key={category.id} href={`/category/${category.slug}`} name={category.name} imageUrl={category.imageUrl} interactive={false}/>)}</ScrollRail>}
+      {kind === 'stores' && <ScrollRail className={styles.previewSharedRail} label={`${title} preview`}>{storesPicked.slice(0, content.count ?? 10).map((store) => <StoreCard key={store.id} href={`/store/${store.slug}`} name={store.name} logoUrl={store.logoUrl} interactive={false}/>)}</ScrollRail>}
+      <small>{caption}</small>
+    </section>;
   }
 
   function previewCore(key: string) {
     if (pageKey === 'home') {
-      if (key === 'hero') return <section className={styles.defaultHero}><div><small>FEATURED DEALS</small><b>{renderRichPreview(currentCoreContent.hero?.title || 'Compare before you shop.')}</b><span>{currentCoreContent.hero?.body ? renderRichPreview(currentCoreContent.hero.body) : 'Find the right deal across connected stores.'}</span><em>Explore deals →</em></div><div><small>SEASONAL PICKS</small><b>Fresh finds for every cart.</b><span>Discover products for every day.</span></div></section>;
+      if (key === 'hero') return <ScrollRail className={styles.previewHeroRail} label="Featured banners preview">
+        <HeroBanner layout="rail" theme="navy" eyebrow="Featured deals" headline={renderRichPreview(currentCoreContent.hero?.title || 'Compare before you shop.')} subline={renderRichPreview(currentCoreContent.hero?.body || 'Find the right deal across connected stores.')} ctaLabel="Explore deals" ctaHref="/deals?sort=best" interactive={false}/>
+        <HeroBanner layout="rail" theme="yellow" eyebrow="Seasonal picks" headline="Fresh finds for every cart." subline="Discover products for every day." ctaLabel="Browse categories" ctaHref="#categories" interactive={false}/>
+        <HeroBanner layout="rail" theme="navy" eyebrow="Eligible cashback" headline="Rewards only where approved." subline="See exact cashback on the offers that actually support it." ctaLabel="Find eligible offers" ctaHref="/deals?cashback=yes" interactive={false}/>
+      </ScrollRail>;
       if (key === 'categories') return cataloguePreview(key, 'What are you shopping for?', 'Choose catalogue categories; cards open their category page.', 'categories');
       if (key === 'stores') return cataloguePreview(key, 'Shop by store', 'Choose catalogue stores; cards open their store page.', 'stores');
       if (key === 'best_deals') return cataloguePreview(key, 'Best deals right now', 'Choose products; each product card opens its product page.', 'products');
