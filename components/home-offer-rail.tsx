@@ -8,7 +8,7 @@ function formatPrice(value: number | null | undefined) {
   return value == null ? 'Price unavailable' : `₹${value.toLocaleString('en-IN')}`;
 }
 
-export function HomeOfferRail({ offers, bestDeal = false }: { offers: CatalogOffer[]; bestDeal?: boolean }) {
+export function HomeOfferRail({ offers, bestDeal = false, returnTo = '/' }: { offers: CatalogOffer[]; bestDeal?: boolean; returnTo?: string }) {
   return <ScrollRail className="home-offer-rail" label="deals">
     {offers.map((offer, index) => {
       const product = offer.products;
@@ -22,7 +22,7 @@ export function HomeOfferRail({ offers, bestDeal = false }: { offers: CatalogOff
       return <ProductCard
         key={offer.id}
         className={styles.railProductCard}
-        href={`/product/${product?.slug ?? ''}?from=/`}
+        href={`/product/${product?.slug ?? ''}?from=${encodeURIComponent(returnTo)}`}
         title={product?.title ?? 'Product details unavailable'}
         storeName={merchant?.name ?? 'Store'}
         storeLogoUrl={merchant?.logo_url}

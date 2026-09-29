@@ -207,7 +207,7 @@ export const coreSectionsByPage: Record<WebsitePageKey, WebsiteCoreSection[]> = 
   ],
   stores: [
     { key: 'store_intro', title: 'Store introduction', note: 'Connected store identity and live data' },
-    { key: 'store_products', title: 'Store products and filters', note: 'Approved offers · standard product cards' },
+    { key: 'store_products', title: 'Store categories and top deals', note: 'Live store categories and selected approved offers' },
     { key: 'store_policies', title: 'Store policies', note: 'Store and cashback terms' },
     { key: 'store_faqs', title: 'Store FAQs', note: 'Active store-specific support answers' },
   ],
@@ -272,6 +272,17 @@ export function resolveWebsiteSectionOrder(page: WebsitePageKey, blocks: Website
   // Always append only newly-added custom blocks so an incomplete old draft stays useful.
   for (const token of blocks.map((block) => `block:${block.id}`)) if (!order.includes(token)) order.push(token);
   return order;
+}
+
+export function ensureStorePolicyBeforeFaq(order: string[]) {
+  const faqIndex = order.indexOf('core:store_faqs');
+  if (faqIndex < 0) return order;
+  const policyIndex = order.indexOf('core:store_policies');
+  if (policyIndex >= 0 && policyIndex < faqIndex) return order;
+  const next = [...order];
+  if (policyIndex >= 0) next.splice(policyIndex, 1);
+  next.splice(next.indexOf('core:store_faqs'), 0, 'core:store_policies');
+  return next;
 }
 
 export function moveWebsiteSection(order: string[], token: string, targetIndex: number) {

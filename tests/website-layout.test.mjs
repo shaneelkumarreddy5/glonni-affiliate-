@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, defaultWebsiteSectionOrder, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, normalizeWebsiteServiceTypes, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, resolveWebsiteSlideItems, websiteItemHref, websiteServiceTypeOptions } from '../lib/website-layout.ts';
+import { DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, defaultWebsiteSectionOrder, ensureStorePolicyBeforeFaq, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, normalizeWebsiteServiceTypes, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, resolveWebsiteSlideItems, websiteItemHref, websiteServiceTypeOptions } from '../lib/website-layout.ts';
 
 const block = (id, slot) => ({
   id,
@@ -33,6 +33,16 @@ test('saved page composition is preserved and only newly-added custom sections a
 
 test('an explicitly empty saved composition removes every built-in section', () => {
   assert.deepEqual(resolveWebsiteSectionOrder('home', [], []), []);
+});
+
+test('legacy store page compositions place terms before their existing FAQ section', () => {
+  const order = ['core:store_intro', 'core:store_products', 'core:store_faqs'];
+  assert.deepEqual(ensureStorePolicyBeforeFaq(order), [
+    'core:store_intro', 'core:store_products', 'core:store_policies', 'core:store_faqs',
+  ]);
+  assert.deepEqual(ensureStorePolicyBeforeFaq(['core:store_policies', 'core:store_faqs']), ['core:store_policies', 'core:store_faqs']);
+  assert.deepEqual(ensureStorePolicyBeforeFaq(['core:store_products', 'core:store_faqs', 'core:store_policies']), ['core:store_products', 'core:store_policies', 'core:store_faqs']);
+  assert.deepEqual(ensureStorePolicyBeforeFaq(['core:store_products']), ['core:store_products']);
 });
 
 test('drop targets place the complete section before, after, or at the chosen point', () => {

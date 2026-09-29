@@ -12,7 +12,7 @@ export type CustomerPolicy = {
   validationCredit?: string;
 };
 
-export function CustomerPolicyAccordions({storeName,policy,heading,intro,openFirst=true}:{storeName:string;policy:CustomerPolicy;heading?:string;intro?:string;openFirst?:boolean}) {
+export function CustomerPolicyAccordions({storeName,policy,heading,intro,openFirst=true,variant='default',className=''}:{storeName:string;policy:CustomerPolicy;heading?:string;intro?:string;openFirst?:boolean;variant?:'default'|'store-page';className?:string}) {
   const storeSections=[
     {title:'Cashback Eligibility',copy:'When an order qualifies for cashback.',icon:<WalletCards/>,body:policy.cashbackEligibility},
     {title:'Excluded Categories & Items',copy:`Items or categories excluded by ${storeName}.`,icon:<FileCheck2/>,body:policy.excludedItems},
@@ -26,8 +26,23 @@ export function CustomerPolicyAccordions({storeName,policy,heading,intro,openFir
     {title:'Cashback Terms',copy:'Tracking, confirmation and withdrawal timing for eligible cashback.',icon:<WalletCards/>,body:policy.cashbackTerms},
   ].filter(section=>section.body?.trim());
   const sections=storeSections.length?[...storeSections,...(policy.storeTerms?.trim()?[{title:'Additional Store Terms',copy:`Additional rules for ${storeName}.`,icon:<FileCheck2/>,body:policy.storeTerms}]:[]),...(policy.cashbackTerms?.trim()?[{title:'Additional Cashback Terms',copy:'Additional provider or cashback conditions.',icon:<WalletCards/>,body:policy.cashbackTerms}]:[]),...(policy.glonniTerms?.trim()?[{title:'Glonni Terms',copy:'Platform journey, tracking and customer account rules.',icon:<Landmark/>,body:policy.glonniTerms}]:[])]:legacySections;
-  if(!sections.length)return null;
-  return <section className="customer-policy-accordions"><p className="eyebrow">TERMS &amp; CONDITIONS</p><h2>{renderWebsiteRichText(heading || `Before shopping with ${storeName}`)}</h2><p className="policy-intro">{intro ? renderWebsiteRichText(intro) : 'Open each section to review the terms that apply to this purchase.'}</p><div>{sections.map((section,index)=><details key={section.title} open={openFirst && index===0}><summary><span>{section.icon}<i><b>{section.title}</b><small>{section.copy}</small></i></span><ChevronDown/></summary><p>{section.body}</p></details>)}</div></section>;
+  const isStorePage = variant === 'store-page';
+  if(!sections.length) {
+    if(!isStorePage) return null;
+    return <section className={`customer-policy-accordions customer-policy-accordions--store-page ${className}`}>
+      <h2>{renderWebsiteRichText(heading || 'Terms & Conditions')}</h2>
+      <p className="policy-intro">{intro ? renderWebsiteRichText(intro) : `Store and cashback terms have not been configured for ${storeName} in Glonni yet.`}</p>
+    </section>;
+  }
+  return <section className={`customer-policy-accordions${isStorePage ? ' customer-policy-accordions--store-page' : ''} ${className}`}>
+    {!isStorePage && <p className="eyebrow">TERMS &amp; CONDITIONS</p>}
+    <h2>{renderWebsiteRichText(heading || `Before shopping with ${storeName}`)}</h2>
+    <p className="policy-intro">{intro ? renderWebsiteRichText(intro) : 'Open each section to review the terms that apply to this purchase.'}</p>
+    <div>{sections.map((section,index)=><details key={section.title} open={openFirst && index===0}>
+      <summary>{isStorePage ? <b>{section.title}</b> : <span>{section.icon}<i><b>{section.title}</b><small>{section.copy}</small></i></span>}<ChevronDown/></summary>
+      <p>{section.body}</p>
+    </details>)}</div>
+  </section>;
 }
 
 export function parseCustomerPolicy(reviewNotes?:string|null):CustomerPolicy {
