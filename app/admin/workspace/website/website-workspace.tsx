@@ -425,8 +425,9 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const [savedCoreContent, setSavedCoreContent] = useState(initialCoreContent);
   const [publishedCoreContent, setPublishedCoreContent] = useState(initialPublishedCoreContent);
   const [statuses, setStatuses] = useState(pageStatuses);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedCoreKey, setSelectedCoreKey] = useState<string | null>(null);
+  const firstSectionToken = initialOrders[initialPage]?.[0] ?? '';
+  const [selectedId, setSelectedId] = useState<string | null>(firstSectionToken.startsWith('block:') ? firstSectionToken.slice(6) : null);
+  const [selectedCoreKey, setSelectedCoreKey] = useState<string | null>(firstSectionToken.startsWith('core:') ? firstSectionToken.slice(5) : null);
   const [editorMode, setEditorMode] = useState<'edit' | 'preview'>('edit');
   const [activeBannerSlide, setActiveBannerSlide] = useState<{ blockId: string; slideIndex: number } | null>(null);
   const [device, setDevice] = useState<Device>('desktop');
