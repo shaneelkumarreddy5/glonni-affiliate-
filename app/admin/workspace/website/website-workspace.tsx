@@ -1329,7 +1329,6 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const productComposerBlock = productComposerBlockId ? blocks.find((block) => block.id === productComposerBlockId) ?? null : null;
 
   return <><section className={styles.workspace}>
-    <header className={styles.workspaceHeading}><h1>Website Builder</h1></header>
     <div className={styles.toolbar}>
       <div className={styles.modePicker} role="tablist" aria-label="Website builder mode">
         <button type="button" role="tab" aria-selected={editorMode === 'edit'} className={editorMode === 'edit' ? styles.modeActive : ''} onClick={() => setEditorMode('edit')}>Edit</button>
