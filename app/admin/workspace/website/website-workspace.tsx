@@ -427,6 +427,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const [statuses, setStatuses] = useState(pageStatuses);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCoreKey, setSelectedCoreKey] = useState<string | null>(null);
+  const [editorMode, setEditorMode] = useState<'edit' | 'preview'>('edit');
   const [activeBannerSlide, setActiveBannerSlide] = useState<{ blockId: string; slideIndex: number } | null>(null);
   const [device, setDevice] = useState<Device>('desktop');
   const [addOpen, setAddOpen] = useState(false);
@@ -1250,7 +1251,12 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const productComposerBlock = productComposerBlockId ? blocks.find((block) => block.id === productComposerBlockId) ?? null : null;
 
   return <><section className={styles.workspace}>
+    <header className={styles.workspaceHeading}><h1>Website Builder</h1></header>
     <div className={styles.toolbar}>
+      <div className={styles.modePicker} role="tablist" aria-label="Website builder mode">
+        <button type="button" role="tab" aria-selected={editorMode === 'edit'} className={editorMode === 'edit' ? styles.modeActive : ''} onClick={() => setEditorMode('edit')}>Edit</button>
+        <button type="button" role="tab" aria-selected={editorMode === 'preview'} className={editorMode === 'preview' ? styles.modeActive : ''} onClick={() => setEditorMode('preview')}>Preview</button>
+      </div>
       <label className={styles.pagePicker}><LayoutTemplate/><span>Editing page</span><select value={pageKey} onChange={(event) => { const nextPage = event.target.value as WebsitePageKey; setPageKey(nextPage); setSelectedId(null); setSelectedCoreKey(null); setActiveBannerSlide(null); setInsertAtIndex(orders[nextPage]?.length ?? 0); setAddOpen(false); setNotice(null); }}><option value="home">Home page</option><option value="stores">Store page</option><option value="product">Product page</option></select><ChevronDown size={15}/></label>
       <div className={styles.devicePicker} role="group" aria-label="Preview size">
         <button className={device === 'desktop' ? styles.deviceActive : ''} onClick={() => setDevice('desktop')} title="Desktop preview" aria-pressed={device === 'desktop'}><Monitor/> <span>Desktop</span></button>
@@ -1259,10 +1265,10 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       </div>
       {pageKey === 'stores' && <label className={styles.contextPicker}>Preview store<select value={previewStoreSlug} onChange={(event) => setPreviewStoreSlug(event.target.value)}>{stores.map((store) => <option value={store.slug} key={store.id}>{store.name}</option>)}</select></label>}
       {pageKey === 'product' && <label className={styles.contextPicker}>Preview product<select value={previewProductId} onChange={(event) => setPreviewProductId(event.target.value)}>{orderedOffers.map((product) => <option value={product.productId} key={product.productId}>{product.title}</option>)}</select></label>}
-      <div className={styles.topActions}><span className={`${styles.statusChip} ${statuses[pageKey] === 'published' && !hasUnpublishedDraft && !dirty ? styles.live : ''}`}><i/>{dirty ? autoSaveStates[pageKey] === 'error' ? 'Draft save failed' : 'Saving draft…' : hasUnpublishedDraft ? 'Draft saved · not live' : statuses[pageKey] === 'published' ? 'Live page' : 'Draft only'}</span><a href={customerHref} target="_blank" rel="noreferrer" aria-label="Open customer page in a new tab" title="Open customer page in a new tab"><ExternalLink aria-hidden="true"/></a></div>
+      <div className={styles.topActions}><span className={`${styles.statusChip} ${statuses[pageKey] === 'published' && !hasUnpublishedDraft && !dirty ? styles.live : ''}`}><i/>{dirty ? autoSaveStates[pageKey] === 'error' ? 'Draft save failed' : 'Saving draft…' : hasUnpublishedDraft ? 'Draft saved · not live' : statuses[pageKey] === 'published' ? 'Live page' : 'Draft only'}</span><a href={customerHref} target="_blank" rel="noreferrer" aria-label="Open customer page in a new tab" title="Open customer page in a new tab"><ExternalLink aria-hidden="true"/></a><div className={styles.saveActions}><button type="button" className={styles.saveDraft} onClick={() => void save(false)} disabled={busy || !canEdit}>{busy ? 'Saving…' : 'Save draft'}</button><button type="button" className={styles.publish} onClick={() => void save(true)} disabled={busy || !canEdit}>{busy ? 'Publishing…' : 'Publish'}<ChevronRight/></button></div></div>
     </div>
 
-    <div className={`${styles.editorGrid} ${selected || selectedCore ? styles.withInspector : ''}`}>
+    <div className={`${styles.editorGrid} ${styles.withInspector} ${editorMode === 'preview' ? styles.previewOnly : ''}`}>
       <aside className={styles.sectionSidebar} aria-label="Page sections">
         <header><div><small>PAGE CONTENT</small><b>Sections</b><span>{orderedItems.length} sections · all movable</span></div></header>
         <div className={styles.sectionList}>
@@ -1304,7 +1310,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
         </div>
       </section>
 
-      {(selected || selectedCore) && <aside className={styles.inspector} aria-label="Section settings">
+      <aside className={styles.inspector} aria-label="Section settings">
         {!selected && !selectedCore ? <div className={styles.inspectorEmpty}><LayoutTemplate/><b>Select a section to edit</b><span>Drag any section using its grip, or choose “Add here” to place a new section exactly where you want it.</span><div><b>Pick what each card opens</b><small>Products open product pages, categories open category pages, and stores open store pages.</small></div></div> : selectedCore ? <>
           <header className={styles.inspectorHeader}><div><small>PAGE SECTION</small><b>{selectedCore.title}</b></div><button type="button" onClick={() => setSelectedCoreKey(null)} aria-label="Close section settings"><X/></button></header>
           <div className={styles.inspectorBody}>
@@ -1414,11 +1420,10 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           </div>
           <footer className={styles.inspectorFooter}><button type="button" className={styles.deleteButton} onClick={() => { setNotice(null); setLayouts((current) => ({ ...current, [pageKey]: current[pageKey].filter((block) => block.id !== selected.id) })); setOrders((current) => ({ ...current, [pageKey]: current[pageKey].filter((token) => token !== `block:${selected.id}`) })); setSelectedId(null); }}><Trash2/> Remove section</button><span>Removes only this custom section from the draft.</span></footer>
         </> : null}
-      </aside>}
+      </aside>
     </div>
     <footer className={styles.saveBar}>
       <div>{notice ? <p className={notice.kind === 'success' ? styles.success : styles.error}><i>{notice.kind === 'success' ? <Check/> : <X/>}</i>{notice.text}</p> : dirty && autoSaveStates[pageKey] === 'error' ? <p className={styles.error}><i><X/></i>Draft autosave failed<small>{autoSaveErrors[pageKey] ?? 'Your changes are kept in this browser. Use Save draft to retry.'}</small></p> : dirty ? <p className={styles.unsaved}><i>…</i>Saving draft…<small>Your changes are saved automatically as a draft. Customers only see them after you publish.</small></p> : hasUnpublishedDraft ? <p className={styles.unsaved}><i>!</i>Draft saved · not live<small>Shoppers still see the previously published layout until you publish this draft.</small></p> : <p className={styles.saved}><i><Check/></i>All changes saved<small>Draft and published page are in sync.</small></p>}</div>
-      <div className={styles.saveActions}><button type="button" className={styles.saveDraft} onClick={() => void save(false)} disabled={busy || !canEdit}>{busy ? 'Saving…' : 'Save draft'}</button><button type="button" className={styles.publish} onClick={() => void save(true)} disabled={busy || !canEdit}>{busy ? 'Publishing…' : 'Publish changes'}<ChevronRight/></button></div>
     </footer>
   </section>{heroComposer && <HeroLinkComposer stores={stores} products={products} categories={categories} initialItem={composerItem} blockType={blocks.find((block) => block.id === heroComposer.blockId)?.block_type === 'banner' ? 'banner' : 'hero'} onClose={() => setHeroComposer(null)} onSave={(item) => saveHeroItem(heroComposer.blockId, heroComposer.slideIndex, heroComposer.itemIndex, item)} />}{productComposerBlock && <ProductSelectionComposer stores={stores} products={products} categories={categories} selectedIds={productComposerBlock.config.product_ids ?? []} initialStoreSlug={productComposerBlock.config.store_slug} singleStore={productComposerBlock.block_type === 'store_rail'} sectionName={productComposerBlock.block_type === 'store_rail' ? 'Deals from one store' : 'Product cards'} onClose={() => setProductComposerBlockId(null)} onSave={({ productIds, storeSlug }) => { updateBlock(productComposerBlock.id, (block) => { const previousHref = block.config.store_slug ? `/store/${block.config.store_slug}` : '/deals'; const nextConfig = { ...block.config, product_ids: productIds, count: productIds.length || block.config.count || 10, ...(block.block_type === 'store_rail' ? { store_slug: storeSlug } : {}) }; const nextHref = block.block_type === 'store_rail' && (block.cta_href === previousHref || block.cta_href === '/deals') ? `/store/${storeSlug}` : block.cta_href; return { ...block, config: nextConfig, cta_href: nextHref }; }); setProductComposerBlockId(null); }}/>}</>;
 }
