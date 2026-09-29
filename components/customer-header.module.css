@@ -1,21 +1,23 @@
 .actionBar {
   display: flex;
   align-items: center;
+  height: 48px;
   justify-self: end;
   gap: 4px;
-  min-height: 46px;
   margin-left: auto;
   padding: 5px 7px;
   border-radius: 999px;
   background: #176f9d;
+  line-height: 1;
 }
 
 .iconAction {
   position: relative;
-  display: inline-flex !important;
+  display: grid !important;
   flex: none;
-  align-items: center;
-  justify-content: center;
+  place-items: center;
+  align-self: center;
+  box-sizing: border-box;
   width: 36px;
   height: 36px;
   min-height: 36px !important;
@@ -39,9 +41,12 @@
 
 .iconAction svg {
   position: static !important;
+  display: block;
   flex: none;
   width: 20px !important;
-  height: 20px;
+  height: 20px !important;
+  margin: 0;
+  transform: none;
   color: #fff;
   stroke-width: 2;
 }
@@ -64,19 +69,29 @@
 }
 
 .walletAction {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
   width: auto;
+  height: 36px;
   gap: 6px;
   padding: 0 8px !important;
   border-radius: 20px;
 }
 
 .walletBalance {
+  display: block;
+  align-self: center;
+  margin: 0;
+  padding: 0;
   color: #fff !important;
-  font: 700 12px/1 'DM Sans', sans-serif !important;
+  font: 700 12px/16px 'DM Sans', sans-serif !important;
   white-space: nowrap;
 }
 
 .profileAction {
+  display: grid !important;
+  place-items: center;
   width: 36px;
   height: 36px;
 }
@@ -101,10 +116,11 @@
 
 .mobileAction {
   position: relative;
-  display: inline-flex !important;
+  display: grid !important;
   flex: none;
-  align-items: center;
-  justify-content: center;
+  place-items: center;
+  align-self: center;
+  box-sizing: border-box;
   width: 31px;
   height: 31px;
   margin: 0 !important;
@@ -115,8 +131,11 @@
 }
 
 .mobileAction svg {
-  width: 18px;
-  height: 18px;
+  display: block;
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0;
+  transform: none;
   color: #fff;
 }
 
@@ -127,15 +146,23 @@
 }
 
 .mobileWallet {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
   width: auto;
+  height: 31px;
   gap: 4px;
   padding: 0 5px !important;
   border-radius: 17px;
 }
 
 .mobileWallet b {
+  display: block;
+  align-self: center;
+  margin: 0;
+  padding: 0;
   color: #fff !important;
-  font: 700 10px/1 'DM Sans', sans-serif !important;
+  font: 700 10px/14px 'DM Sans', sans-serif !important;
   white-space: nowrap;
 }
 
@@ -178,6 +205,7 @@
 
   .mobileWallet {
     width: auto;
+    height: 29px;
     gap: 3px;
     padding: 0 4px !important;
   }
