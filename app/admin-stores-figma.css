@@ -205,7 +205,8 @@
 }
 
 .admin-v2 .stores-table .store-cell {
-  justify-content: center;
+  width: 100%;
+  justify-content: flex-start;
   min-width: 175px;
   text-align: left;
 }
