@@ -13,14 +13,14 @@ import { hasVisibleWebsiteBannerSlideContent, normalizeWebsiteBannerButtonLayout
 import styles from './cms-managed-sections.module.css';
 
 type ManagedBlock = WebsiteDraftBlock & { id: string };
-type LayoutSnapshot = { blocks?: ManagedBlock[]; section_order?: string[]; core_content?: WebsiteLayoutSnapshot['core_content'] };
+type LayoutSnapshot = { blocks?: ManagedBlock[]; section_order?: string[]; core_content?: WebsiteLayoutSnapshot['core_content']; store_content?: WebsiteLayoutSnapshot['store_content'] };
 
 const loadPublishedLayout = cache(async (pageKey: SystemPageKey): Promise<WebsiteLayoutSnapshot> => {
   const supabase = await createClient();
   const { data: page } = await supabase.from('site_pages').select('id,published_layout').eq('slug', systemPageSlug(pageKey)).eq('status', 'published').maybeSingle();
   if (!page) return { blocks: [] };
   const snapshot = page.published_layout as LayoutSnapshot | null;
-  if (Array.isArray(snapshot?.blocks)) return { blocks: snapshot.blocks, section_order: Array.isArray(snapshot.section_order) ? snapshot.section_order : undefined, core_content: snapshot.core_content && typeof snapshot.core_content === 'object' ? snapshot.core_content : {} };
+  if (Array.isArray(snapshot?.blocks)) return { blocks: snapshot.blocks, section_order: Array.isArray(snapshot.section_order) ? snapshot.section_order : undefined, core_content: snapshot.core_content && typeof snapshot.core_content === 'object' ? snapshot.core_content : {}, store_content: snapshot.store_content && typeof snapshot.store_content === 'object' ? snapshot.store_content : {} };
   // Backwards-compatible path for previously published CMS blocks.
   const { data } = await supabase.from('site_page_blocks').select('id,block_type,title,body,cta_label,cta_href,image_url,config,device_visibility,is_active').eq('page_id', page.id).eq('is_active', true).order('display_order');
   const blocks = (data ?? []).map((item) => ({

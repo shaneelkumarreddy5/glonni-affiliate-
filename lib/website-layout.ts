@@ -159,8 +159,22 @@ export type WebsiteDraftBlock = {
   is_active: boolean;
 };
 
-export type WebsiteCoreContent = { title?: string; body?: string; count?: number; visual_shape?: WebsiteVisualShape; product_ids?: string[]; category_ids?: string[]; store_ids?: string[] };
-export type WebsiteLayoutSnapshot = { blocks: WebsiteDraftBlock[]; section_order?: string[]; core_content?: Record<string, WebsiteCoreContent> };
+export type WebsiteCoreContent = {
+  title?: string;
+  body?: string;
+  count?: number;
+  visual_shape?: WebsiteVisualShape;
+  product_ids?: string[];
+  category_ids?: string[];
+  store_ids?: string[];
+  image_url?: string;
+  cta_label?: string;
+  cta_href?: string;
+  tracking_note?: string;
+  confirmation_note?: string;
+  credit_note?: string;
+};
+export type WebsiteLayoutSnapshot = { blocks: WebsiteDraftBlock[]; section_order?: string[]; core_content?: Record<string, WebsiteCoreContent>; store_content?: Record<string, Record<string, WebsiteCoreContent>> };
 
 export function removeWebsiteBannerSlide(block: WebsiteDraftBlock, index: number): WebsiteDraftBlock {
   const count = Math.max(1, Math.min(10, block.config.slide_count ?? 1));

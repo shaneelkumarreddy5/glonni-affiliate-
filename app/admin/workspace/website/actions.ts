@@ -48,7 +48,7 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
     const item = raw as Record<string, unknown>;
     const type = item.block_type;
     if (!['hero', 'banner', 'product_rail', 'store_rail', 'category_rail', 'store_directory', 'service_rail'].includes(String(type))) return 'Choose a supported banner or catalogue section.';
-    if (type === 'hero' && pageKey !== 'home') return 'Hero banners can only be added to the home page.';
+    if (type === 'hero' && pageKey === 'product') return 'Hero banners can be added to the home page or a store page.';
     if (type === 'service_rail' && pageKey !== 'home') return 'Vouchers & Bills sections can only be added to the home page.';
     const id = String(item.id ?? '');
     if (!/^[0-9a-f-]{36}$/i.test(id)) return 'A section identifier is invalid. Remove it and add the section again.';
@@ -207,16 +207,39 @@ function normalizeCoreContent(pageKey: WebsitePageKey, value: unknown): Record<s
     const content = raw as Record<string, unknown>;
     const title = String(content.title ?? '').trim();
     const body = String(content.body ?? '').trim();
+    const imageUrl = String(content.image_url ?? '').trim();
+    const ctaLabel = String(content.cta_label ?? '').trim();
+    const ctaHref = String(content.cta_href ?? '').trim();
+    const trackingNote = String(content.tracking_note ?? '').trim();
+    const confirmationNote = String(content.confirmation_note ?? '').trim();
+    const creditNote = String(content.credit_note ?? '').trim();
     if (title.length > 8000 || body.length > 20000 || websiteRichTextToPlainText(title).length > 120 || websiteRichTextToPlainText(body).length > 1800) return 'A section heading or description is too long.';
+    if (imageUrl.length > 1000 || !validImage(imageUrl) || ctaLabel.length > 60 || ctaHref.length > 500 || !validLink(ctaHref)) return 'The store hero image or destination must use a safe site path or HTTPS address.';
+    if ([trackingNote, confirmationNote, creditNote].some((note) => note.length > 500)) return 'A cashback timeline note is too long.';
     const ids = (candidate: unknown) => Array.isArray(candidate) ? candidate.filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50) : [];
     const count = Math.max(1, Math.min(50, Number(content.count ?? 10) || 10));
     const visualShape = ['standard', 'wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(content.visual_shape)) ? content.visual_shape as WebsiteCoreContent['visual_shape'] : undefined;
-    output[key] = { title, body, count, visual_shape: visualShape, product_ids: ids(content.product_ids), category_ids: ids(content.category_ids), store_ids: ids(content.store_ids) };
+    output[key] = { title, body, count, visual_shape: visualShape, product_ids: ids(content.product_ids), category_ids: ids(content.category_ids), store_ids: ids(content.store_ids), image_url: imageUrl, cta_label: ctaLabel, cta_href: ctaHref, tracking_note: trackingNote, confirmation_note: confirmationNote, credit_note: creditNote };
   }
   return output;
 }
 
-async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[], sectionOrder: string[], coreContent: Record<string, WebsiteCoreContent>, replaceLatestDraft = false) {
+function normalizeStoreContent(pageKey: WebsitePageKey, value: unknown): Record<string, Record<string, WebsiteCoreContent>> | string {
+  if (pageKey !== 'stores' || value == null) return {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return 'Store-specific content is invalid.';
+  const entries = Object.entries(value as Record<string, unknown>);
+  if (entries.length > 500) return 'The store page can contain settings for up to 500 stores.';
+  const output: Record<string, Record<string, WebsiteCoreContent>> = {};
+  for (const [slug, rawContent] of entries) {
+    if (!/^[a-z0-9-]{1,100}$/.test(slug)) return 'A store-specific setting has an invalid store slug.';
+    const normalized = normalizeCoreContent('stores', rawContent);
+    if (typeof normalized === 'string') return normalized;
+    output[slug] = normalized;
+  }
+  return output;
+}
+
+async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[], sectionOrder: string[], coreContent: Record<string, WebsiteCoreContent>, storeContent: Record<string, Record<string, WebsiteCoreContent>>, replaceLatestDraft = false) {
   const context = await authorizeWebsiteChange();
   if (!context.ok) return context;
   const { supabase, user } = context;
@@ -226,7 +249,7 @@ async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[],
   if (pageError || !page) return { ok: false, error: 'The website page is not ready. Refresh the workspace and try again.' } as const;
   const { data: versions, error: versionsError } = await supabase.from('site_page_versions').select('id,version_number').eq('page_id', page.id).eq('change_note', 'workspace_draft').order('version_number', { ascending: false }).limit(1);
   if (versionsError) return { ok: false, error: 'Could not load the current draft version. Try again.' } as const;
-  const snapshot: WebsiteLayoutSnapshot = { blocks, section_order: sectionOrder, core_content: coreContent };
+  const snapshot: WebsiteLayoutSnapshot = { blocks, section_order: sectionOrder, core_content: coreContent, store_content: storeContent };
   const latestDraft = versions?.[0];
   if (replaceLatestDraft && latestDraft) {
     const { data: updated, error } = await supabase.from('site_page_versions').update({ snapshot, created_at: new Date().toISOString(), created_by: user.id }).eq('id', latestDraft.id).eq('page_id', page.id).eq('change_note', 'workspace_draft').select('id').maybeSingle();
@@ -243,14 +266,16 @@ async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[],
 
 export async function autosaveWebsiteDraft(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {
   if (!['home', 'stores', 'product'].includes(pageKey)) return { ok: false, error: 'Choose a supported website page.' };
-  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown } : {};
+  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined, store_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown; store_content?: unknown } : {};
   const blocks = normalizeBlocks(pageKey, request.blocks);
   if (typeof blocks === 'string') return { ok: false, error: blocks };
   const sectionOrder = normalizeOrder(pageKey, blocks, request.section_order);
   if (typeof sectionOrder === 'string') return { ok: false, error: sectionOrder };
   const coreContent = normalizeCoreContent(pageKey, request.core_content);
   if (typeof coreContent === 'string') return { ok: false, error: coreContent };
-  const saved = await saveVersion(pageKey, blocks, sectionOrder, coreContent, true);
+  const storeContent = normalizeStoreContent(pageKey, request.store_content);
+  if (typeof storeContent === 'string') return { ok: false, error: storeContent };
+  const saved = await saveVersion(pageKey, blocks, sectionOrder, coreContent, storeContent, true);
   if (!saved.ok) return { ok: false, error: saved.error };
   revalidatePath('/admin/workspace/website');
   return { ok: true, message: 'Draft autosaved. Customers still see the currently published page.' };
@@ -258,14 +283,16 @@ export async function autosaveWebsiteDraft(pageKey: WebsitePageKey, payload: unk
 
 export async function saveWebsiteDraft(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {
   if (!['home', 'stores', 'product'].includes(pageKey)) return { ok: false, error: 'Choose a supported website page.' };
-  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown } : {};
+  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined, store_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown; store_content?: unknown } : {};
   const blocks = normalizeBlocks(pageKey, request.blocks);
   if (typeof blocks === 'string') return { ok: false, error: blocks };
   const sectionOrder = normalizeOrder(pageKey, blocks, request.section_order);
   if (typeof sectionOrder === 'string') return { ok: false, error: sectionOrder };
   const coreContent = normalizeCoreContent(pageKey, request.core_content);
   if (typeof coreContent === 'string') return { ok: false, error: coreContent };
-  const saved = await saveVersion(pageKey, blocks, sectionOrder, coreContent);
+  const storeContent = normalizeStoreContent(pageKey, request.store_content);
+  if (typeof storeContent === 'string') return { ok: false, error: storeContent };
+  const saved = await saveVersion(pageKey, blocks, sectionOrder, coreContent, storeContent);
   if (!saved.ok) return { ok: false, error: saved.error };
   await saved.supabase.from('audit_events').insert({ actor_id: saved.user.id, event_type: 'website_layout_draft_saved', entity_type: 'site_page', entity_id: saved.page.id, source: 'admin_website_workspace', metadata: { page: pageKey, sections: sectionOrder.length } });
   revalidatePath('/admin/workspace/website');
@@ -274,14 +301,16 @@ export async function saveWebsiteDraft(pageKey: WebsitePageKey, payload: unknown
 
 export async function publishWebsiteLayout(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {
   if (!['home', 'stores', 'product'].includes(pageKey)) return { ok: false, error: 'Choose a supported website page.' };
-  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown } : {};
+  const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined, store_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown; store_content?: unknown } : {};
   const blocks = normalizeBlocks(pageKey, request.blocks);
   if (typeof blocks === 'string') return { ok: false, error: blocks };
   const sectionOrder = normalizeOrder(pageKey, blocks, request.section_order);
   if (typeof sectionOrder === 'string') return { ok: false, error: sectionOrder };
   const coreContent = normalizeCoreContent(pageKey, request.core_content);
   if (typeof coreContent === 'string') return { ok: false, error: coreContent };
-  const saved = await saveVersion(pageKey, blocks, sectionOrder, coreContent);
+  const storeContent = normalizeStoreContent(pageKey, request.store_content);
+  if (typeof storeContent === 'string') return { ok: false, error: storeContent };
+  const saved = await saveVersion(pageKey, blocks, sectionOrder, coreContent, storeContent);
   if (!saved.ok) return { ok: false, error: saved.error };
   const publishedAt = new Date().toISOString();
   const { error } = await saved.supabase.from('site_pages').update({

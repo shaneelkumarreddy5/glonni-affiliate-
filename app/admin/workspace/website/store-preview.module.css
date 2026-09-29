@@ -1,0 +1,13 @@
+.storeIntroGroup{display:grid;gap:8px;padding:9px 12px 12px}
+.storeHeroPreview{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(58px,22%);align-items:center;gap:9px;min-height:98px;overflow:hidden;padding:12px;border-radius:8px;background:#1b2a4e;color:#fff}
+.storeHeroPreview>div{position:relative;z-index:1;display:grid;gap:5px;min-width:0}
+.storeHeroPreview small{color:#ffbe0b;font-size:6px;font-weight:900;letter-spacing:.55px}
+.storeHeroPreview b{font:800 13px/1.2 'Plus Jakarta Sans',sans-serif;overflow-wrap:anywhere}
+.storeHeroPreview span{color:#d6deef;font-size:7px;line-height:1.4}
+.storeHeroPreview em{width:max-content;max-width:100%;margin-top:2px;padding:5px 9px;border-radius:5px;background:#ffbe0b;color:#1b2a4e;font-size:7px;font-style:normal;font-weight:900}
+.storeHeroPreview>img,.storeHeroPreview>i{width:100%;aspect-ratio:1/1;max-height:64px;display:grid;place-items:center;overflow:hidden;border:1px solid #ffffff28;border-radius:8px;background:#344564;color:#fff;font:800 18px 'Plus Jakarta Sans',sans-serif;object-fit:cover;opacity:.95}
+.storeJourneyPreview{display:grid;gap:7px;padding:10px 11px;border:1px solid #e4eaf3;border-radius:8px;background:#fff}
+.storeJourneyPreview>b{color:#1b2a4e;font:800 9px 'Plus Jakarta Sans',sans-serif}
+.storeJourneyPreview>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.storeJourneyPreview>div>span{min-width:0;padding:6px 4px;border-radius:6px;background:#f5f7fb;color:#34425d;font-size:6px;font-weight:800;line-height:1.35;text-align:center}
+.storeJourneyPreview small{color:#78849a;font-size:5px;font-weight:500}

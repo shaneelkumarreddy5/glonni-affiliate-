@@ -7,6 +7,7 @@ import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { ScrollRail } from '@/components/scroll-rail';
 import { CategoryCard, HeroBanner, ProductCard, StoreCard } from '@/components/ui/catalog-cards';
 import cardStyles from '@/components/ui/catalog-cards.module.css';
+import storePreviewStyles from './store-preview.module.css';
 import { applyWebsiteTextStyle, getWebsiteTextAlignment, getWebsiteTextStyleAt, setWebsiteTextAlignment, WEBSITE_TEXT_FONTS, websiteRichTextToPlainText, updateWebsiteRichTextText, type WebsiteTextAlignment } from '@/lib/website-rich-text-format';
 import { coreSectionsByPage, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, removeWebsiteBannerSlide, resolveWebsiteSlideItems, websiteItemHref, websitePageOptions, websiteServiceTypeOptions, type WebsiteBannerButtonLayout, type WebsiteBannerSlide, type WebsiteBlockType, type WebsiteCoreContent, type WebsiteDraftBlock, type WebsitePageKey, type WebsiteSlideItem, type WebsiteSlideTarget, type WebsiteSlot, type WebsiteVisualShape } from '@/lib/website-layout';
 import { autosaveWebsiteDraft, publishWebsiteLayout, saveWebsiteDraft, type WebsiteActionResult } from './actions';
@@ -17,7 +18,8 @@ export type WebsiteWorkspaceProduct = { productId: string; offerId: string; slug
 type CategoryOption = { id: string; name: string; slug: string; parentId: string | null; imageUrl?: string | null };
 type Device = 'desktop' | 'tablet' | 'mobile';
 type CoreContentMap = Record<WebsitePageKey, Record<string, WebsiteCoreContent>>;
-type Props = { initialPage: WebsitePageKey; initialLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]>; initialOrders: Record<WebsitePageKey, string[]>; initialCoreContent: CoreContentMap; publishedLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]>; publishedOrders: Record<WebsitePageKey, string[]>; publishedCoreContent: CoreContentMap; pageStatuses: Partial<Record<WebsitePageKey, string>>; stores: WebsiteWorkspaceStore[]; products: WebsiteWorkspaceProduct[]; categories: CategoryOption[]; canEdit: boolean };
+type StoreContentMap = Record<string, Record<string, WebsiteCoreContent>>;
+type Props = { initialPage: WebsitePageKey; initialLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]>; initialOrders: Record<WebsitePageKey, string[]>; initialCoreContent: CoreContentMap; initialStoreContent: StoreContentMap; publishedLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]>; publishedOrders: Record<WebsitePageKey, string[]>; publishedCoreContent: CoreContentMap; publishedStoreContent: StoreContentMap; pageStatuses: Partial<Record<WebsitePageKey, string>>; stores: WebsiteWorkspaceStore[]; products: WebsiteWorkspaceProduct[]; categories: CategoryOption[]; canEdit: boolean };
 
 function RichTextField({ value, onChange, placeholder, maxLength = 1800, singleLine = false }: { value: string; onChange: (value: string) => void; placeholder: string; maxLength?: number; singleLine?: boolean }) {
   const input = useRef<HTMLTextAreaElement>(null);
@@ -128,7 +130,7 @@ function SlideItemPicker({ title, items, selectedId, name, onSelect }: { title: 
 }
 
 type HeroLinkType = WebsiteSlideItem['type'];
-type WebsiteDraftPayload = { blocks: WebsiteDraftBlock[]; section_order: string[]; core_content: Record<string, WebsiteCoreContent> };
+type WebsiteDraftPayload = { blocks: WebsiteDraftBlock[]; section_order: string[]; core_content: Record<string, WebsiteCoreContent>; store_content: StoreContentMap };
 type AutoSaveState = 'waiting' | 'saving' | 'saved' | 'error';
 type LocalDraftBackups = Partial<Record<WebsitePageKey, { payload: WebsiteDraftPayload; signature: string }>>;
 type BannerButtonInteraction = { pointerId: number; pointerElement: HTMLElement; slideElement: HTMLElement; blockId: string; slideIndex: number; mode: 'move' | 'resize'; startX: number; startY: number; grabOffsetX: number; grabOffsetY: number; startVisualWidth: number; startVisualHeight: number; startLayout: WebsiteBannerButtonLayout };
@@ -413,7 +415,7 @@ function categoriesForStore(storeSlug: string | undefined, products: WebsiteWork
   return categories.filter((category) => visible.has(category.id));
 }
 
-export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, initialCoreContent, publishedLayouts: initialPublishedLayouts, publishedOrders: initialPublishedOrders, publishedCoreContent: initialPublishedCoreContent, pageStatuses, stores, products, categories, canEdit }: Props) {
+export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, initialCoreContent, initialStoreContent, publishedLayouts: initialPublishedLayouts, publishedOrders: initialPublishedOrders, publishedCoreContent: initialPublishedCoreContent, publishedStoreContent: initialPublishedStoreContent, pageStatuses, stores, products, categories, canEdit }: Props) {
   const [pageKey, setPageKey] = useState<WebsitePageKey>(initialPage);
   const [layouts, setLayouts] = useState(initialLayouts);
   const [savedLayouts, setSavedLayouts] = useState(initialLayouts);
@@ -424,9 +426,13 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const [coreContent, setCoreContent] = useState(initialCoreContent);
   const [savedCoreContent, setSavedCoreContent] = useState(initialCoreContent);
   const [publishedCoreContent, setPublishedCoreContent] = useState(initialPublishedCoreContent);
+  const [storeCoreContent, setStoreCoreContent] = useState(initialStoreContent);
+  const [savedStoreCoreContent, setSavedStoreCoreContent] = useState(initialStoreContent);
+  const [publishedStoreCoreContent, setPublishedStoreCoreContent] = useState(initialPublishedStoreContent);
   const [statuses, setStatuses] = useState(pageStatuses);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedCoreKey, setSelectedCoreKey] = useState<string | null>(null);
+  const firstSectionToken = initialOrders[initialPage]?.[0] ?? '';
+  const [selectedId, setSelectedId] = useState<string | null>(firstSectionToken.startsWith('block:') ? firstSectionToken.slice(6) : null);
+  const [selectedCoreKey, setSelectedCoreKey] = useState<string | null>(firstSectionToken.startsWith('core:') ? firstSectionToken.slice(5) : null);
   const [editorMode, setEditorMode] = useState<'edit' | 'preview'>('edit');
   const [activeBannerSlide, setActiveBannerSlide] = useState<{ blockId: string; slideIndex: number } | null>(null);
   const [device, setDevice] = useState<Device>('desktop');
@@ -434,6 +440,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [insertAtIndex, setInsertAtIndex] = useState(initialOrders[initialPage]?.length ?? 0);
   const [previewStoreSlug, setPreviewStoreSlug] = useState(stores[0]?.slug ?? '');
+  const activeStore = stores.find((store) => store.slug === previewStoreSlug) ?? stores[0];
   const [previewProductId, setPreviewProductId] = useState(products[0]?.productId ?? '');
   const [catalogueSearch, setCatalogueSearch] = useState('');
   const [busy, setBusy] = useState(false);
@@ -457,7 +464,9 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   const sectionOrder = orders[pageKey] ?? [];
   const coreSections = coreSectionsByPage[pageKey];
   const selectedCore = coreSections.find((section) => section.key === selectedCoreKey) ?? null;
-  const currentCoreContent = coreContent[pageKey] ?? {};
+  const currentCoreContent = pageKey === 'stores' && activeStore
+    ? { ...(coreContent.stores ?? {}), ...(storeCoreContent[activeStore.slug] ?? {}) }
+    : coreContent[pageKey] ?? {};
   const stageScrollerRef = useRef<HTMLDivElement>(null);
   const previewSectionRefs = useRef(new Map<string, HTMLDivElement>());
   const inspectorBodyRef = useRef<HTMLDivElement>(null);
@@ -524,12 +533,16 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     const top = target.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop - 16;
     scroller.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   }, [selectedToken, pageKey, sectionOrder, device]);
-  const dirty = JSON.stringify(blocks) !== JSON.stringify(savedLayouts[pageKey] ?? []) || JSON.stringify(sectionOrder) !== JSON.stringify(savedOrders[pageKey] ?? []) || JSON.stringify(currentCoreContent) !== JSON.stringify(savedCoreContent[pageKey] ?? {});
-  const hasUnpublishedDraft = JSON.stringify(savedLayouts[pageKey] ?? []) !== JSON.stringify(publishedLayouts[pageKey] ?? []) || JSON.stringify(savedOrders[pageKey] ?? []) !== JSON.stringify(publishedOrders[pageKey] ?? []) || JSON.stringify(savedCoreContent[pageKey] ?? {}) !== JSON.stringify(publishedCoreContent[pageKey] ?? {});
+  const coreContentDirty = pageKey === 'stores'
+    ? JSON.stringify(storeCoreContent) !== JSON.stringify(savedStoreCoreContent)
+    : JSON.stringify(currentCoreContent) !== JSON.stringify(savedCoreContent[pageKey] ?? {});
+  const dirty = JSON.stringify(blocks) !== JSON.stringify(savedLayouts[pageKey] ?? []) || JSON.stringify(sectionOrder) !== JSON.stringify(savedOrders[pageKey] ?? []) || coreContentDirty;
+  const hasUnpublishedDraft = JSON.stringify(savedLayouts[pageKey] ?? []) !== JSON.stringify(publishedLayouts[pageKey] ?? []) || JSON.stringify(savedOrders[pageKey] ?? []) !== JSON.stringify(publishedOrders[pageKey] ?? []) || JSON.stringify(savedCoreContent[pageKey] ?? {}) !== JSON.stringify(publishedCoreContent[pageKey] ?? {}) || (pageKey === 'stores' && JSON.stringify(savedStoreCoreContent) !== JSON.stringify(publishedStoreCoreContent));
   function updateSavedSnapshot(key: WebsitePageKey, payload: WebsiteDraftPayload) {
     setSavedLayouts((current) => ({ ...current, [key]: cloneDraftValue(payload.blocks) }));
     setSavedOrders((current) => ({ ...current, [key]: [...payload.section_order] }));
     setSavedCoreContent((current) => ({ ...current, [key]: cloneDraftValue(payload.core_content) }));
+    if (key === 'stores') setSavedStoreCoreContent(cloneDraftValue(payload.store_content ?? {}));
   }
   function updateAutoSaveState(key: WebsitePageKey, state: AutoSaveState, error?: string) {
     setAutoSaveStates((current) => ({ ...current, [key]: state }));
@@ -604,7 +617,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
         delete backups[key];
         continue;
       }
-      const serverSnapshot: WebsiteDraftPayload = { blocks: initialLayouts[key] ?? [], section_order: initialOrders[key] ?? [], core_content: initialCoreContent[key] ?? {} };
+      const serverSnapshot: WebsiteDraftPayload = { blocks: initialLayouts[key] ?? [], section_order: initialOrders[key] ?? [], core_content: initialCoreContent[key] ?? {}, store_content: key === 'stores' ? initialStoreContent : {} };
       if (backup.signature === JSON.stringify(serverSnapshot)) {
         delete backups[key];
         continue;
@@ -613,17 +626,18 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       setLayouts((current) => ({ ...current, [key]: payload.blocks }));
       setOrders((current) => ({ ...current, [key]: payload.section_order }));
       setCoreContent((current) => ({ ...current, [key]: payload.core_content }));
+      if (key === 'stores') setStoreCoreContent(payload.store_content ?? {});
     }
     try {
       if (Object.keys(backups).length) localStorage.setItem(LOCAL_DRAFT_BACKUP_KEY, JSON.stringify(backups));
       else localStorage.removeItem(LOCAL_DRAFT_BACKUP_KEY);
     } catch { /* Ignore unavailable browser storage. */ }
     setDraftBackupsLoaded(true);
-  }, [initialLayouts, initialOrders, initialCoreContent]);
+  }, [initialLayouts, initialOrders, initialCoreContent, initialStoreContent]);
 
   useEffect(() => {
     if (!draftBackupsLoaded || !canEdit || busy) return;
-    const payload: WebsiteDraftPayload = { blocks: cloneDraftValue(blocks), section_order: [...sectionOrder], core_content: cloneDraftValue(currentCoreContent) };
+    const payload: WebsiteDraftPayload = { blocks: cloneDraftValue(blocks), section_order: [...sectionOrder], core_content: cloneDraftValue(coreContent[pageKey] ?? {}), store_content: pageKey === 'stores' ? cloneDraftValue(storeCoreContent) : {} };
     const signature = JSON.stringify(payload);
     if (!dirty) {
       lastObservedDraft.current[pageKey] = signature;
@@ -647,17 +661,20 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     updateLocalBackup(pageKey, payload, signature);
     updateAutoSaveState(pageKey, 'waiting');
     scheduleAutoSave(pageKey);
-  }, [draftBackupsLoaded, canEdit, busy, dirty, pageKey, blocks, sectionOrder, currentCoreContent]);
+  }, [draftBackupsLoaded, canEdit, busy, dirty, pageKey, blocks, sectionOrder, coreContent, storeCoreContent]);
 
   useEffect(() => () => {
     for (const timer of autoSaveTimers.current.values()) clearTimeout(timer);
     autoSaveTimers.current.clear();
   }, []);
-  const activeStore = stores.find((store) => store.slug === previewStoreSlug) ?? stores[0];
   const activeProduct = products.find((product) => product.productId === previewProductId) ?? products[0];
   const pageOption = websitePageOptions.find((page) => page.key === pageKey)!;
   function updateCoreContent(key: string, patch: Partial<WebsiteCoreContent>) {
     setNotice(null);
+    if (pageKey === 'stores' && activeStore) {
+      setStoreCoreContent((current) => ({ ...current, [activeStore.slug]: { ...(current[activeStore.slug] ?? {}), [key]: { ...(current[activeStore.slug]?.[key] ?? currentCoreContent[key] ?? {}), ...patch } } }));
+      return;
+    }
     setCoreContent((current) => ({ ...current, [pageKey]: { ...current[pageKey], [key]: { ...(current[pageKey]?.[key] ?? {}), ...patch } } }));
   }
   function toggleCorePick(key: string, field: 'product_ids' | 'category_ids' | 'store_ids', id: string) {
@@ -672,7 +689,9 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   }
   function removeCoreSection(key: string) {
     setOrders((current) => ({ ...current, [pageKey]: (current[pageKey] ?? []).filter((token) => token !== `core:${key}`) }));
-    setCoreContent((current) => { const next = { ...current[pageKey] }; delete next[key]; return { ...current, [pageKey]: next }; });
+    if (pageKey === 'stores' && activeStore) {
+      setStoreCoreContent((current) => { const next = { ...(current[activeStore.slug] ?? {}) }; delete next[key]; return { ...current, [activeStore.slug]: next }; });
+    } else setCoreContent((current) => { const next = { ...current[pageKey] }; delete next[key]; return { ...current, [pageKey]: next }; });
     setSelectedCoreKey(null);
     setCatalogueSearch('');
     setNotice(null);
@@ -723,6 +742,24 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
   }, [orderedOffers, catalogueSearch]);
   const allCategoryChoices = categories.map((category) => ({ id: category.id, label: formatCategory(category, categories), detail: category.parentId ? 'Subcategory · opens its own category page' : 'Main category · opens its own category page', image: category.imageUrl }));
   const matchingCategoryChoices = allCategoryChoices.filter((category) => category.label.toLowerCase().includes(catalogueSearch.trim().toLowerCase()));
+  const storeProductRows = products.filter((product) => product.storeSlug === activeStore?.slug);
+  const storeProductById = new Map<string, WebsiteWorkspaceProduct>();
+  for (const product of storeProductRows) {
+    const previous = storeProductById.get(product.productId);
+    if (!previous || (product.price ?? Infinity) - (product.cashback ?? 0) < (previous.price ?? Infinity) - (previous.cashback ?? 0)) storeProductById.set(product.productId, product);
+  }
+  const allStoreProductChoices = [...storeProductById.values()].map((product) => ({ id: product.productId, label: product.title, detail: `${product.storeName} · ${product.categoryName || 'Uncategorised'} · ${money(product.price)}`, image: product.imageUrl }));
+  const matchingStoreProductChoices = allStoreProductChoices.filter((product) => product.label.toLowerCase().includes(catalogueSearch.trim().toLowerCase()));
+  const storeCategoryIds = new Set(storeProductRows.map((product) => product.categoryId).filter(Boolean));
+  for (const category of categories) if (storeCategoryIds.has(category.id)) {
+    let parentId = category.parentId;
+    while (parentId) {
+      storeCategoryIds.add(parentId);
+      parentId = categories.find((item) => item.id === parentId)?.parentId ?? null;
+    }
+  }
+  const allStoreCategoryChoices = allCategoryChoices.filter((category) => storeCategoryIds.has(category.id));
+  const matchingStoreCategoryChoices = allStoreCategoryChoices.filter((category) => category.label.toLowerCase().includes(catalogueSearch.trim().toLowerCase()));
   const allStoreChoices = stores.map((store) => ({ id: store.id, label: store.name, detail: `Store page: /store/${store.slug}`, image: store.logoUrl }));
   const matchingStoreChoices = allStoreChoices.filter((store) => store.label.toLowerCase().includes(catalogueSearch.trim().toLowerCase()));
   const matchingCoreProductChoices = coreProductChoices.map((product) => ({ id: product.productId, label: product.title, detail: `${product.storeName} · ${product.categoryName || 'Uncategorised'} · ${money(product.price)}`, image: product.imageUrl }));
@@ -1029,7 +1066,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       return;
     }
     const key = pageKey;
-    const payload: WebsiteDraftPayload = { blocks: cloneDraftValue(blocks), section_order: [...sectionOrder], core_content: cloneDraftValue(currentCoreContent) };
+      const payload: WebsiteDraftPayload = { blocks: cloneDraftValue(blocks), section_order: [...sectionOrder], core_content: cloneDraftValue(coreContent[pageKey] ?? {}), store_content: pageKey === 'stores' ? cloneDraftValue(storeCoreContent) : {} };
     const pendingTimer = autoSaveTimers.current.get(key);
     if (pendingTimer) clearTimeout(pendingTimer);
     autoSaveTimers.current.delete(key);
@@ -1043,6 +1080,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       else {
         const copied = cloneDraftValue(payload.blocks);
         const copiedCore = cloneDraftValue(payload.core_content);
+        const copiedStoreContent = cloneDraftValue(payload.store_content ?? {});
         updateSavedSnapshot(key, payload);
         const signature = JSON.stringify(payload);
         lastObservedDraft.current[key] = signature;
@@ -1054,6 +1092,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           setPublishedLayouts((current) => ({ ...current, [key]: copied }));
           setPublishedOrders((current) => ({ ...current, [key]: [...payload.section_order] }));
           setPublishedCoreContent((current) => ({ ...current, [key]: copiedCore }));
+          if (key === 'stores') setPublishedStoreCoreContent(copiedStoreContent);
         }
         setNotice({ kind: 'success', text: result.message });
       }
@@ -1081,6 +1120,27 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       if (slideIndex > 0 && field === 'image_url') updateBannerSlide(selected.id, slideIndex, { image_url: data.publicUrl });
       else updateBlock(selected.id, (block) => field === 'image_url' ? { ...block, image_url: data.publicUrl } : { ...block, config: { ...block.config, mobile_image_url: data.publicUrl } });
       setNotice({ kind: 'success', text: 'Image uploaded. Save or publish to use it on the customer site.' });
+    }
+    setUploading(null);
+  }
+
+  async function uploadStoreHeroImage(file?: File) {
+    if (pageKey !== 'stores' || !file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    if (!allowed.includes(file.type) || file.size > 8 * 1024 * 1024) {
+      setNotice({ kind: 'error', text: 'Choose a JPG, PNG, WebP or AVIF image up to 8 MB.' });
+      return;
+    }
+    setUploading('store-intro-image'); setNotice(null);
+    const extension = file.name.split('.').at(-1)?.toLowerCase() || 'jpg';
+    const path = `website/stores/${crypto.randomUUID()}.${extension}`;
+    const supabase = createClient();
+    const { error } = await supabase.storage.from('website-banners').upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+    if (error) setNotice({ kind: 'error', text: error.message.includes('row-level security') ? 'Two-step verification is required before uploading images.' : 'The image could not be uploaded. Try again or use an HTTPS image address.' });
+    else {
+      const { data } = supabase.storage.from('website-banners').getPublicUrl(path);
+      updateCoreContent('store_intro', { image_url: data.publicUrl });
+      setNotice({ kind: 'success', text: 'Store banner uploaded. Save or publish to use it on store pages.' });
     }
     setUploading(null);
   }
@@ -1225,8 +1285,26 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       return <section className={styles.coreTextPreview}><b>{renderRichPreview(currentCoreContent.benefits?.title || 'Glonni benefits')}</b><span>{currentCoreContent.benefits?.body ? renderRichPreview(currentCoreContent.benefits.body) : 'Trusted shopping · compare stores · eligible cashback · support'}</span></section>;
     }
     if (pageKey === 'stores') {
-      if (key === 'store_intro') return <section className={styles.storeIntro}><small>SHOP BY STORE</small><b>{renderRichPreview(currentCoreContent.store_intro?.title || activeStore?.name || 'Choose a store')}</b><span>{currentCoreContent.store_intro?.body ? renderRichPreview(currentCoreContent.store_intro.body) : 'Connected store identity and current offer summary.'}</span><em>{orderedOffers.filter((item) => item.storeSlug === activeStore?.slug).length} available offers</em></section>;
-      if (key === 'store_products') return <>{<section className={styles.lockedProductsHeader}><small>{activeStore?.name?.toUpperCase() ?? 'STORE'} PRODUCTS</small><b>{renderRichPreview(currentCoreContent.store_products?.title || 'Browse and compare')}</b>{currentCoreContent.store_products?.body && <span>{renderRichPreview(currentCoreContent.store_products.body)}</span>}</section>}{cataloguePreview('store_products', `Products from ${activeStore?.name ?? 'this store'}`, 'Approved offers from this store.', 'products')}</>;
+      if (key === 'store_intro') {
+        const intro = currentCoreContent.store_intro ?? {};
+        return <div className={storePreviewStyles.storeIntroGroup}>
+          <section className={storePreviewStyles.storeHeroPreview}><div><small>SHOP ON {activeStore?.name?.toUpperCase() ?? 'STORE'}</small><b>{renderRichPreview(intro.title || `${activeStore?.name ?? 'Store'} deals & cashback`)}</b><span>{intro.body ? renderRichPreview(intro.body) : 'Active store offers and eligible cashback from the connected catalogue.'}</span>{intro.cta_href && <em>{intro.cta_label || `Shop ${activeStore?.name ?? 'store'}`}</em>}</div>{intro.image_url ? <img src={intro.image_url} alt=""/> : <i>{activeStore?.name?.slice(0, 1) ?? 'S'}</i>}</section>
+          <section className={storePreviewStyles.storeJourneyPreview}><b>How It Works</b><div><span>Browse deals on Glonni</span><span>Shop on {activeStore?.name ?? 'the store'}</span><span>Earn eligible cashback</span></div></section>
+          <section className={storePreviewStyles.storeJourneyPreview}><b>Cashback Timeline</b><div><span>Purchase tracking<br/><small>{intro.tracking_note || 'After eligible click and purchase'}</small></span><span>Cashback confirmation<br/><small>{intro.confirmation_note || 'Timing depends on active offers'}</small></span><span>Cashback credited<br/><small>{intro.credit_note || 'After provider confirmation'}</small></span></div></section>
+        </div>;
+      }
+      if (key === 'store_products') {
+        const content = currentCoreContent.store_products ?? {};
+        const storeProducts = [...storeProductById.values()];
+        const selectedIds = content.product_ids ?? [];
+        const pickedProducts = selectedIds.length ? selectedIds.map((id) => storeProducts.find((product) => product.productId === id)).filter((product): product is WebsiteWorkspaceProduct => Boolean(product)) : storeProducts;
+        const categoriesPicked = content.category_ids?.length ? allStoreCategoryChoices.filter((category) => content.category_ids!.includes(category.id)) : allStoreCategoryChoices;
+        return <>
+          {categoriesPicked.length > 0 && <section className={styles.previewRail}><header><div><small>STORE CATEGORIES · SHARED CATEGORY CARD</small><b>Shop {activeStore?.name ?? 'store'} by Category</b></div></header><ScrollRail className={styles.previewSharedRail} label="Store categories preview">{categoriesPicked.map((choice) => { const category = categories.find((item) => item.id === choice.id); return category ? <CategoryCard key={category.id} href={`/store/${activeStore?.slug ?? ''}?category=${category.slug}`} name={category.name} imageUrl={category.imageUrl} interactive={false}/> : null; })}</ScrollRail></section>}
+          {pickedProducts.length > 0 && <section className={styles.previewRail}><header><div><small>TOP DEALS · APPROVED STORE OFFERS</small><b>{renderRichPreview(content.title || `Top Deals on ${activeStore?.name ?? 'this store'}`)}</b></div><span>View all ↗</span></header>{content.body && <p className={styles.previewRich}>{renderRichPreview(content.body)}</p>}<ScrollRail className={styles.previewSharedRail} label="Top store deals preview">{pickedProducts.slice(0, content.count ?? 10).map((product) => previewProductCard(product))}</ScrollRail></section>}
+          <section className={styles.lockedProductsHeader}><small>{activeStore?.name?.toUpperCase() ?? 'STORE'} OFFERS</small><b>Browse all deals</b><span>Search and filters remain available on the live store page.</span></section>
+        </>;
+      }
       return <section className={styles.coreTextPreview}><b>{renderRichPreview(currentCoreContent[key]?.title || (key === 'store_policies' ? 'Store policies' : 'Store FAQs'))}</b><span>{currentCoreContent[key]?.body ? renderRichPreview(currentCoreContent[key].body!) : 'Connected terms and active store-specific support answers.'}</span></section>;
     }
     if (key === 'product_summary') return <section className={styles.productIntro}>{activeProduct?.imageUrl && <img src={activeProduct.imageUrl} alt=""/>}<div><small>{activeProduct?.brand ?? 'GLONNI'} · {activeProduct?.categoryName ?? 'PRODUCT'}</small><b>{renderRichPreview(activeProduct?.title ?? 'Choose a product')}</b><span>{currentCoreContent.product_summary?.body ? renderRichPreview(currentCoreContent.product_summary.body) : 'Canonical product details and selected offers.'}</span><em>{money(activeProduct?.price ?? null)} · compare connected stores</em></div></section>;
@@ -1286,7 +1364,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           <button className={`${styles.dropMarker} ${draggedId ? styles.dropReady : ''}`} type="button" disabled={!canEdit} onClick={() => addAt(orderedItems.length)} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, orderedItems.length); setDraggedId(null); }} aria-label="Add a section at the end of the page"><i/><span>＋ Add here</span><small>Insert at the end of the page</small></button>
         </div>
         <div className={styles.addSectionWrap}>
-          {addOpen && <div className={styles.addMenu} role="menu"><button type="button" onClick={() => addSection('hero')} disabled={pageKey !== 'home'}><span>▣</span><b>Hero banner section</b><small>Add here · choose slide count and shape</small></button><button type="button" onClick={() => addSection('banner')}><span>▱</span><b>Promotion strips</b><small>Add here · compact curved full-width strips</small></button><button type="button" onClick={() => addSection('product_rail')}><span>▤</span><b>Product cards</b><small>Choose exact products from the catalogue</small></button><button type="button" onClick={() => addSection('category_rail')}><span>⌑</span><b>Category cards</b><small>Choose any categories or subcategories</small></button><button type="button" onClick={() => addSection('store_directory')}><span>▥</span><b>Store cards</b><small>Choose connected stores to feature</small></button><button type="button" onClick={() => addSection('store_rail')}><span>↗</span><b>Deals from one store</b><small>Choose a store and number of products</small></button><button type="button" onClick={() => addSection('service_rail')} disabled={pageKey !== 'home'}><span>♧</span><b>Vouchers &amp; Bills</b><small>{pageKey === 'home' ? 'Choose gift cards, recharge, bills—or any combination' : 'Available on the home page'}</small></button></div>}
+          {addOpen && <div className={styles.addMenu} role="menu"><button type="button" onClick={() => addSection('hero')} disabled={pageKey === 'product'}><span>▣</span><b>Hero banner section</b><small>{pageKey === 'stores' ? `Add a store-specific campaign for ${activeStore?.name ?? 'this store'}` : 'Add here · choose slide count and shape'}</small></button><button type="button" onClick={() => addSection('banner')}><span>▱</span><b>Promotion strips</b><small>Add here · compact curved full-width strips</small></button><button type="button" onClick={() => addSection('product_rail')}><span>▤</span><b>Product cards</b><small>Choose exact products from the catalogue</small></button><button type="button" onClick={() => addSection('category_rail')}><span>⌑</span><b>Category cards</b><small>Choose any categories or subcategories</small></button><button type="button" onClick={() => addSection('store_directory')}><span>▥</span><b>Store cards</b><small>Choose connected stores</small></button><button type="button" onClick={() => addSection('store_rail')}><span>↗</span><b>Deals from one store</b><small>Choose a store and number of products</small></button><button type="button" onClick={() => addSection('service_rail')} disabled={pageKey !== 'home'}><span>♧</span><b>Vouchers &amp; Bills</b><small>{pageKey === 'home' ? 'Choose gift cards, recharge, bills—or any combination' : 'Available on the home page'}</small></button></div>}
           <button className={styles.addSectionButton} type="button" disabled={!canEdit} onClick={() => setAddOpen((open) => !open)}><Plus/> Add section <ChevronDown size={15}/></button>
           <p>Choose “Add here” for exact placement. Drag any section by its grip to move it intactly.</p>
         </div>
@@ -1314,9 +1392,27 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
         {!selected && !selectedCore ? <div className={styles.inspectorEmpty}><LayoutTemplate/><b>Select a section to edit</b><span>Drag any section using its grip, or choose “Add here” to place a new section exactly where you want it.</span><div><b>Pick what each card opens</b><small>Products open product pages, categories open category pages, and stores open store pages.</small></div></div> : selectedCore ? <>
           <header className={styles.inspectorHeader}><div><small>PAGE SECTION</small><b>{selectedCore.title}</b></div><button type="button" onClick={() => setSelectedCoreKey(null)} aria-label="Close section settings"><X/></button></header>
           <div className={styles.inspectorBody}>
+            {pageKey === 'stores' && activeStore && <div className={styles.globalSectionNote}><b>{activeStore.name} store only</b><span>Content and catalogue selections here are saved for this store. Other brand pages keep their own settings.</span></div>}
             {pageKey === 'home' && selectedCore.key === 'hero' && <div className={styles.heroConvert}><b>Main hero uses fixed built-in slides.</b><span>Convert it to editable slides to add whole stores, categories, subcategories and products here too. Its current three messages are kept.</span><button type="button" onClick={convertCoreHero}><Plus/> Make hero slides editable</button></div>}
             <div className={styles.richFieldLabel}><span>Heading</span><RichTextField value={currentCoreContent[selectedCore.key]?.title ?? (pageKey === 'home' && selectedCore.key === 'hero' ? '' : selectedCore.title)} maxLength={120} singleLine placeholder={pageKey === 'home' && selectedCore.key === 'hero' ? 'Compare before you shop.' : 'Add a section heading'} onChange={(title) => updateCoreContent(selectedCore.key, { title })}/></div>
             <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={currentCoreContent[selectedCore.key]?.body ?? ''} onChange={(body) => updateCoreContent(selectedCore.key, { body })} placeholder="Optional description"/></div>
+            {pageKey === 'stores' && selectedCore.key === 'store_intro' && <>
+              <label className={styles.uploadField}>Store hero image<span className={styles.uploadRow}><input value={currentCoreContent.store_intro?.image_url ?? ''} onChange={(event) => updateCoreContent('store_intro', { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === 'store-intro-image' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadStoreHeroImage(event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label>
+              <div className={styles.twoFields}><label>Shop button label<input maxLength={60} value={currentCoreContent.store_intro?.cta_label ?? ''} onChange={(event) => updateCoreContent('store_intro', { cta_label: event.target.value })} placeholder="Shop Now"/></label><label>Affiliate destination<input maxLength={500} value={currentCoreContent.store_intro?.cta_href ?? ''} onChange={(event) => updateCoreContent('store_intro', { cta_href: event.target.value })} placeholder="Paste the approved HTTPS affiliate URL"/></label></div>
+              <div className={styles.globalSectionNote}><b>Cashback timeline</b><span>Optional per-store wording. Leave blank to use active offer timing or the verified tracking process.</span></div>
+              <label>Purchase tracking note<input maxLength={500} value={currentCoreContent.store_intro?.tracking_note ?? ''} onChange={(event) => updateCoreContent('store_intro', { tracking_note: event.target.value })} placeholder="Optional; no timing is shown unless configured"/></label>
+              <label>Cashback confirmation note<input maxLength={500} value={currentCoreContent.store_intro?.confirmation_note ?? ''} onChange={(event) => updateCoreContent('store_intro', { confirmation_note: event.target.value })} placeholder="Optional; otherwise uses active offer timing"/></label>
+              <label>Wallet credit note<input maxLength={500} value={currentCoreContent.store_intro?.credit_note ?? ''} onChange={(event) => updateCoreContent('store_intro', { credit_note: event.target.value })} placeholder="Optional; otherwise explains provider confirmation"/></label>
+            </>}
+            {pageKey === 'stores' && selectedCore.key === 'store_products' && <>
+              <label>Number of products in Top Deals<input type="number" min={1} max={50} value={currentCoreContent.store_products?.count ?? 10} onChange={(event) => updateCoreContent('store_products', { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>
+              <div className={styles.sharedCategoryCardNote}><b>Top Deals source</b>Choose products to curate the rail. If none are selected, it uses the best active approved offers for the store you are previewing.</div>
+              <CataloguePicker title={`Choose ${activeStore?.name ?? 'store'} products for Top Deals`} items={matchingStoreProductChoices} selectedIds={currentCoreContent.store_products?.product_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick('store_products', 'product_ids', id)}/>
+              <SelectedOrderList items={allStoreProductChoices} selectedIds={currentCoreContent.store_products?.product_ids ?? []} entityName="product" onMove={(id, direction) => updateCoreContent('store_products', { product_ids: moveSelectedId(currentCoreContent.store_products?.product_ids ?? [], id, direction) })}/>
+              <div className={styles.sharedCategoryCardNote}><b>Category rail source</b>Select categories connected to active offers from this store. If none are selected, the page shows all relevant live categories.</div>
+              <CataloguePicker title="Choose store categories and subcategories" items={matchingStoreCategoryChoices} selectedIds={currentCoreContent.store_products?.category_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick('store_products', 'category_ids', id)}/>
+              <SelectedOrderList items={allStoreCategoryChoices} selectedIds={currentCoreContent.store_products?.category_ids ?? []} entityName="category" onMove={(id, direction) => moveCoreCategory('store_products', id, direction)}/>
+            </>}
             {pageKey === 'home' && ['categories', 'stores', 'best_deals', 'trending', 'price_drops'].includes(selectedCore.key) && <>
               {['best_deals', 'trending', 'price_drops'].includes(selectedCore.key) ? <label>Number of products<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? 10} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label> : <label>{selectedCore.key === 'categories' ? 'Number of categories' : 'Number of stores'}<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? 10} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>}
               {selectedCore.key === 'categories' && <><div className={styles.sharedCategoryCardNote}><b>Shared category card</b>Each card uses the same catalogue image, category name and category-page link. Shape stays consistent wherever categories appear.</div><CataloguePicker title="Choose categories and subcategories" items={matchingCategoryChoices} selectedIds={currentCoreContent[selectedCore.key]?.category_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'category_ids', id)}/><SelectedOrderList items={allCategoryChoices} selectedIds={currentCoreContent[selectedCore.key]?.category_ids ?? []} entityName="category" onMove={(id, direction) => moveCoreCategory(selectedCore.key, id, direction)}/></>}

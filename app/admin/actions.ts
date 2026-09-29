@@ -350,10 +350,25 @@ export async function updateStorePolicies(f: FormData) {
   const { data: current } = await s.from("merchants").select("review_notes").eq("id", id).single();
   let notes: Record<string, unknown> = {};
   try { notes = JSON.parse(current?.review_notes || "{}"); } catch { notes = { internalNote: current?.review_notes || "" }; }
+  const glonniTerms = String(f.get("glonniTerms") ?? "").trim();
+  const cashbackEligibility = String(f.get("cashbackEligibility") ?? "").trim();
+  const excludedItems = String(f.get("excludedItems") ?? "").trim();
+  const couponRestrictions = String(f.get("couponRestrictions") ?? "").trim();
+  const returnsRefunds = String(f.get("returnsRefunds") ?? "").trim();
+  const validationCredit = String(f.get("validationCredit") ?? "").trim();
+  const policyValues = notes.policies && typeof notes.policies === "object" ? notes.policies as Record<string, unknown> : {};
+  const storeTerms = [excludedItems, couponRestrictions, returnsRefunds].filter(Boolean).join("\n\n");
+  const cashbackTerms = [cashbackEligibility, validationCredit].filter(Boolean).join("\n\n");
   const policies = {
-    glonniTerms: String(f.get("glonniTerms") ?? "").trim(),
-    storeTerms: String(f.get("storeTerms") ?? "").trim(),
-    cashbackTerms: String(f.get("cashbackTerms") ?? "").trim(),
+    ...policyValues,
+    glonniTerms,
+    cashbackEligibility,
+    excludedItems,
+    couponRestrictions,
+    returnsRefunds,
+    validationCredit,
+    ...(storeTerms ? { storeTerms } : {}),
+    ...(cashbackTerms ? { cashbackTerms } : {}),
   };
   const { error } = await s.from("merchants").update({ review_notes: JSON.stringify({ ...notes, policies }), updated_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message);
