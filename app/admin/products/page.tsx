@@ -192,6 +192,24 @@ function Stores({ offers }: { offers: Offer[] }) {
     </div>
   );
 }
+function CatalogueSectionTabs() {
+  return (
+    <nav className="catalogue-area-tabs" aria-label="Catalogue sections">
+      <Link className="current" href="/admin/products" aria-current="page">
+        <PackagePlus />
+        Products
+      </Link>
+      <Link href="/admin">
+        <Store />
+        Stores
+      </Link>
+      <Link href="/admin/categories">
+        <Boxes />
+        Categories
+      </Link>
+    </nav>
+  );
+}
 type CatalogueFilters = {
   q?: string;
   status?: string;
@@ -407,15 +425,15 @@ function Catalogue({
           <table className="product-catalogue-table">
             <thead>
               <tr>
-                <th>PRODUCT</th>
-                <th>CATEGORY</th>
-                <th>CONNECTED STORES</th>
-                <th>BEST PRICE</th>
-                <th>BEST CASHBACK</th>
-                <th>QUALITY</th>
-                <th>UPDATED</th>
-                <th>STATUS</th>
-                <th>ACTION</th>
+                <th>Product Name</th>
+                <th>Store</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Cashback</th>
+                <th>Quality</th>
+                <th>Updated</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -433,10 +451,10 @@ function Catalogue({
                       (p.brand ? 10 : 0) +
                       (p.categories ? 10 : 0) +
                       (offers.length ? 10 : 0),
-                  );
+                );
                 return (
                   <tr key={p.id}>
-                    <td>
+                    <td className="catalogue-product-cell">
                       <span className="catalogue-product">
                         {p.image_url ? (
                           <img src={p.image_url} alt="" />
@@ -458,14 +476,14 @@ function Catalogue({
                       </span>
                     </td>
                     <td>
+                      <Stores offers={offers} />
+                    </td>
+                    <td>
                       {p.category_id
                         ? categoryPaths.get(p.category_id) ||
                           p.categories?.name ||
                           "Uncategorised"
                         : "Uncategorised"}
-                    </td>
-                    <td>
-                      <Stores offers={offers} />
                     </td>
                     <td>
                       <b>{prices.length ? money(Math.min(...prices)) : "—"}</b>
@@ -1148,10 +1166,9 @@ export default async function ProductsPage({
           <header className="products-page-heading">
             <div>
               <p>CATALOGUE MANAGEMENT</p>
-              <h1>Products</h1>
+              <h1>Catalogue</h1>
               <span>
-                Manage one canonical product and connect every seller offer,
-                variant and cashback source.
+                Manage products and their connected seller offers.
               </span>
             </div>
             {view !== "manual" && (
@@ -1161,7 +1178,18 @@ export default async function ProductsPage({
               </Link>
             )}
           </header>
-          <Tabs active={view} badge={badge} />
+          {view === "catalogue" && <CatalogueSectionTabs />}
+          {view === "catalogue" ? (
+            <details className="product-workflow-disclosure">
+              <summary>
+                <span>Product workflows</span>
+                <ChevronRight />
+              </summary>
+              <Tabs active={view} badge={badge} />
+            </details>
+          ) : (
+            <Tabs active={view} badge={badge} />
+          )}
           {view === "catalogue" ? (
             <Catalogue
               products={products}
