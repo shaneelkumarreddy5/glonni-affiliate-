@@ -1,0 +1,407 @@
+/* Step 8: carry the Figma foundations into the live Stores & Brands workspace. */
+.admin-v2 .stores-admin-page {
+  padding-top: 4px;
+  color: var(--glonni-ink);
+  font-family: var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-title {
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.admin-v2 .stores-title > div > p {
+  margin: 0 0 5px;
+  color: var(--glonni-kraft);
+  font-size: 11px;
+  font-weight: var(--glonni-font-weight-semibold);
+  letter-spacing: .12em;
+}
+
+.admin-v2 .stores-title h1 {
+  color: var(--glonni-navy);
+  font: var(--glonni-font-weight-bold) clamp(28px, 2vw, 36px)/1.2 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-title span {
+  margin-top: 6px;
+  color: #737f95;
+  font: 400 13px/1.5 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-title .add-store,
+.admin-v2 .stores-add button {
+  min-height: 42px;
+  border: 1px solid var(--glonni-yellow);
+  border-radius: var(--glonni-radius-control);
+  background: var(--glonni-yellow);
+  color: var(--glonni-navy);
+  font: 600 13px/1 var(--glonni-font-sans);
+  box-shadow: none;
+}
+
+.admin-v2 .stores-title .add-store:hover,
+.admin-v2 .stores-add button:hover {
+  background: #f2b300;
+  color: var(--glonni-navy);
+}
+
+.admin-v2 .store-kpis {
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.admin-v2 .store-kpis > a {
+  min-height: 100px;
+  align-items: center;
+  padding: 16px;
+  border-color: #e2e7f0;
+  border-radius: var(--glonni-radius-card);
+  background: #fff;
+  color: var(--glonni-navy);
+  box-shadow: none;
+}
+
+.admin-v2 .store-kpis > a:hover {
+  border-color: #c8d3e5;
+  background: var(--glonni-cream);
+  transform: none;
+  box-shadow: none;
+}
+
+.admin-v2 .store-kpis > a > svg {
+  flex-basis: 38px;
+  width: 38px;
+  height: 38px;
+  padding: 9px;
+  border-radius: 10px;
+  background: var(--glonni-sky-tint);
+  color: var(--glonni-navy);
+}
+
+.admin-v2 .store-kpis span > b {
+  color: var(--glonni-navy);
+  font: 700 21px/1.25 var(--glonni-font-sans);
+}
+
+.admin-v2 .store-kpis span > small {
+  color: #737f95;
+  font: 400 10px/1.4 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-workspace {
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 270px;
+}
+
+.admin-v2 .stores-directory,
+.admin-v2 .stores-sidepanels article {
+  border-color: #e2e7f0;
+  border-radius: var(--glonni-radius-card);
+  background: #fff;
+  box-shadow: none;
+}
+
+.admin-v2 .stores-directory {
+  min-width: 0;
+}
+
+.admin-v2 .store-directory-tools {
+  min-height: 68px;
+  padding: 13px 16px;
+  border-bottom-color: #e2e7f0;
+}
+
+.admin-v2 .store-directory-tools h2 {
+  color: var(--glonni-navy);
+  font: 600 16px/1.3 var(--glonni-font-sans);
+}
+
+.admin-v2 .store-directory-tools > div > span {
+  color: #737f95;
+  font: 400 11px/1.4 var(--glonni-font-sans);
+}
+
+.admin-v2 .store-directory-tools form {
+  min-height: 40px;
+  border-color: #dfe5ef;
+  border-radius: var(--glonni-radius-control);
+  background: #fff;
+  box-shadow: none;
+}
+
+.admin-v2 .store-directory-tools form svg {
+  color: var(--glonni-navy);
+}
+
+.admin-v2 .store-directory-tools input {
+  color: var(--glonni-ink);
+  font: 400 12px/1.4 var(--glonni-font-sans);
+}
+
+.admin-v2 .store-directory-tools input::placeholder {
+  color: #7a8598;
+}
+
+.admin-v2 .store-directory-tools button {
+  min-height: 30px;
+  border-radius: 6px;
+  background: var(--glonni-navy);
+  color: #fff;
+  font: 600 11px/1 var(--glonni-font-sans);
+}
+
+.admin-v2 .store-directory-tools form > a {
+  color: var(--glonni-navy);
+  font: 500 11px/1.3 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-table {
+  min-width: 1420px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: var(--glonni-ink);
+  font: 400 12px/1.45 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-table th {
+  height: auto;
+  padding: 12px 12px !important;
+  border: 0 !important;
+  background: var(--glonni-sky-tint) !important;
+  color: var(--glonni-navy) !important;
+  font: 600 10px/1.35 var(--glonni-font-sans) !important;
+  letter-spacing: .025em !important;
+  text-align: center !important;
+  vertical-align: middle;
+  white-space: normal;
+}
+
+.admin-v2 .stores-table td {
+  height: auto;
+  min-height: 62px;
+  padding: 12px !important;
+  border-top: 1px solid #e2e7f0 !important;
+  border-bottom: 0 !important;
+  color: var(--glonni-ink);
+  font: 400 11px/1.45 var(--glonni-font-sans);
+  text-align: center !important;
+  vertical-align: middle;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.admin-v2 .stores-table th:first-child,
+.admin-v2 .stores-table td:first-child {
+  padding-left: 14px !important;
+}
+
+.admin-v2 .stores-table tbody tr:nth-child(even) {
+  background: #fafbfe;
+}
+
+.admin-v2 .stores-table tbody tr:hover {
+  background: var(--glonni-cream);
+}
+
+.admin-v2 .stores-table .store-cell {
+  justify-content: center;
+  min-width: 175px;
+  text-align: left;
+}
+
+.admin-v2 .stores-table .store-cell > img,
+.admin-v2 .stores-table .store-cell > i {
+  flex: 0 0 34px;
+  border: 1px solid #e2e7f0;
+  background: #fff;
+}
+
+.admin-v2 .stores-table .store-cell > span {
+  min-width: 0;
+  max-width: 190px;
+}
+
+.admin-v2 .stores-table .store-cell strong {
+  color: var(--glonni-navy);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.admin-v2 .stores-table .store-cell small {
+  color: #737f95;
+  overflow-wrap: anywhere;
+}
+
+.admin-v2 .stores-table .ops-chip {
+  border-radius: var(--glonni-radius-badge);
+  font: 600 10px/1.25 var(--glonni-font-sans);
+  white-space: normal;
+}
+
+.admin-v2 .stores-table .ops-chip.good {
+  background: #e7f4ed;
+  color: var(--glonni-fresh-green);
+}
+
+.admin-v2 .stores-table .ops-chip.warn {
+  background: #fff5d8;
+  color: #775800;
+}
+
+.admin-v2 .stores-table .ops-chip.bad {
+  background: #fbe8e9;
+  color: var(--glonni-deal-red);
+}
+
+.admin-v2 .stores-table .manage-store {
+  justify-content: center;
+  border-color: #dfe5ef;
+  border-radius: var(--glonni-radius-control);
+  color: var(--glonni-navy) !important;
+  font: 600 11px/1.2 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-table .manage-store:hover {
+  border-color: var(--glonni-navy);
+  background: var(--glonni-navy);
+  color: #fff !important;
+}
+
+.admin-v2 .stores-directory > footer {
+  min-height: 48px;
+  padding: 13px 16px;
+  border-top: 1px solid #e2e7f0;
+  background: #fff;
+  color: #737f95;
+  font: 400 11px/1.4 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-sidepanels article {
+  padding: 16px;
+}
+
+.admin-v2 .stores-sidepanels header {
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e7f0;
+}
+
+.admin-v2 .stores-sidepanels h2 {
+  color: var(--glonni-navy);
+  font: 600 15px/1.35 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-sidepanels header a {
+  color: var(--glonni-navy);
+  font: 600 10px/1.4 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-sidepanels article > p,
+.admin-v2 .stores-sidepanels .sync-event {
+  gap: 9px;
+  padding: 12px 0;
+  border-color: #e8ecf3;
+  color: var(--glonni-ink);
+  font: 400 11px/1.4 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-sidepanels article > p > b,
+.admin-v2 .sync-event > time {
+  color: var(--glonni-navy);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.admin-v2 .stores-sidepanels small,
+.admin-v2 .sync-event small {
+  color: #737f95;
+  font: 400 10px/1.4 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-sidepanels .sync-event > span b {
+  color: var(--glonni-navy);
+  font-weight: 600;
+}
+
+.admin-v2 .stores-sidepanels .sync-event:hover {
+  color: var(--glonni-navy);
+}
+
+.admin-v2 .stores-add {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid #e2e7f0;
+  border-radius: var(--glonni-radius-card);
+  background: #fff;
+  box-shadow: none;
+}
+
+.admin-v2 .stores-add > div > p {
+  margin: 0 0 4px;
+  color: var(--glonni-kraft);
+  font: 600 10px/1.3 var(--glonni-font-sans);
+  letter-spacing: .1em;
+}
+
+.admin-v2 .stores-add h2 {
+  color: var(--glonni-navy);
+  font: 600 16px/1.35 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-add > div > span {
+  color: #737f95;
+  font: 400 11px/1.5 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-add form {
+  gap: 9px;
+}
+
+.admin-v2 .stores-add input {
+  min-height: 40px;
+  border-color: #dfe5ef;
+  border-radius: var(--glonni-radius-control);
+  background: #fff;
+  color: var(--glonni-ink);
+  font: 400 12px/1.4 var(--glonni-font-sans);
+}
+
+.admin-v2 .stores-add input::placeholder {
+  color: #7a8598;
+}
+
+@media (max-width: 1380px) {
+  .admin-v2 .stores-workspace { grid-template-columns: minmax(0, 1fr); }
+  .admin-v2 .stores-sidepanels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 900px) {
+  .admin-v2 .store-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .admin-v2 .stores-title { align-items: flex-start; }
+  .admin-v2 .stores-title h1 { font-size: 28px; }
+  .admin-v2 .stores-sidepanels { grid-template-columns: minmax(0, 1fr); }
+  .admin-v2 .stores-directory { overflow: hidden; }
+  .admin-v2 .stores-directory .table-scroll { overflow-x: auto; }
+  .admin-v2 .stores-table { min-width: 1320px; }
+  .admin-v2 .stores-add { display: grid; gap: 14px; }
+  .admin-v2 .stores-add form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-v2 .stores-add form button { grid-column: 1 / -1; justify-content: center; }
+}
+
+@media (max-width: 540px) {
+  .admin-v2 .store-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .admin-v2 .store-kpis > a { min-height: 90px; gap: 9px; padding: 11px; }
+  .admin-v2 .store-kpis > a > svg { flex-basis: 32px; width: 32px; height: 32px; padding: 7px; }
+  .admin-v2 .store-kpis span > b { font-size: 17px; }
+  .admin-v2 .store-kpis span > small { font-size: 9px; }
+  .admin-v2 .stores-add form { grid-template-columns: minmax(0, 1fr); }
+  .admin-v2 .stores-add form button { grid-column: 1; }
+  .admin-v2 .stores-directory > footer { display: grid; }
+}
