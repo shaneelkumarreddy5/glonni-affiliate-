@@ -1,0 +1,188 @@
+.actionBar {
+  display: flex;
+  align-items: center;
+  justify-self: end;
+  gap: 4px;
+  min-height: 46px;
+  margin-left: auto;
+  padding: 5px 7px;
+  border-radius: 999px;
+  background: #176f9d;
+}
+
+.iconAction {
+  position: relative;
+  display: inline-flex !important;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-height: 36px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 50%;
+  color: #fff !important;
+  text-decoration: none;
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.iconAction:hover {
+  background: rgb(255 255 255 / 16%);
+}
+
+.iconAction:focus-visible,
+.mobileAction:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.iconAction svg {
+  position: static !important;
+  flex: none;
+  width: 20px !important;
+  height: 20px;
+  color: #fff;
+  stroke-width: 2;
+}
+
+.countBadge {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border: 2px solid #176f9d;
+  border-radius: 10px;
+  background: #ffbe0b;
+  color: #1b2a4e;
+  font: 800 8px/1 'DM Sans', sans-serif;
+  font-style: normal;
+}
+
+.walletAction {
+  width: auto;
+  gap: 6px;
+  padding: 0 8px !important;
+  border-radius: 20px;
+}
+
+.walletBalance {
+  color: #fff !important;
+  font: 700 12px/1 'DM Sans', sans-serif !important;
+  white-space: nowrap;
+}
+
+.profileAction {
+  width: 36px;
+  height: 36px;
+}
+
+.actionBar .profileAction .profile-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #ffbe0b !important;
+  color: #1b2a4e !important;
+  box-shadow: none !important;
+  font: 800 13px/1 'Plus Jakarta Sans', sans-serif;
+}
+
+.mobileActions {
+  display: none;
+}
+
+.mobileAction {
+  position: relative;
+  display: inline-flex !important;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 31px;
+  height: 31px;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 50%;
+  color: #fff !important;
+  text-decoration: none;
+}
+
+.mobileAction svg {
+  width: 18px;
+  height: 18px;
+  color: #fff;
+}
+
+.mobileAction .countBadge {
+  top: -3px;
+  right: -4px;
+  border-color: #176f9d;
+}
+
+.mobileWallet {
+  width: auto;
+  gap: 4px;
+  padding: 0 5px !important;
+  border-radius: 17px;
+}
+
+.mobileWallet b {
+  color: #fff !important;
+  font: 700 10px/1 'DM Sans', sans-serif !important;
+  white-space: nowrap;
+}
+
+.mobileProfile {
+  overflow: hidden;
+  background: #ffbe0b !important;
+  color: #1b2a4e !important;
+  font: 800 12px/1 'Plus Jakarta Sans', sans-serif;
+}
+
+.mobileProfile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 900px) {
+  .mobileActions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+    padding: 4px 5px;
+    border-radius: 999px;
+    background: #176f9d;
+  }
+}
+
+@media (max-width: 430px) {
+  .mobileActions {
+    gap: 0;
+    padding: 3px;
+  }
+
+  .mobileAction {
+    width: 28px;
+    height: 29px;
+  }
+
+  .mobileWallet {
+    width: auto;
+    gap: 3px;
+    padding: 0 4px !important;
+  }
+
+  .mobileWallet b {
+    font-size: 9px !important;
+  }
+}
