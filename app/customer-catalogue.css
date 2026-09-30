@@ -1,20 +1,9 @@
 /* Step 4 — Figma customer catalogue, store and discovery screens. */
-.top.top-brand-dark {
-  color: var(--glonni-cream);
-  border-bottom-color: rgb(255 255 255 / 12%);
-  background: var(--glonni-navy);
-}
-.top.top-brand-dark .search {
-  border-color: rgb(255 255 255 / 20%);
+.top {
+  color: var(--glonni-navy);
+  border-bottom-color: var(--glonni-sky-tint);
   background: #fff;
 }
-.top.top-brand-dark .search input { color: var(--glonni-ink); }
-.top.top-brand-dark .top-actions,
-.top.top-brand-dark .top-actions b,
-.top.top-brand-dark .profile-trigger { color: var(--glonni-cream); }
-.top.top-brand-dark .top-actions small { color: rgb(255 253 247 / 72%); }
-.top.top-brand-dark .profile-avatar { color: var(--glonni-navy); background: var(--glonni-yellow); }
-.top.top-brand-dark .mobile-menu { color: var(--glonni-cream); }
 
 .browse-nav { color: color-mix(in srgb, var(--glonni-navy) 65%, white); }
 .browse-nav button { color: var(--glonni-navy); background: var(--glonni-sky-tint); }
