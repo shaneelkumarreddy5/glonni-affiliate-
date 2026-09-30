@@ -1,9 +1,10 @@
 import { Fragment, type ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Clock3, ExternalLink, Search, ShoppingBag, WalletCards } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock3, ExternalLink, RotateCcw, Search, ShoppingBag, Store, WalletCards } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
+import { OfferGrid } from '@/components/offer-grid';
 import { ContextualFaqs } from '@/components/contextual-faqs';
 import { CmsManagedSections, getPublishedWebsiteLayout } from '@/components/cms-managed-sections';
 import { CustomerPolicyAccordions, parseCustomerPolicy } from '@/components/customer-policy-accordions';
@@ -20,7 +21,21 @@ import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import styles from './store-page.module.css';
 
 export const dynamic = 'force-dynamic';
-type StoreFilters = { from?: string };
+type StoreFilters = { from?: string; q?: string; category?: string | string[]; price?: string; cashback?: string; sort?: string };
+
+function values(value?: string | string[]) {
+  return (Array.isArray(value) ? value : value ? [value] : []).filter(Boolean);
+}
+
+function storeFilterPath(slug: string, filters: StoreFilters) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (Array.isArray(value)) value.forEach((item) => item && params.append(key, item));
+    else if (value) params.set(key, value);
+  });
+  const query = params.toString();
+  return `/store/${encodeURIComponent(slug)}${query ? `?${query}` : ''}`;
+}
 
 function uniqueOffers(offers: CatalogOffer[]) {
   const byProduct = new Map<string, CatalogOffer>();
@@ -32,6 +47,20 @@ function uniqueOffers(offers: CatalogOffer[]) {
     if (!current || effective(offer) < effective(current)) byProduct.set(id, offer);
   }
   return [...byProduct.values()];
+}
+
+function sortOffers(offers: CatalogOffer[], sort: string) {
+  const sorted = [...offers];
+  if (sort === 'price-low') return sorted.sort((a, b) => (a.current_price ?? Infinity) - (b.current_price ?? Infinity));
+  if (sort === 'price-high') return sorted.sort((a, b) => (b.current_price ?? 0) - (a.current_price ?? 0));
+  if (sort === 'cashback') return sorted.sort((a, b) => (b.cashback_amount ?? 0) - (a.cashback_amount ?? 0));
+  if (sort === 'discount') {
+    const discount = (offer: CatalogOffer) => offer.current_price && offer.list_price && offer.list_price > offer.current_price
+      ? (offer.list_price - offer.current_price) / offer.list_price
+      : 0;
+    return sorted.sort((a, b) => discount(b) - discount(a));
+  }
+  return sorted;
 }
 
 function TrackingLink({ href, label, className }: { href: string; label: string; className: string }) {
@@ -99,6 +128,34 @@ export default async function StorePage({ params, searchParams }: { params: Prom
     }
   }
   const allStoreCategories = orderCategoryTree(categories).filter((category) => relevantIds.has(category.id));
+  const selectedCategorySlugs = values(filters.category);
+  const selectedBrowseCategoryIds = new Set(allStoreCategories.filter((category) => selectedCategorySlugs.includes(category.slug)).map((category) => category.id));
+  const selectedCategoryBranches = new Set<string>();
+  selectedBrowseCategoryIds.forEach((id) => categoryBranchIds(categories, id).forEach((childId) => selectedCategoryBranches.add(childId)));
+  const storeProductOffers = uniqueOffers(allOffers);
+  const storeCategoryCounts = new Map<string, number>();
+  allStoreCategories.forEach((category) => {
+    const branch = categoryBranchIds(categories, category.id);
+    storeCategoryCounts.set(category.slug, new Set(allOffers.filter((offer) => branch.has(offer.products?.categories?.id ?? '')).map((offer) => offer.products?.id).filter(Boolean)).size);
+  });
+  const cashbackProductCount = new Set(allOffers.filter(hasCashback).map((offer) => offer.products?.id).filter(Boolean)).size;
+  const query = filters.q?.trim().toLowerCase();
+  const matchingStoreOffers = storeProductOffers.filter((offer) => {
+    const searchable = `${offer.products?.title ?? ''} ${offer.products?.brand ?? ''} ${offer.products?.categories?.name ?? ''}`.toLowerCase();
+    if (query && !searchable.includes(query)) return false;
+    if (selectedCategoryBranches.size && !selectedCategoryBranches.has(offer.products?.categories?.id ?? '')) return false;
+    if (filters.cashback === 'yes' && !hasCashback(offer)) return false;
+    const price = offer.current_price;
+    if (filters.price === 'under-1000' && (price == null || price >= 1000)) return false;
+    if (filters.price === '1000-5000' && (price == null || price < 1000 || price >= 5000)) return false;
+    if (filters.price === '5000-10000' && (price == null || price < 5000 || price >= 10000)) return false;
+    if (filters.price === 'over-10000' && (price == null || price < 10000)) return false;
+    return true;
+  });
+  const filteredStoreOffers = sortOffers(matchingStoreOffers, filters.sort ?? 'relevance');
+  const hasStoreFilters = Boolean(query || selectedCategorySlugs.length || filters.cashback === 'yes' || filters.price);
+  const storeBrowsePath = storeFilterPath(slug, { ...filters, from: returnPath });
+  const clearStoreFiltersPath = storeFilterPath(slug, { from: returnPath });
   const layout = await getPublishedWebsiteLayout('stores');
   const sectionOrder = ensureStorePolicyBeforeFaq(resolveWebsiteSectionOrder('stores', layout.blocks, layout.section_order));
   const coreContent = { ...(layout.core_content ?? {}), ...(layout.store_content?.[slug] ?? {}) } as Record<string, WebsiteCoreContent>;
@@ -155,6 +212,31 @@ export default async function StorePage({ params, searchParams }: { params: Prom
         <header className={styles.sectionHeading}><div><h2 id="top-store-deals-title">{renderWebsiteRichText(productContent.title || `Top Deals on ${store.name}`)}</h2><p>{productContent.body ? renderWebsiteRichText(productContent.body) : 'Active approved offers from this store. Cashback appears only when the offer is eligible.'}</p></div><Link href={`/deals?store=${encodeURIComponent(store.slug)}`}>View all <ArrowRight size={15}/></Link></header>
         <HomeOfferRail offers={topDeals} returnTo={`/store/${store.slug}`}/>
       </section>}
+      <section className={styles.catalogSection} id="store-catalog" aria-labelledby="store-catalog-title">
+        <header className={styles.sectionHeading}><div><h2 id="store-catalog-title">Browse {store.name} products</h2><p>{filteredStoreOffers.length.toLocaleString('en-IN')} products with active offers from this store.</p></div></header>
+        <div className="category-deals">
+          <details className="category-filter-panel" open>
+            <summary><span>Filters</span><span className="category-filter-summary-mark" aria-hidden="true">⌄</span></summary>
+            {hasStoreFilters && <Link className="category-filter-clear" href={clearStoreFiltersPath}><RotateCcw size={13}/>Clear</Link>}
+            <form action={`/store/${encodeURIComponent(store.slug)}`} method="get">
+              <input type="hidden" name="from" value={returnPath}/>
+              <label className="category-filter-search"><span>Search products</span><span><Search size={15}/><input type="search" name="q" defaultValue={filters.q} placeholder={`Search ${store.name}`}/></span></label>
+              {allStoreCategories.length > 0 && <fieldset><legend>Category</legend><div className="category-filter-options category-filter-subcategories">{allStoreCategories.map((category) => <label key={category.id} style={{ paddingInlineStart: `${Math.min(category.level, 4) * 8}px` }}><input type="checkbox" name="category" value={category.slug} defaultChecked={selectedCategorySlugs.includes(category.slug)}/><span>{category.name}</span><small>{storeCategoryCounts.get(category.slug) ?? 0}</small></label>)}</div></fieldset>}
+              <fieldset><legend>Price</legend><div className="category-filter-options">
+                {[['', 'Any price'], ['under-1000', 'Under ₹1,000'], ['1000-5000', '₹1,000 – ₹5,000'], ['5000-10000', '₹5,000 – ₹10,000'], ['over-10000', 'Above ₹10,000']].map(([value, label]) => <label key={value || 'any-price'}><input type="radio" name="price" value={value} defaultChecked={(filters.price ?? '') === value}/><span>{label}</span></label>)}
+              </div></fieldset>
+              <fieldset><legend>Cashback eligible</legend><div className="category-filter-options"><label><input type="checkbox" name="cashback" value="yes" defaultChecked={filters.cashback === 'yes'}/><span>Show only cashback offers</span><small>{cashbackProductCount}</small></label></div></fieldset>
+              <label className="category-sort-control"><span>Sort by</span><select name="sort" defaultValue={filters.sort ?? 'relevance'}><option value="relevance">Relevance</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="cashback">Highest cashback</option><option value="discount">Biggest discount</option></select></label>
+              <button className="category-filter-submit" type="submit">Apply filters</button>
+            </form>
+          </details>
+          <div className="category-deal-results">
+            <header className="category-deal-heading"><div><h2>{hasStoreFilters ? `Deals from ${store.name}` : `All deals from ${store.name}`}</h2><p>{filteredStoreOffers.length.toLocaleString('en-IN')} matching products</p></div><span>{filteredStoreOffers.length} shown</span></header>
+            {hasStoreFilters && <Link className="category-clear-filters" href={clearStoreFiltersPath}><RotateCcw size={14}/>Clear filters</Link>}
+            {filteredStoreOffers.length ? <OfferGrid offers={filteredStoreOffers} contextHref={storeBrowsePath}/> : <div className="empty-state category-empty"><Store size={30}/><h2>{hasStoreFilters ? 'No products match these filters' : `No products from ${store.name} yet`}</h2><p>{hasStoreFilters ? 'Clear a filter or try a broader search.' : `Approved products with active offers from ${store.name} will appear here.`}</p>{hasStoreFilters && <Link href={clearStoreFiltersPath} className="primary">Clear all filters</Link>}</div>}
+          </div>
+        </div>
+      </section>
     </section>,
     'core:store_policies': <CustomerPolicyAccordions className={styles.storePolicy} variant="store-page" storeName={store.name} policy={policyData} heading={coreContent.store_policies?.title || 'Terms & Conditions'} intro={coreContent.store_policies?.body || `Cashback rules and conditions specific to ${store.name}.`} openFirst={false}/>,
     'core:store_faqs': <ContextualFaqs variant="store-page" title={coreContent.store_faqs?.title || 'Frequently Asked Questions'} intro={`Common questions about shopping with ${store.name} through Glonni.`} faqs={faqs} maxItems={8}/>,
