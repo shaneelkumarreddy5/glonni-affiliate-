@@ -75,6 +75,14 @@ const storeRefresh = (slug?: string) => {
   revalidatePath("/admin/dashboard");
   if (slug) revalidatePath(`/admin/stores/${slug}`);
 };
+function optionalStoreTiming(f: FormData, field: string, maximum: number, label: string) {
+  const raw = String(f.get(field) ?? '').trim();
+  if (!raw) return null;
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value < 0 || value > maximum)
+    throw new Error(`${label} must be a whole number from 0 to ${maximum}.`);
+  return value;
+}
 async function categoryMediaUrl(
   s: Awaited<ReturnType<typeof createClient>>,
   userId: string,
@@ -295,6 +303,9 @@ export async function createStore(f: FormData) {
     url = String(f.get("url") ?? "").trim();
   if (!name || !/^https?:\/\//.test(url))
     throw new Error("Enter a store name and a valid https URL.");
+  const purchaseTrackingHours = optionalStoreTiming(f, 'purchaseTrackingHours', 8760, 'Purchase tracking hours');
+  const cashbackConfirmationDays = optionalStoreTiming(f, 'cashbackConfirmationDays', 365, 'Cashback confirmation days');
+  const walletCreditDays = optionalStoreTiming(f, 'walletCreditDays', 365, 'Wallet credit days');
   const handle = slug(name);
   const { data, error } = await s
     .from("merchants")
@@ -303,6 +314,9 @@ export async function createStore(f: FormData) {
       slug: handle,
       storefront_url: url,
       homepage_position: Number(f.get("homepagePosition")) || 99,
+      purchase_tracking_hours: purchaseTrackingHours,
+      cashback_confirmation_days: cashbackConfirmationDays,
+      wallet_credit_days: walletCreditDays,
       is_active: false,
       approval_status: "draft",
     })
@@ -312,6 +326,9 @@ export async function createStore(f: FormData) {
   await audit(s, "created", "merchant", data.id, {
     name,
     status: "draft",
+    purchase_tracking_hours: purchaseTrackingHours,
+    cashback_confirmation_days: cashbackConfirmationDays,
+    wallet_credit_days: walletCreditDays,
     actor_id: user.id,
   });
   storeRefresh(data.slug);
@@ -356,6 +373,9 @@ export async function updateStorePolicies(f: FormData) {
   const couponRestrictions = String(f.get("couponRestrictions") ?? "").trim();
   const returnsRefunds = String(f.get("returnsRefunds") ?? "").trim();
   const validationCredit = String(f.get("validationCredit") ?? "").trim();
+  const purchaseTrackingHours = optionalStoreTiming(f, 'purchaseTrackingHours', 8760, 'Purchase tracking hours');
+  const cashbackConfirmationDays = optionalStoreTiming(f, 'cashbackConfirmationDays', 365, 'Cashback confirmation days');
+  const walletCreditDays = optionalStoreTiming(f, 'walletCreditDays', 365, 'Wallet credit days');
   const policyValues = notes.policies && typeof notes.policies === "object" ? notes.policies as Record<string, unknown> : {};
   const storeTerms = [excludedItems, couponRestrictions, returnsRefunds].filter(Boolean).join("\n\n");
   const cashbackTerms = [cashbackEligibility, validationCredit].filter(Boolean).join("\n\n");
@@ -370,9 +390,20 @@ export async function updateStorePolicies(f: FormData) {
     ...(storeTerms ? { storeTerms } : {}),
     ...(cashbackTerms ? { cashbackTerms } : {}),
   };
-  const { error } = await s.from("merchants").update({ review_notes: JSON.stringify({ ...notes, policies }), updated_at: new Date().toISOString() }).eq("id", id);
+  const { error } = await s.from("merchants").update({
+    review_notes: JSON.stringify({ ...notes, policies }),
+    purchase_tracking_hours: purchaseTrackingHours,
+    cashback_confirmation_days: cashbackConfirmationDays,
+    wallet_credit_days: walletCreditDays,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id);
   if (error) throw new Error(error.message);
-  await audit(s, "store_policies_updated", "merchant", id, { actor_id: user.id });
+  await audit(s, "store_policies_updated", "merchant", id, {
+    actor_id: user.id,
+    purchase_tracking_hours: purchaseTrackingHours,
+    cashback_confirmation_days: cashbackConfirmationDays,
+    wallet_credit_days: walletCreditDays,
+  });
   storeRefresh(slugValue);
   revalidatePath(`/store/${slugValue}`);
   redirect(`/admin/stores/${slugValue}?tab=policies&success=Store%20policies%20saved`);

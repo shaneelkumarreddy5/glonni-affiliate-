@@ -85,11 +85,14 @@ export async function getStores() {
       logo_url: string | null;
       storefront_url: string | null;
       review_notes: string | null;
+      purchase_tracking_hours: number | null;
+      cashback_confirmation_days: number | null;
+      wallet_credit_days: number | null;
     }[];
   const supabase = await createClient();
   const { data } = await supabase
     .from("merchants")
-    .select("id,name,slug,logo_url,storefront_url,review_notes")
+    .select("id,name,slug,logo_url,storefront_url,review_notes,purchase_tracking_hours,cashback_confirmation_days,wallet_credit_days")
     .eq("is_active", true)
     .order("homepage_position");
   return data ?? [];

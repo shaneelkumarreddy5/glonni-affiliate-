@@ -32,3 +32,13 @@
 @media(max-width:900px){.processTimelineRow{grid-template-columns:minmax(0,1fr);gap:14px}}
 @media(max-width:650px){.storePolicy{margin:24px 0 20px!important}.storePolicy>h2{font-size:18px!important}.storePolicy summary{padding:12px!important}.storePolicy details>p{padding:0 12px 12px!important}}
 @media(max-width:700px){.page{padding:8px 16px 44px}.storeHero{grid-template-columns:minmax(0,1fr) 92px;gap:12px;min-height:218px;margin:8px -16px 23px;padding:24px 16px 34px;border-radius:0}.storeHero h1{font-size:27px;letter-spacing:-.55px}.heroDescription{font-size:12px;line-height:1.45}.eyebrow{font-size:9px;margin-bottom:8px}.heroImage,.heroImagePlaceholder{max-height:92px;border-radius:12px}.heroImagePlaceholder span{font-size:28px}.heroDots{bottom:12px}.processSection,.timelineSection,.categorySection,.dealsSection{margin:24px 0}.sectionHeading h2{font-size:18px}.sectionHeading p{font-size:10px}.processCard{grid-template-columns:minmax(0,1fr) 14px minmax(0,1fr) 14px minmax(0,1fr);gap:4px;min-height:145px;padding:14px 8px 48px}.processStep{gap:6px}.processStep>span{width:34px;height:34px}.processStep>b{font-size:9px;line-height:1.25}.processStep>small{font-size:8px;line-height:1.35}.processArrow{width:11px}.shopButton{bottom:12px;min-width:160px;min-height:34px;font-size:11px}.timelineCard{grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr);gap:3px;min-height:148px;padding:13px 6px}.timelineStep{gap:6px}.timelineStep>span{width:32px;height:32px}.timelineStep>b{font-size:9px;line-height:1.25}.timelineStep>small{font-size:8px;line-height:1.35}.timelineConnector{width:100%}.categoryRail :global(a){flex-basis:82px;min-width:82px;min-height:110px}.categoryRail :global(a>span:first-child){width:68px;height:66px}.dealsSection{margin-top:28px}}
+
+/* Keep the step icons and connectors on the same optical baseline. */
+.processCard{align-items:start;padding:18px 22px}
+.processStep{align-self:start}
+.processArrow{align-self:start;margin-top:12px}
+.shopButton{position:static;width:100%;min-width:0;max-width:180px;min-height:34px;justify-self:center;padding:8px 10px;transform:none}
+.timelineCard{grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr) 24px minmax(0,1fr);align-items:start}
+.timelineStep{align-self:start}
+.timelineConnector{width:16px;height:16px;align-self:start;justify-self:center;margin-top:11px;color:#b0bacb;background:none}
+@media(max-width:700px){.processCard{min-height:0;padding:14px 8px}.processArrow{margin-top:10px}.shopButton{max-width:100%;min-height:32px;padding:7px 4px;font-size:9px}.timelineCard{grid-template-columns:minmax(0,1fr) 16px minmax(0,1fr) 16px minmax(0,1fr);min-height:0;padding:13px 6px}.timelineConnector{width:14px;height:14px;margin-top:9px}}

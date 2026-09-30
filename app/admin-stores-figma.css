@@ -406,3 +406,39 @@
   .admin-v2 .stores-add form button { grid-column: 1; }
   .admin-v2 .stores-directory > footer { display: grid; }
 }
+
+.admin-v2 .stores-add .store-timing-setup {
+  flex: 1 0 100%;
+  padding: 10px 12px;
+  border: 1px solid #e2e7f0;
+  border-radius: 9px;
+  background: #f8faff;
+}
+.admin-v2 .store-timing-setup > summary {
+  color: var(--glonni-navy);
+  cursor: pointer;
+  font: 700 11px/1.4 var(--glonni-font-sans);
+}
+.admin-v2 .store-timing-setup > p {
+  margin: 7px 0 10px;
+  color: #737f95;
+  font: 400 10px/1.5 var(--glonni-font-sans);
+}
+.admin-v2 .store-timing-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.admin-v2 .store-timing-fields label {
+  display: grid;
+  gap: 5px;
+  color: #43536d;
+  font: 600 9px/1.4 var(--glonni-font-sans);
+}
+.admin-v2 .store-timing-fields input { width: 100%; min-width: 0; }
+@media (max-width: 760px) {
+  .admin-v2 .stores-add .store-timing-setup { grid-column: 1 / -1; }
+}
+@media (max-width: 540px) {
+  .admin-v2 .store-timing-fields { grid-template-columns: minmax(0, 1fr); }
+}

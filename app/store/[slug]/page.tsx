@@ -68,6 +68,12 @@ function TrackingLink({ href, label, className }: { href: string; label: string;
   return <a className={className} href={href} target="_blank" rel="sponsored noopener noreferrer">{label}<ExternalLink size={15}/></a>;
 }
 
+function providerTiming(value: number | null | undefined, unit: 'hour' | 'day') {
+  if (value == null) return '';
+  if (value === 0) return 'Immediately';
+  return `Within ${value} ${unit}${value === 1 ? '' : 's'}`;
+}
+
 function HowItWorks({ storeName, href, ctaLabel }: { storeName: string; href?: string; ctaLabel: string }) {
   const steps = [
     { icon: <Search/>, title: 'Browse deals on Glonni', detail: 'Choose an active offer and review its cashback terms.' },
@@ -78,10 +84,12 @@ function HowItWorks({ storeName, href, ctaLabel }: { storeName: string; href?: s
     <header className={styles.sectionHeading}><h2 id="store-how-title">How It Works</h2></header>
     <div className={styles.processCard}>
       {steps.map((step, index) => <Fragment key={step.title}>
-        <article className={styles.processStep}><span>{step.icon}</span><b>{step.title}</b><small>{step.detail}</small></article>
+        <article className={styles.processStep}>
+          <span>{step.icon}</span><b>{step.title}</b><small>{step.detail}</small>
+          {index === 1 && href && <TrackingLink className={styles.shopButton} href={href} label={ctaLabel}/>}
+        </article>
         {index < steps.length - 1 && <ArrowRight className={styles.processArrow} aria-hidden="true"/>}
       </Fragment>)}
-      {href && <TrackingLink className={styles.shopButton} href={href} label={ctaLabel}/>}
     </div>
   </section>;
 }
@@ -99,7 +107,7 @@ function CashbackTimeline({ tracking, confirmation, credit }: { tracking: string
         <span className={styles[`timeline_${step.tone}`]}>{step.icon}</span>
         <b>{step.title}</b><small>{step.note}</small>
       </article>
-      {index < steps.length - 1 && <span className={styles.timelineConnector} aria-hidden="true"/>}
+      {index < steps.length - 1 && <ArrowRight className={styles.timelineConnector} aria-hidden="true"/>}
     </Fragment>)}</div>
   </section>;
 }
@@ -162,16 +170,25 @@ export default async function StorePage({ params, searchParams }: { params: Prom
   const heroContent = coreContent.store_intro ?? {};
   const productContent = coreContent.store_products ?? {};
   const cashbackOffers = allOffers.filter(hasCashback);
-  const confirmationDays = [...new Set(cashbackOffers.map((offer) => offer.cashback_confirmation_days).filter((days): days is number => days != null && days > 0))];
-  const defaultConfirmation = confirmationDays.length === 1 ? `Within ${confirmationDays[0]} days, as configured for eligible offers.` : confirmationDays.length > 1 ? 'Timing varies by eligible offer.' : 'Confirmation timing is not configured for these offers.';
+  const confirmationDays = [...new Set(cashbackOffers.map((offer) => offer.cashback_confirmation_days).filter((days): days is number => days != null && days >= 0))];
+  const offerConfirmation = confirmationDays.length === 1
+    ? `${providerTiming(confirmationDays[0], 'day')}, as configured for eligible offers.`
+    : confirmationDays.length > 1 ? 'Timing varies by eligible offer.' : '';
+  const trackingTiming = providerTiming(store.purchase_tracking_hours, 'hour');
+  const confirmationTiming = providerTiming(store.cashback_confirmation_days, 'day') || offerConfirmation;
+  const walletTiming = providerTiming(store.wallet_credit_days, 'day');
   const timeline = {
-    tracking: heroContent.tracking_note?.trim() || 'Tracking begins after you open an eligible offer from Glonni and complete your purchase as directed.',
-    confirmation: heroContent.confirmation_note?.trim() || defaultConfirmation,
-    credit: heroContent.credit_note?.trim() || 'Credited to your Glonni wallet after provider confirmation and Glonni validation.',
+    tracking: trackingTiming || heroContent.tracking_note?.trim() || 'Provider timing not configured for this store.',
+    confirmation: confirmationTiming || heroContent.confirmation_note?.trim() || 'Provider timing not configured for this store.',
+    credit: walletTiming ? `${walletTiming} to your Glonni wallet` : heroContent.credit_note?.trim() || 'Provider timing not configured for this store.',
   };
-  // A merchant homepage is not necessarily an affiliate destination. Keep the
-  // CTA hidden until an admin configures the approved campaign URL in Website.
-  const configuredHref = heroContent.cta_href?.trim() || '';
+  // Prefer an explicitly configured, approved campaign destination. Otherwise
+  // use Glonni's tracked offer redirect instead of bypassing affiliate tracking.
+  const trackedStoreOffer = cashbackOffers[0] ?? allOffers[0];
+  const trackedOfferHref = trackedStoreOffer
+    ? `/go/${encodeURIComponent(trackedStoreOffer.id)}?source=store-page&medium=store-journey&placement=how-it-works`
+    : '';
+  const configuredHref = heroContent.cta_href?.trim() || trackedOfferHref;
   const configuredCtaLabel = heroContent.cta_label?.trim() || 'Shop Now';
   const selectedCategoryIds = productContent.category_ids ?? [];
   const storeCategories = (selectedCategoryIds.length ? allStoreCategories.filter((category) => selectedCategoryIds.includes(category.id)) : allStoreCategories).slice(0, 12);

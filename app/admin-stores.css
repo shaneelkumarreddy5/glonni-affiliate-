@@ -30,6 +30,12 @@
 
 /* Commission rule editor controls */
 .commission-rule-form{position:relative;padding-top:48px}
+.provider-timing-rules>div>p{margin:0;color:#687790;font-size:10px;line-height:1.55}
+.provider-timing-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.provider-timing-grid label{display:grid;gap:6px;color:#43536d;font-size:9px;font-weight:800}
+.provider-timing-grid input{width:100%;min-height:39px;padding:9px 10px;border:1px solid #d5dfed;border-radius:8px;background:#fff;color:#17233d;font:10px 'DM Sans',sans-serif}
+.provider-timing-grid input:focus{border-color:#6d9be7;outline:3px solid #e7f0ff}
+@media(max-width:720px){.provider-timing-grid{grid-template-columns:minmax(0,1fr)}}
 .details-close.icon-only{position:absolute;top:12px;right:12px;display:grid;place-items:center;width:32px;height:32px;padding:0;border:1px solid #d5dfed;border-radius:8px;background:#fff;color:#53627a;cursor:pointer}
 .details-close.icon-only svg{width:16px;height:16px}
 .commission-form-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;align-self:end}
