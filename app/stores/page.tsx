@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Search, Store } from 'lucide-react';
 import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
+import { ScrollRail } from '@/components/scroll-rail';
 import { CmsManagedSections } from '@/components/cms-managed-sections';
 import { StoreCard } from '@/components/store-card';
 import { categoryBranchIds } from '@/lib/category-tree';
@@ -60,10 +61,12 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
     <CmsManagedSections pageKey="stores" slot="after_heading"/>
 
     <nav className="stores-category-shortcuts" aria-label="Browse stores by category">
-      <Link href={storesHref(filters, undefined)} className={!selectedCategory ? 'active' : ''}><Store size={17}/>All stores</Link>
-      {topCategories.map((category) => <Link href={storesHref(filters, category.slug)} className={selectedCategory?.id === category.id ? 'active' : ''} key={category.id}>
-        <Store size={16}/>{category.name}
-      </Link>)}
+      <ScrollRail className="stores-category-shortcuts-rail" label="Store categories">
+        <Link href={storesHref(filters, undefined)} className={!selectedCategory ? 'active' : ''}><Store size={17}/>All stores</Link>
+        {topCategories.map((category) => <Link href={storesHref(filters, category.slug)} className={selectedCategory?.id === category.id ? 'active' : ''} key={category.id}>
+          <Store size={16}/>{category.name}
+        </Link>)}
+      </ScrollRail>
     </nav>
 
     <section className="stores-directory-layout" aria-label="Store directory">

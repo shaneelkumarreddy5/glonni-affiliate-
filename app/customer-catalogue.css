@@ -319,10 +319,17 @@ main.deals-page .deals-toolbar > div b {
 .stores-directory-brand-collage { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; align-items: center; }
 .stores-directory-brand-collage>span { display: grid; min-width: 0; height: 60px; place-items: center; padding: 9px 12px; overflow: hidden; border: 1px solid rgb(27 42 78 / 8%); border-radius: 11px; background: rgb(255 255 255 / 82%); }
 .stores-directory-brand-collage img { display: block; max-width: 100%; max-height: 42px; object-fit: contain; }
-.stores-category-shortcuts { display: flex; gap: 9px; margin: 0 0 20px; padding: 2px 0 5px; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-width: thin; }
-.stores-category-shortcuts>a { display: inline-flex; min-height: 40px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 8px; padding: 8px 15px; border: 1px solid var(--glonni-sky-tint); border-radius: 9px; color: var(--glonni-navy); background: #fff; font: 600 12px/1.2 var(--glonni-font-sans); text-decoration: none; transition: border-color 140ms ease,background-color 140ms ease; }
-.stores-category-shortcuts>a:hover,.stores-category-shortcuts>a.active { border-color: var(--glonni-yellow); background: color-mix(in srgb,var(--glonni-yellow) 18%,white); }
-.stores-category-shortcuts>a svg { flex: 0 0 auto; }
+.stores-category-shortcuts { margin: 0 0 20px; padding: 3px 0 5px; }
+.stores-category-shortcuts-rail { min-width: 0; }
+.stores-category-shortcuts .scroll-rail-track { align-items: center; gap: 8px; padding: 4px 44px 7px; scroll-padding-inline: 44px; }
+.stores-category-shortcuts .scroll-rail-track>a { display: inline-flex; min-height: 44px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--glonni-sky-tint); border-radius: 10px; color: var(--glonni-navy); background: #fff; font: 600 12px/1.2 var(--glonni-font-sans); text-decoration: none; white-space: nowrap; transition: border-color 140ms ease,background-color 140ms ease,box-shadow 140ms ease; }
+.stores-category-shortcuts .scroll-rail-track>a:hover,.stores-category-shortcuts .scroll-rail-track>a.active { border-color: var(--glonni-yellow); background: color-mix(in srgb,var(--glonni-yellow) 18%,white); }
+.stores-category-shortcuts .scroll-rail-track>a:focus-visible { outline: 3px solid color-mix(in srgb,var(--glonni-yellow) 58%,transparent); outline-offset: 2px; }
+.stores-category-shortcuts .scroll-rail-track>a svg { flex: 0 0 auto; }
+.stores-category-shortcuts .rail-control { display: grid; width: 36px; height: 36px; border-color: #edf0f5; background: #f8f9fc; box-shadow: 0 3px 10px rgb(27 42 78 / 9%); }
+.stores-category-shortcuts .rail-control:hover { color: var(--glonni-navy); background: color-mix(in srgb,var(--glonni-yellow) 22%,white); }
+.stores-category-shortcuts .rail-prev { left: 0; }
+.stores-category-shortcuts .rail-next { right: 0; }
 .stores-directory-layout { display: grid; grid-template-columns: minmax(220px, 258px) minmax(0,1fr); align-items: start; gap: 22px; }
 .stores-filter-panel { min-width: 0; padding: 17px; border: 1px solid var(--glonni-sky-tint); border-radius: var(--glonni-radius-card); background: color-mix(in srgb,var(--glonni-sky-tint) 72%,white); }
 .stores-filter-panel form>header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
@@ -363,7 +370,6 @@ main.deals-page .deals-toolbar > div b {
   .stores-directory-brand-collage { grid-template-columns: repeat(4,minmax(0,1fr)); }
   .stores-directory-brand-collage>span { height: 46px; }
   .stores-directory-brand-collage img { max-height: 32px; }
-  .stores-category-shortcuts { margin-right: -16px; padding-right: 16px; }
   .stores-directory-layout { grid-template-columns: 1fr; gap: 17px; }
   .stores-filter-panel { padding: 14px; }
   .stores-filter-options { grid-template-columns: repeat(2,minmax(0,1fr)); }
@@ -373,4 +379,9 @@ main.deals-page .deals-toolbar > div b {
   .store-directory-grid>.directory-store-card { height: 114px; min-height: 114px; padding: 10px; }
   .store-directory-grid>.directory-store-card>span:first-child { height: 62px; flex-basis: 62px; }
   .store-directory-grid>.directory-store-card>span:first-child img { max-height: 50px; }
+}
+@media (max-width: 760px) {
+  .stores-category-shortcuts .scroll-rail-track { gap: 7px; padding: 4px 39px 7px; scroll-padding-inline: 39px; }
+  .stores-category-shortcuts .scroll-rail-track>a { min-height: 40px; gap: 6px; padding: 7px 11px; font-size: 11px; }
+  .stores-category-shortcuts .rail-control { display: grid; width: 32px; height: 32px; }
 }
