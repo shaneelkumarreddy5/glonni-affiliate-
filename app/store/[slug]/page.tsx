@@ -195,8 +195,10 @@ export default async function StorePage({ params, searchParams }: { params: Prom
         </div>
         {heroContent.image_url ? <div className={styles.heroImage}><img src={heroContent.image_url} alt={`${store.name} promotion`}/></div> : <div className={styles.heroImagePlaceholder} aria-label={`${store.name} banner image can be added in Website Builder`}><span>{store.logo_url ? <img src={store.logo_url} alt=""/> : store.name.slice(0, 1)}</span></div>}
       </section>
-      <HowItWorks storeName={store.name} href={configuredHref || undefined} ctaLabel={configuredCtaLabel}/>
-      <CashbackTimeline tracking={timeline.tracking} confirmation={timeline.confirmation} credit={timeline.credit}/>
+      <div className={styles.processTimelineRow}>
+        <HowItWorks storeName={store.name} href={configuredHref || undefined} ctaLabel={configuredCtaLabel}/>
+        <CashbackTimeline tracking={timeline.tracking} confirmation={timeline.confirmation} credit={timeline.credit}/>
+      </div>
     </>,
     'core:store_products': <section className={styles.storeDiscovery} id="store-products">
       {storeCategories.length > 0 && <section className={styles.categorySection} aria-labelledby="store-category-title">
