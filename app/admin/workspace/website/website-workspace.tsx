@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { renderWebsiteRichText } from '@/lib/website-rich-text';
 import { ScrollRail } from '@/components/scroll-rail';
 import { CategoryCard, HeroBanner, ProductCard, StoreCard } from '@/components/ui/catalog-cards';
+import { HomeHero } from '@/components/home-hero';
 import cardStyles from '@/components/ui/catalog-cards.module.css';
 import storePreviewStyles from './store-preview.module.css';
 import { applyWebsiteTextStyle, getWebsiteTextAlignment, getWebsiteTextStyleAt, setWebsiteTextAlignment, WEBSITE_TEXT_FONTS, websiteRichTextToPlainText, updateWebsiteRichTextText, type WebsiteTextAlignment } from '@/lib/website-rich-text-format';
@@ -706,10 +707,11 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
 
   function convertCoreHero() {
     const replacement = newBlock('hero', 'home');
-    replacement.title = currentCoreContent.hero?.title || 'Compare before you shop.';
-    replacement.body = currentCoreContent.hero?.body || 'Find the right deal across connected stores.';
-    replacement.cta_label = 'Explore deals';
-    replacement.cta_href = '/deals?sort=best';
+    replacement.title = currentCoreContent.hero?.title || 'Discover great deals';
+    replacement.body = currentCoreContent.hero?.body || 'Shop top brands and earn cashback on everyday purchases.';
+    replacement.image_url = currentCoreContent.hero?.image_url || '';
+    replacement.cta_label = currentCoreContent.hero?.cta_label || 'Start shopping';
+    replacement.cta_href = currentCoreContent.hero?.cta_href || '/deals?sort=best';
     replacement.config = { ...replacement.config, slide_count: 3, slides: [
       { title: 'Fresh finds for every cart.', body: 'Explore fashion, tech, beauty and everyday essentials.', image_url: '', cta_label: 'Browse categories', cta_href: '/#categories' },
       { title: 'Rewards only where approved.', body: 'See exact cashback on offers that support it.', image_url: '', cta_label: 'Find eligible offers', cta_href: '/deals?cashback=yes' },
@@ -1145,6 +1147,27 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     setUploading(null);
   }
 
+  async function uploadHomeHeroImage(file?: File) {
+    if (pageKey !== 'home' || !file) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    if (!allowed.includes(file.type) || file.size > 8 * 1024 * 1024) {
+      setNotice({ kind: 'error', text: 'Choose a JPG, PNG, WebP or AVIF image up to 8 MB.' });
+      return;
+    }
+    setUploading('home-hero-image'); setNotice(null);
+    const extension = file.name.split('.').at(-1)?.toLowerCase() || 'jpg';
+    const path = `website/home/${crypto.randomUUID()}.${extension}`;
+    const supabase = createClient();
+    const { error } = await supabase.storage.from('website-banners').upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+    if (error) setNotice({ kind: 'error', text: error.message.includes('row-level security') ? 'Two-step verification is required before uploading images.' : 'The image could not be uploaded. Try again or use an HTTPS image address.' });
+    else {
+      const { data } = supabase.storage.from('website-banners').getPublicUrl(path);
+      updateCoreContent('hero', { image_url: data.publicUrl });
+      setNotice({ kind: 'success', text: 'Homepage hero image uploaded. Save or publish to use it on the customer site.' });
+    }
+    setUploading(null);
+  }
+
   function blockProducts(block: WebsiteDraftBlock) {
     let source = products;
     const curated = block.config.source_mode === 'curated';
@@ -1272,11 +1295,14 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
 
   function previewCore(key: string) {
     if (pageKey === 'home') {
-      if (key === 'hero') return <ScrollRail className={styles.previewHeroRail} label="Featured banners preview">
-        <HeroBanner layout="rail" theme="navy" eyebrow="Featured deals" headline={renderRichPreview(currentCoreContent.hero?.title || 'Compare before you shop.')} subline={renderRichPreview(currentCoreContent.hero?.body || 'Find the right deal across connected stores.')} ctaLabel="Explore deals" ctaHref="/deals?sort=best" interactive={false}/>
-        <HeroBanner layout="rail" theme="yellow" eyebrow="Seasonal picks" headline="Fresh finds for every cart." subline="Discover products for every day." ctaLabel="Browse categories" ctaHref="#categories" interactive={false}/>
-        <HeroBanner layout="rail" theme="navy" eyebrow="Eligible cashback" headline="Rewards only where approved." subline="See exact cashback on the offers that actually support it." ctaLabel="Find eligible offers" ctaHref="/deals?cashback=yes" interactive={false}/>
-      </ScrollRail>;
+      if (key === 'hero') return <HomeHero
+        title={renderRichPreview(currentCoreContent.hero?.title || 'Discover great deals')}
+        description={renderRichPreview(currentCoreContent.hero?.body || 'Shop top brands and earn cashback on everyday purchases.')}
+        ctaLabel={currentCoreContent.hero?.cta_label || 'Start shopping'}
+        ctaHref={currentCoreContent.hero?.cta_href || '/deals?sort=best'}
+        imageUrl={currentCoreContent.hero?.image_url || '/images/glonni-home-hero.jpg'}
+        interactive={false}
+      />;
       if (key === 'categories') return cataloguePreview(key, 'What are you shopping for?', 'Choose catalogue categories; cards open their category page.', 'categories');
       if (key === 'stores') return cataloguePreview(key, 'Shop by store', 'Choose catalogue stores; cards open their store page.', 'stores');
       if (key === 'best_deals') return cataloguePreview(key, 'Best deals right now', 'Choose products; each product card opens its product page.', 'products');
@@ -1392,8 +1418,12 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           <header className={styles.inspectorHeader}><div><small>PAGE SECTION</small><b>{selectedCore.title}</b></div><button type="button" onClick={() => setSelectedCoreKey(null)} aria-label="Close section settings"><X/></button></header>
           <div className={styles.inspectorBody}>
             {pageKey === 'stores' && activeStore && <div className={styles.globalSectionNote}><b>{activeStore.name} store only</b><span>Content and catalogue selections here are saved for this store. Other brand pages keep their own settings.</span></div>}
-            {pageKey === 'home' && selectedCore.key === 'hero' && <div className={styles.heroConvert}><b>Main hero uses fixed built-in slides.</b><span>Convert it to editable slides to add whole stores, categories, subcategories and products here too. Its current three messages are kept.</span><button type="button" onClick={convertCoreHero}><Plus/> Make hero slides editable</button></div>}
-            <div className={styles.richFieldLabel}><span>Heading</span><RichTextField value={currentCoreContent[selectedCore.key]?.title ?? (pageKey === 'home' && selectedCore.key === 'hero' ? '' : selectedCore.title)} maxLength={120} singleLine placeholder={pageKey === 'home' && selectedCore.key === 'hero' ? 'Compare before you shop.' : 'Add a section heading'} onChange={(title) => updateCoreContent(selectedCore.key, { title })}/></div>
+            {pageKey === 'home' && selectedCore.key === 'hero' && <>
+              <label className={styles.uploadField}>Hero image<span className={styles.uploadRow}><input value={currentCoreContent.hero?.image_url ?? ''} onChange={(event) => updateCoreContent('hero', { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === 'home-hero-image' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadHomeHeroImage(event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label>
+              <div className={styles.twoFields}><label>Button label<input maxLength={60} value={currentCoreContent.hero?.cta_label ?? ''} onChange={(event) => updateCoreContent('hero', { cta_label: event.target.value })} placeholder="Start shopping"/></label><label>Button destination<input maxLength={500} value={currentCoreContent.hero?.cta_href ?? ''} onChange={(event) => updateCoreContent('hero', { cta_href: event.target.value })} placeholder="/deals?sort=best"/></label></div>
+              <div className={styles.heroConvert}><b>Want more than one promotion?</b><span>Convert this single hero into the existing editable slide section. The current message and image are preserved.</span><button type="button" onClick={convertCoreHero}><Plus/> Make hero slides editable</button></div>
+            </>}
+            <div className={styles.richFieldLabel}><span>Heading</span><RichTextField value={currentCoreContent[selectedCore.key]?.title ?? (pageKey === 'home' && selectedCore.key === 'hero' ? '' : selectedCore.title)} maxLength={120} singleLine placeholder={pageKey === 'home' && selectedCore.key === 'hero' ? 'Discover great deals' : 'Add a section heading'} onChange={(title) => updateCoreContent(selectedCore.key, { title })}/></div>
             <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={currentCoreContent[selectedCore.key]?.body ?? ''} onChange={(body) => updateCoreContent(selectedCore.key, { body })} placeholder="Optional description"/></div>
             {pageKey === 'stores' && selectedCore.key === 'store_intro' && <>
               <label className={styles.uploadField}>Store hero image<span className={styles.uploadRow}><input value={currentCoreContent.store_intro?.image_url ?? ''} onChange={(event) => updateCoreContent('store_intro', { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === 'store-intro-image' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadStoreHeroImage(event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label>
@@ -1414,7 +1444,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
             </>}
             {pageKey === 'home' && ['categories', 'stores', 'best_deals', 'trending', 'price_drops'].includes(selectedCore.key) && <>
               {['best_deals', 'trending', 'price_drops'].includes(selectedCore.key) ? <label>Number of products<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? 10} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label> : <label>{selectedCore.key === 'categories' ? 'Number of categories' : 'Number of stores'}<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? 10} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>}
-              {selectedCore.key === 'categories' && <><div className={styles.sharedCategoryCardNote}><b>Shared category card</b>Each card uses the same catalogue image, category name and category-page link. Shape stays consistent wherever categories appear.</div><CataloguePicker title="Choose categories and subcategories" items={matchingCategoryChoices} selectedIds={currentCoreContent[selectedCore.key]?.category_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'category_ids', id)}/><SelectedOrderList items={allCategoryChoices} selectedIds={currentCoreContent[selectedCore.key]?.category_ids ?? []} entityName="category" onMove={(id, direction) => moveCoreCategory(selectedCore.key, id, direction)}/></>}
+              {selectedCore.key === 'categories' && <><div className={styles.sharedCategoryCardNote}><b>Category images are admin-managed</b>Upload a category image in Admin → Categories. The same image appears on the homepage and category cards; use any suitable photo or artwork in PNG, JPG, WebP or SVG.</div><CataloguePicker title="Choose categories and subcategories" items={matchingCategoryChoices} selectedIds={currentCoreContent[selectedCore.key]?.category_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'category_ids', id)}/><SelectedOrderList items={allCategoryChoices} selectedIds={currentCoreContent[selectedCore.key]?.category_ids ?? []} entityName="category" onMove={(id, direction) => moveCoreCategory(selectedCore.key, id, direction)}/></>}
               {selectedCore.key === 'stores' && <><div className={styles.sharedCategoryCardNote}><b>Shared store card</b>Each card shows only the store logo and name, and opens that store’s Glonni page. Shape stays consistent wherever store cards appear.</div><CataloguePicker title="Choose stores" items={matchingStoreChoices} selectedIds={currentCoreContent[selectedCore.key]?.store_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'store_ids', id)}/><SelectedOrderList items={allStoreChoices} selectedIds={currentCoreContent[selectedCore.key]?.store_ids ?? []} entityName="store" onMove={(id, direction) => moveCoreStore(selectedCore.key, id, direction)}/></>}
               {['best_deals', 'trending', 'price_drops'].includes(selectedCore.key) && <CataloguePicker title="Choose products" items={matchingCoreProductChoices} selectedIds={currentCoreContent[selectedCore.key]?.product_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick(selectedCore.key, 'product_ids', id)}/>}
               <small className={styles.sourceNote}><Check/> {selectedCore.key === 'categories' ? 'Each selected category or subcategory opens its exact category page.' : selectedCore.key === 'stores' ? 'Each selected store opens its Glonni store page.' : 'Each selected card keeps its own destination: product page, category page or store page.'}</small>

@@ -6,7 +6,7 @@ type Props = {
   name: string;
   logoUrl?: string | null;
   meta?: ReactNode;
-  layout?: 'stacked' | 'horizontal';
+  layout?: 'stacked' | 'horizontal' | 'brand';
   interactive?: boolean;
   className?: string;
 };

@@ -10,3 +10,25 @@
 .store-logo{overflow:hidden;background:#fff!important;border:1px solid #e6eaf1}
 .store-logo img{width:100%;height:100%;object-fit:contain}
 .home-main .home-store-section .home-store-rail .scroll-rail-track{padding-top:9px;padding-bottom:13px}
+
+/* Homepage reference layout: one full-width hero, image-led categories, compact brand cards. */
+.home-main{max-width:none;padding:0 48px 56px}
+.home-main section{margin-top:22px}
+.home-main>.home-hero{margin:0 -48px}
+.home-category-anchor{margin-top:16px}
+.home-main .home-category-anchor>.section-title .eyebrow,.home-main .home-store-section>.section-title .eyebrow,.home-main #deals>.section-title .eyebrow{display:none}
+.home-main .home-category-anchor>.section-title,.home-main .home-store-section>.section-title,.home-main #deals>.section-title{margin-bottom:11px}
+.home-main .home-category-anchor>.section-title h2,.home-main .home-store-section>.section-title h2,.home-main #deals>.section-title h2{font-size:clamp(20px,2vw,28px);letter-spacing:-.035em}
+.home-category-row .scroll-rail-track{gap:10px;padding:3px 1px 8px;border:0;border-radius:0}
+.home-main .home-category-card{width:174px;min-width:174px;min-height:132px;flex:0 0 174px;justify-content:flex-start;gap:6px;padding:7px 8px 9px;border:1px solid var(--glonni-sky-tint);border-radius:9px;background:#fff;transition:border-color .16s,box-shadow .16s,transform .16s}
+.home-main .home-category-card:hover{border-color:color-mix(in srgb,var(--glonni-yellow) 70%,var(--glonni-sky-tint));box-shadow:0 5px 15px rgb(27 42 78 / 8%);transform:translateY(-1px)}
+.home-category-card>span:first-child{width:82px;height:82px;border:0;border-radius:50%;background:var(--glonni-sky-tint);font-size:20px}
+.home-category-card span[class*="categoryName"]{font-size:12px}
+.home-main .home-store-rail .scroll-rail-track{gap:10px;padding:2px 1px 8px}
+.home-main .home-store-card{min-height:72px;background:#fff}
+.home-main .home-store-rail .rail-control{width:34px;height:34px;box-shadow:0 4px 14px rgb(27 42 78 / 12%)}
+.home-main .home-category-row .rail-control{top:-29px;width:32px;height:32px;box-shadow:none;background:#f3f5fa}
+.home-main .home-category-row .rail-prev{left:auto;right:42px}
+.home-main .home-category-row .rail-next{right:2px}
+@media(max-width:900px){.home-main{padding-right:24px;padding-left:24px}.home-main>.home-hero{margin-right:-24px;margin-left:-24px}.home-main .home-category-anchor>.section-title h2,.home-main .home-store-section>.section-title h2,.home-main #deals>.section-title h2{font-size:22px}}
+@media(max-width:650px){.home-main{padding:0 16px 44px}.home-main section{margin-top:22px}.home-main>.home-hero{margin:0 -16px}.home-category-anchor{margin-top:17px}.home-main .home-category-anchor>.section-title h2,.home-main .home-store-section>.section-title h2,.home-main #deals>.section-title h2{font-size:20px}.home-category-row .scroll-rail-track{gap:9px;padding-right:2px;padding-left:2px}.home-main .home-category-card{width:146px;min-width:146px;min-height:126px;flex-basis:146px}.home-category-card>span:first-child{width:76px;height:76px}.home-main .home-store-rail .scroll-rail-track{margin-right:-16px;padding-right:16px}.home-main .home-store-card{width:164px;min-width:164px;flex-basis:164px}.home-main .home-category-row .rail-control{display:none}}

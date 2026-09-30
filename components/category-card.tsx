@@ -7,8 +7,9 @@ type Props = {
   subtitle?: string;
   storeCount?: number | null;
   interactive?: boolean;
+  className?: string;
 };
 
-export function CategoryCard({ href, name, imageUrl, subtitle, storeCount, interactive = true }: Props) {
-  return <SharedCategoryCard href={href} name={name} imageUrl={imageUrl} subtitle={subtitle} storeCount={storeCount} interactive={interactive}/>;
+export function CategoryCard({ href, name, imageUrl, subtitle, storeCount, interactive = true, className }: Props) {
+  return <SharedCategoryCard href={href} name={name} imageUrl={imageUrl} subtitle={subtitle} storeCount={storeCount} interactive={interactive} className={className}/>;
 }

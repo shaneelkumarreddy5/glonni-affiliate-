@@ -113,7 +113,7 @@ export interface StoreCardProps {
   name: string
   logoUrl?: string | null
   meta?: ReactNode
-  layout?: 'stacked' | 'horizontal'
+  layout?: 'stacked' | 'horizontal' | 'brand'
   interactive?: boolean
   className?: string
 }
@@ -124,11 +124,11 @@ export function StoreCard({ href, name, logoUrl, meta, layout = 'stacked', inter
       <span className={styles.storeLogo} aria-hidden="true">
         {logoUrl ? <img src={logoUrl} alt="" loading="lazy"/> : <span className={styles.storeInitial}>{name.trim().slice(0, 1).toUpperCase() || '•'}</span>}
       </span>
-      <span className={styles.storeInfo}><span className={styles.storeName}>{name}</span>{meta && <span className={styles.storeMeta}>{meta}</span>}</span>
-      {layout === 'horizontal' && <ChevronRight className={styles.storeArrow} size={18} aria-hidden="true"/>}
+      {(layout !== 'brand' || !logoUrl) && <span className={styles.storeInfo}><span className={styles.storeName}>{name}</span>{meta && <span className={styles.storeMeta}>{meta}</span>}</span>}
+      {(layout === 'horizontal' || layout === 'brand') && <ChevronRight className={styles.storeArrow} size={18} aria-hidden="true"/>}
     </>
   )
-  const cardClass = [styles.storeCard, layout === 'horizontal' ? styles.storeCardHorizontal : '', className].filter(Boolean).join(' ')
+  const cardClass = [styles.storeCard, layout === 'horizontal' ? styles.storeCardHorizontal : '', layout === 'brand' ? styles.storeCardBrand : '', className].filter(Boolean).join(' ')
 
   return interactive && href ? <Link className={cardClass} href={href} aria-label={`Open ${name} store page`}>{content}</Link> : <div className={cardClass}>{content}</div>
 }

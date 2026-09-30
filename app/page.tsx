@@ -5,7 +5,7 @@ import { StoreSection } from '@/components/store-section';
 import { HomeOfferRail } from '@/components/home-offer-rail';
 import { ScrollRail } from '@/components/scroll-rail';
 import { CategoryCard } from '@/components/category-card';
-import { HeroBanner } from '@/components/ui/catalog-cards';
+import { HomeHero } from '@/components/home-hero';
 import { CmsManagedSections, getPublishedWebsiteLayout } from '@/components/cms-managed-sections';
 import { CatalogOffer, getCatalogOffers, getCategories } from '@/lib/catalog';
 import { resolveWebsiteSectionOrder } from '@/lib/website-layout';
@@ -43,16 +43,19 @@ export default async function Home() {
     const rank = new Map(selectedIds.map((id, index) => [id, index]));
     return source.filter((offer) => rank.has(offer.products?.id ?? '')).sort((a, b) => (rank.get(a.products?.id ?? '') ?? 0) - (rank.get(b.products?.id ?? '') ?? 0)).slice(0, coreContent[key]?.count ?? 10);
   }
-  const defaultHero = <ScrollRail className="home-banner-rail" label="featured banners">
-    <HeroBanner layout="rail" theme="navy" eyebrow="Featured deals" headline={renderWebsiteRichText(coreContent.hero?.title || 'Compare before you shop.')} subline={renderWebsiteRichText(coreContent.hero?.body || 'Find the right deal across configured stores, in one clean place.')} ctaLabel="Explore deals" ctaHref="/deals?sort=best"/>
-    <HeroBanner layout="rail" theme="yellow" eyebrow="Seasonal picks" headline="Fresh finds for every cart." subline="Explore fashion, tech, beauty and everyday essentials." ctaLabel="Browse categories" ctaHref="#categories"/>
-    <HeroBanner layout="rail" theme="navy" eyebrow="Eligible cashback" headline="Rewards only where approved." subline="See exact cashback on the offers that actually support it." ctaLabel="Find eligible offers" ctaHref="/deals?cashback=yes"/>
-  </ScrollRail>;
+  const heroContent = coreContent.hero ?? {};
+  const defaultHero = <HomeHero
+    title={renderWebsiteRichText(heroContent.title || 'Discover great deals')}
+    description={renderWebsiteRichText(heroContent.body || 'Shop top brands and earn cashback on everyday purchases.')}
+    ctaLabel={heroContent.cta_label || 'Start shopping'}
+    ctaHref={heroContent.cta_href || '/deals?sort=best'}
+    imageUrl={heroContent.image_url || '/images/glonni-home-hero.jpg'}
+  />;
   const homeSections: Record<string, ReactNode> = {
     'core:hero': !layout.section_order && layout.blocks.some((block) => block.config.slot === 'hero') ? null : defaultHero,
     'core:categories': <section id="categories" className="home-category-anchor" aria-labelledby="home-categories-title">
       <div className="section-title"><div><p className="eyebrow">BROWSE CATEGORIES</p><h2 id="home-categories-title">{renderWebsiteRichText(categoryContent.title || 'What are you shopping for?')}</h2>{categoryContent.body && <span className="home-managed-copy">{renderWebsiteRichText(categoryContent.body)}</span>}</div></div>
-      {displayedCategories.length ? <ScrollRail className="home-category-row" label="categories">{displayedCategories.map((category) => <CategoryCard href={`/category/${category.slug}`} imageUrl={category.image_url} name={category.name} key={category.id}/>)}</ScrollRail> : <div className="home-empty"><b>Categories are being prepared</b><span>They will appear here when available.</span></div>}
+      {displayedCategories.length ? <ScrollRail className="home-category-row" label="categories">{displayedCategories.map((category) => <CategoryCard className="home-category-card" href={`/category/${category.slug}`} imageUrl={category.image_url} name={category.name} key={category.id}/>)}</ScrollRail> : <div className="home-empty"><b>Categories are being prepared</b><span>They will appear here when available.</span></div>}
     </section>,
     'core:stores': <StoreSection content={coreContent.stores}/>,
     'core:best_deals': <section id="deals"><div className="section-title"><div><p className="eyebrow">BEST DEALS</p><h2>{renderWebsiteRichText(coreContent.best_deals?.title || 'Best deals right now')}</h2>{coreContent.best_deals?.body && <span className="home-managed-copy">{renderWebsiteRichText(coreContent.best_deals.body)}</span>}</div><a href="/deals?sort=best">View all deals</a></div><HomeOfferRail offers={selectedProducts('best_deals', bestDeals)} bestDeal/></section>,
