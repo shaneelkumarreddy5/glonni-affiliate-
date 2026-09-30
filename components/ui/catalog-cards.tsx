@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Image, Star } from 'lucide-react'
+import { ChevronRight, Image, Star } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Badge } from './badge'
 import type { BadgeVariant } from './badge'
@@ -112,20 +112,23 @@ export interface StoreCardProps {
   href?: string
   name: string
   logoUrl?: string | null
+  meta?: ReactNode
+  layout?: 'stacked' | 'horizontal'
   interactive?: boolean
   className?: string
 }
 
-export function StoreCard({ href, name, logoUrl, interactive = true, className }: StoreCardProps) {
+export function StoreCard({ href, name, logoUrl, meta, layout = 'stacked', interactive = true, className }: StoreCardProps) {
   const content = (
     <>
       <span className={styles.storeLogo} aria-hidden="true">
         {logoUrl ? <img src={logoUrl} alt="" loading="lazy"/> : <span className={styles.storeInitial}>{name.trim().slice(0, 1).toUpperCase() || '•'}</span>}
       </span>
-      <span className={styles.storeName}>{name}</span>
+      <span className={styles.storeInfo}><span className={styles.storeName}>{name}</span>{meta && <span className={styles.storeMeta}>{meta}</span>}</span>
+      {layout === 'horizontal' && <ChevronRight className={styles.storeArrow} size={18} aria-hidden="true"/>}
     </>
   )
-  const cardClass = [styles.storeCard, className].filter(Boolean).join(' ')
+  const cardClass = [styles.storeCard, layout === 'horizontal' ? styles.storeCardHorizontal : '', className].filter(Boolean).join(' ')
 
   return interactive && href ? <Link className={cardClass} href={href} aria-label={`Open ${name} store page`}>{content}</Link> : <div className={cardClass}>{content}</div>
 }
