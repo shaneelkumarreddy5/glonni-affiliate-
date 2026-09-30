@@ -360,6 +360,28 @@ export async function updateStore(f: FormData) {
   storeRefresh(slugValue);
   redirect(`/admin/stores/${slugValue}?success=Store%20details%20saved`);
 }
+export async function saveStoreBrandImage(f: FormData) {
+  const { s, user } = await storeOperator();
+  const id = String(f.get("id") ?? "").trim();
+  const logoUrl = String(f.get("logoUrl") ?? "").trim();
+  if (!id) throw new Error("Choose a store before saving its brand image.");
+  if (logoUrl) {
+    let parsed: URL;
+    try { parsed = new URL(logoUrl); } catch { throw new Error("Enter a valid public HTTPS image address."); }
+    if (parsed.protocol !== "https:" || logoUrl.length > 2048)
+      throw new Error("Brand image address must be a public HTTPS URL under 2,048 characters.");
+  }
+  const { data: store, error: lookupError } = await s.from("merchants").select("slug").eq("id", id).maybeSingle();
+  if (lookupError) throw new Error(lookupError.message);
+  if (!store) throw new Error("This store could not be found.");
+  const { error } = await s.from("merchants").update({ logo_url: logoUrl || null, updated_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw new Error(error.message);
+  await audit(s, "store_brand_image_updated", "merchant", id, { brand_image_configured: Boolean(logoUrl), actor_id: user.id });
+  storeRefresh(store.slug);
+  revalidatePath("/stores");
+  revalidatePath(`/store/${store.slug}`);
+  redirect(`/admin/stores/${store.slug}?tab=overview&success=Brand%20image%20saved`);
+}
 export async function updateStorePolicies(f: FormData) {
   const { s, user } = await storeOperator();
   const id = String(f.get("id") ?? ""), slugValue = String(f.get("slug") ?? "");
