@@ -41,7 +41,7 @@ export async function Header() {
     <a className="logo" href="/" aria-label={`${siteName} home`}>{identity?.logo_url ? <img className="brand-logo-image" src={identity.logo_url} alt=""/> : useGlonniLogo ? <img className="brand-logo-image" src="/brand/glonni-logo-horizontal-navy.svg" alt=""/> : siteName}</a>
     <form className={`search ${styles.headerSearch}`} action="/deals"><button type="submit" aria-label="Search"><Search size={20}/></button><input name="q" aria-label="Search products, brands and stores" placeholder="Search for products, brands or stores..."/></form>
     <nav className={styles.headerNav} aria-label="Shop navigation">
-      <a href="/#categories">Categories</a>
+      <a href="/categories">Categories</a>
       <a href="/stores">Stores</a>
       <a href="/deals">Deals</a>
       <a href="/vouchers-bills">Coupons &amp; Bills</a>

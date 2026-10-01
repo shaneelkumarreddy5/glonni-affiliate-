@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 
 const items = [
   { label: 'Home', href: '/', icon: Home },
-  { label: 'Categories', href: '/#categories', icon: Grid2X2 },
+  { label: 'Categories', href: '/categories', icon: Grid2X2 },
   { label: 'Stores', href: '/stores', icon: Store },
   { label: 'Deals', href: '/deals', icon: ShoppingBag },
   { label: 'Coupons & Bills', href: '/vouchers-bills', icon: Tickets },
@@ -42,8 +42,8 @@ export function CustomerMobileNavigation() {
         <header><a className="logo" href="/" onClick={() => setOpen(false)}>Glonni</a><button type="button" aria-label="Close navigation menu" onClick={() => setOpen(false)}><X/></button></header>
         <div className="customer-mobile-links" role="navigation" aria-label="Main navigation">
           {items.map(({ label, href, icon: Icon }) => {
-            const active = label === 'Home' ? pathname === '/' : label === 'Categories' ? false : pathname === href || pathname.startsWith(`${href}/`);
-            return <a href={href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined} onClick={() => setOpen(false)} key={label}><Icon/><span><b>{label}</b><small>{label === 'Home' ? 'Featured offers and categories' : label === 'Categories' ? 'Browse categories on the homepage' : label === 'Stores' ? 'Browse available merchants' : label === 'Deals' ? 'Search and compare offers' : label === 'Coupons & Bills' ? 'Available codes and bill-payment updates' : 'Account, wallet and preferences'}</small></span></a>;
+            const active = label === 'Home' ? pathname === '/' : label === 'Categories' ? pathname === '/categories' || pathname.startsWith('/category/') : pathname === href || pathname.startsWith(`${href}/`);
+            return <a href={href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined} onClick={() => setOpen(false)} key={label}><Icon/><span><b>{label}</b><small>{label === 'Home' ? 'Featured offers and categories' : label === 'Categories' ? 'Browse every category' : label === 'Stores' ? 'Browse available merchants' : label === 'Deals' ? 'Search and compare offers' : label === 'Coupons & Bills' ? 'Available codes and bill-payment updates' : 'Account, wallet and preferences'}</small></span></a>;
           })}
         </div>
       </aside>
