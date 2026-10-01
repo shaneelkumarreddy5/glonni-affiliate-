@@ -21,8 +21,8 @@
 .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px}
 .card{display:flex;flex-direction:column;align-items:center;min-width:0;min-height:208px;padding:17px 12px 14px;border:1px solid #e1e7f0;border-radius:11px;background:#fff;color:#14244b;text-align:center;box-shadow:0 3px 10px #14244b08;transition:transform .16s,border-color .16s,box-shadow .16s}
 .card:hover{position:relative;z-index:1;transform:translateY(-3px);border-color:#e9b52d;box-shadow:0 10px 22px #14244b18}
-.artwork{display:grid;place-items:center;width:110px;height:110px;margin-bottom:12px;overflow:hidden;border-radius:50%;background:#eaf1fa;color:#1b2a4e}
-.artwork img{width:100%;height:100%;object-fit:cover}.artwork1{background:#fff1dd}.artwork2{background:#fff0eb}.artwork3{background:#e9f2e8}.artwork4{background:#eef0fb}
+.artwork{position:relative;display:grid;place-items:center;width:110px;height:110px;margin-bottom:12px;overflow:hidden;border-radius:50%;background:#eaf1fa;color:#1b2a4e}
+.artwork>svg{position:absolute;inset:0;margin:auto}.artwork img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover}.artwork1{background:#fff1dd}.artwork2{background:#fff0eb}.artwork3{background:#e9f2e8}.artwork4{background:#eef0fb}
 .cardName{display:block;width:100%;overflow:hidden;text-overflow:ellipsis;color:#14244b;font:800 14px/1.28 'Plus Jakarta Sans',sans-serif}
 .cardBottom{display:flex;align-items:center;justify-content:center;gap:3px;width:100%;min-height:30px;margin-top:auto;color:#6b7890;font:500 11px/1.25 'DM Sans',sans-serif}
 .cardBottom span{overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}.cardBottom svg{flex:none;color:#546985}

@@ -78,6 +78,10 @@
   .headerNav {
     display: none;
   }
+
+  .customerHeader .actionBar {
+    display: none;
+  }
 }
 
 .iconAction {
