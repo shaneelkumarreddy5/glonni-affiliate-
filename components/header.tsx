@@ -37,9 +37,15 @@ export async function Header() {
     );
   const walletLabel = walletAvailable === null ? '—' : formatWalletAmount(walletAvailable);
 
-  return <><header className="top">
+  return <><header className={`top ${styles.customerHeader}`}>
     <a className="logo" href="/" aria-label={`${siteName} home`}>{identity?.logo_url ? <img className="brand-logo-image" src={identity.logo_url} alt=""/> : useGlonniLogo ? <img className="brand-logo-image" src="/brand/glonni-logo-horizontal-navy.svg" alt=""/> : siteName}</a>
-    <form className="search" action="/deals"><button type="submit" aria-label="Search"><Search size={20}/></button><input name="q" aria-label="Search products, brands and stores" placeholder="Search for products, brands or stores..."/></form>
+    <form className={`search ${styles.headerSearch}`} action="/deals"><button type="submit" aria-label="Search"><Search size={20}/></button><input name="q" aria-label="Search products, brands and stores" placeholder="Search for products, brands or stores..."/></form>
+    <nav className={styles.headerNav} aria-label="Shop navigation">
+      <a href="/#categories">Categories</a>
+      <a href="/stores">Stores</a>
+      <a href="/deals">Deals</a>
+      <a href="/vouchers-bills">Coupons &amp; Bills</a>
+    </nav>
     <div className={`top-actions ${styles.actionBar}`}>
       <a className={`header-saved ${styles.iconAction}`} href="/saved-deals" aria-label={`Saved deals${savedCount ? `, ${savedCount} saved` : ''}`} title="Saved"><span className={styles.actionIcon}><Heart aria-hidden="true"/>{savedCount > 0 && <i className={styles.countBadge}>{savedCount > 99 ? '99+' : savedCount}</i>}</span><b>Saved</b></a>
       {user && <a className={`header-notifications ${styles.iconAction}`} href="/notifications" aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`} title="Notifications"><span className={styles.actionIcon}><Bell aria-hidden="true"/>{unreadNotificationCount > 0 && <i className={styles.countBadge}>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</i>}</span><b>Notifications</b></a>}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Grid2X2, Home, Menu, ShoppingBag, Store, UserRound, X } from 'lucide-react';
+import { Grid2X2, Home, Menu, ShoppingBag, Store, Tickets, UserRound, X } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 const items = [
@@ -9,6 +9,7 @@ const items = [
   { label: 'Categories', href: '/#categories', icon: Grid2X2 },
   { label: 'Stores', href: '/stores', icon: Store },
   { label: 'Deals', href: '/deals', icon: ShoppingBag },
+  { label: 'Coupons & Bills', href: '/vouchers-bills', icon: Tickets },
   { label: 'Profile', href: '/account', icon: UserRound },
 ];
 
@@ -42,7 +43,7 @@ export function CustomerMobileNavigation() {
         <div className="customer-mobile-links" role="navigation" aria-label="Main navigation">
           {items.map(({ label, href, icon: Icon }) => {
             const active = label === 'Home' ? pathname === '/' : label === 'Categories' ? false : pathname === href || pathname.startsWith(`${href}/`);
-            return <a href={href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined} onClick={() => setOpen(false)} key={label}><Icon/><span><b>{label}</b><small>{label === 'Home' ? 'Featured offers and categories' : label === 'Categories' ? 'Browse categories on the homepage' : label === 'Stores' ? 'Browse available merchants' : label === 'Deals' ? 'Search and compare offers' : 'Account, wallet and preferences'}</small></span></a>;
+            return <a href={href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined} onClick={() => setOpen(false)} key={label}><Icon/><span><b>{label}</b><small>{label === 'Home' ? 'Featured offers and categories' : label === 'Categories' ? 'Browse categories on the homepage' : label === 'Stores' ? 'Browse available merchants' : label === 'Deals' ? 'Search and compare offers' : label === 'Coupons & Bills' ? 'Available codes and bill-payment updates' : 'Account, wallet and preferences'}</small></span></a>;
           })}
         </div>
       </aside>
