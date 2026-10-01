@@ -1,4 +1,4 @@
-import { Bell, Heart, Search, WalletCards } from 'lucide-react';
+import { Bell, Heart, Search, UserRound, WalletCards } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { CustomerMobileNavigation } from '@/components/customer-mobile-navigation';
 import styles from './customer-header.module.css';
@@ -39,12 +39,12 @@ export async function Header() {
 
   return <><header className="top">
     <a className="logo" href="/" aria-label={`${siteName} home`}>{identity?.logo_url ? <img className="brand-logo-image" src={identity.logo_url} alt=""/> : useGlonniLogo ? <img className="brand-logo-image" src="/brand/glonni-logo-horizontal-navy.svg" alt=""/> : siteName}</a>
-    <form className="search" action="/deals"><input name="q" aria-label="Search products, brands and stores" placeholder="Search products, brands and stores..."/><button type="submit" aria-label="Search"><Search size={20}/></button></form>
+    <form className="search" action="/deals"><button type="submit" aria-label="Search"><Search size={20}/></button><input name="q" aria-label="Search products, brands and stores" placeholder="Search for products, brands or stores..."/></form>
     <div className={`top-actions ${styles.actionBar}`}>
-      <a className={`header-saved ${styles.iconAction}`} href="/saved-deals" aria-label={`Saved deals${savedCount ? `, ${savedCount} saved` : ''}`} title="Saved"><Heart aria-hidden="true"/>{savedCount > 0 && <i className={styles.countBadge}>{savedCount > 99 ? '99+' : savedCount}</i>}</a>
-      {user && <a className={`header-notifications ${styles.iconAction}`} href="/notifications" aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`} title="Notifications"><Bell aria-hidden="true"/>{unreadNotificationCount > 0 && <i className={styles.countBadge}>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</i>}</a>}
-      {user && <a className={`header-wallet ${styles.iconAction} ${styles.walletAction}`} href="/wallet" aria-label={`Wallet balance ${walletLabel}`} title={`Wallet ${walletLabel}`}><WalletCards aria-hidden="true"/><b className={styles.walletBalance}>{walletLabel}</b></a>}
-      <a className={`profile-trigger ${styles.iconAction} ${styles.profileAction}`} href="/account" aria-label="Open Profile" title="Profile"><b className="profile-avatar">{profile?.avatar_url ? <img src={profile.avatar_url} alt=""/> : initial}</b></a>
+      <a className={`header-saved ${styles.iconAction}`} href="/saved-deals" aria-label={`Saved deals${savedCount ? `, ${savedCount} saved` : ''}`} title="Saved"><span className={styles.actionIcon}><Heart aria-hidden="true"/>{savedCount > 0 && <i className={styles.countBadge}>{savedCount > 99 ? '99+' : savedCount}</i>}</span><b>Saved</b></a>
+      {user && <a className={`header-notifications ${styles.iconAction}`} href="/notifications" aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ''}`} title="Notifications"><span className={styles.actionIcon}><Bell aria-hidden="true"/>{unreadNotificationCount > 0 && <i className={styles.countBadge}>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</i>}</span><b>Notifications</b></a>}
+      {user && <a className={`header-wallet ${styles.iconAction}`} href="/wallet" aria-label={`Wallet balance ${walletLabel}`} title={`Wallet ${walletLabel}`}><span className={styles.actionIcon}><WalletCards aria-hidden="true"/></span><b>Wallet</b></a>}
+      <a className={`profile-trigger ${styles.iconAction}`} href="/account" aria-label="Open Profile" title="Profile"><span className={styles.actionIcon}>{profile?.avatar_url ? <img className={styles.profileImage} src={profile.avatar_url} alt=""/> : <UserRound aria-hidden="true"/>}</span><b>Profile</b></a>
     </div>
     <div className={styles.mobileActions}>
       <a className={`mobile-saved ${styles.mobileAction}`} href="/saved-deals" aria-label={`Saved deals${savedCount ? `, ${savedCount} saved` : ''}`} title="Saved"><Heart aria-hidden="true"/>{savedCount > 0 && <i className={styles.countBadge}>{savedCount > 99 ? '99+' : savedCount}</i>}</a>

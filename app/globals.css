@@ -464,3 +464,13 @@ nav.deals-pagination{height:auto;min-height:52px;border:0;padding:0;margin-top:2
 .ceo-final-content-body form button.reject{border-color:#f0c6c2;background:#fff2f0;color:#a9433c}
 @media(max-width:900px){.ads-queue-card,.social-queue-card{grid-template-columns:110px minmax(0,1fr)}.ads-queue-card>aside,.social-queue-card>aside{grid-column:2}.ads-queue-image,.social-queue-image{min-height:110px}}
 @media(max-width:600px){.ads-queue-list,.social-queue-list{padding:9px}.ads-queue-card,.social-queue-card{grid-template-columns:1fr}.ads-queue-card>aside,.social-queue-card>aside{grid-column:auto}.ads-queue-image,.social-queue-image{height:160px}.social-manager-panel>header{align-items:flex-start}.ceo-final-content{margin:0 10px 12px}.ceo-final-content-grid{grid-template-columns:1fr}.ceo-final-content>header{align-items:flex-start}}
+
+/* Reference-aligned customer header */
+@media(min-width:901px){
+  .top{height:80px}
+  .search{height:48px;border:1px solid #d9e1ed;border-radius:8px;background:#f7f9fc}
+  .search button{order:0;width:42px;height:100%;padding:0 0 0 14px;border:0;background:transparent;color:#1b2a4e}
+  .search input{order:1;padding:0 13px;font-size:13px}
+  .search svg{width:20px;height:20px;padding:0;background:transparent;color:#1b2a4e}
+  .top-actions .profile-trigger svg{display:block}
+}
