@@ -224,10 +224,7 @@ export default async function StorePage({ params, searchParams }: { params: Prom
       {storeCategories.length > 0 && <section className={styles.categorySection} aria-labelledby="store-category-title">
         <header className={styles.sectionHeading}><div><h2 id="store-category-title">Shop {store.name} by Category</h2><p>Browse categories with active offers from this store.</p></div></header>
         <ScrollRail className={styles.categoryRail} label={`${store.name} categories`}>
-          {storeCategories.map((category) => {
-            const count = new Set(allOffers.filter((offer) => offer.products?.categories?.id && categoryBranchIds(categories, category.id).has(offer.products.categories.id)).map((offer) => offer.products?.id).filter(Boolean)).size;
-            return <CategoryCard key={category.id} href={`/category/${encodeURIComponent(category.slug)}?store=${encodeURIComponent(store.slug)}`} name={category.name} imageUrl={category.image_url} subtitle={`${count} ${count === 1 ? 'deal' : 'deals'}`}/>;
-          })}
+          {storeCategories.map((category) => <CategoryCard key={category.id} href={`/category/${encodeURIComponent(category.slug)}?store=${encodeURIComponent(store.slug)}`} name={category.name} imageUrl={category.image_url}/>)}
         </ScrollRail>
       </section>}
       <section className={styles.catalogSection} id="store-catalog" aria-labelledby="store-catalog-title">

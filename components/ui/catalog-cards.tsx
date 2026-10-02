@@ -3,6 +3,7 @@ import { ChevronRight, Image, Star } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Badge } from './badge'
 import type { BadgeVariant } from './badge'
+import { CategoryArtwork } from './category-artwork'
 import styles from './catalog-cards.module.css'
 
 export interface ProductCardProps {
@@ -86,21 +87,17 @@ export interface CategoryCardProps {
   href?: string
   name: string
   imageUrl?: string | null
-  subtitle?: string | null
-  storeCount?: number | null
   interactive?: boolean
   className?: string
 }
 
-export function CategoryCard({ href, name, imageUrl, subtitle, storeCount, interactive = true, className }: CategoryCardProps) {
+export function CategoryCard({ href, name, imageUrl, interactive = true, className }: CategoryCardProps) {
   const content = (
     <>
       <span className={styles.categoryImage} aria-hidden="true">
-        {imageUrl ? <img src={imageUrl} alt="" loading="lazy"/> : name.trim().slice(0, 1).toUpperCase() || '•'}
+        <CategoryArtwork name={name} imageUrl={imageUrl}/>
       </span>
       <span className={styles.categoryName}>{name}</span>
-      {subtitle && <span className={styles.categoryMeta}>{subtitle}</span>}
-      {storeCount != null && <span className={styles.categoryMeta}>{storeCount.toLocaleString()} stores</span>}
     </>
   )
   const cardClass = [styles.categoryCard, className].filter(Boolean).join(' ')
