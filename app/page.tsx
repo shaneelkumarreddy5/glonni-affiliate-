@@ -37,6 +37,7 @@ export default async function Home() {
   const selectedCategoryIds = categoryContent.category_ids ?? [];
   const selectedCategoryRank = new Map(selectedCategoryIds.map((id, index) => [id, index]));
   const displayedCategories = (selectedCategoryIds.length ? categories.filter((category) => selectedCategoryRank.has(category.id)).sort((a, b) => (selectedCategoryRank.get(a.id) ?? 0) - (selectedCategoryRank.get(b.id) ?? 0)) : homeCategories).slice(0, Math.max(1, Math.min(50, categoryContent.count ?? 10)));
+  const hasMoreCategories = homeCategories.some((category) => !displayedCategories.some((displayed) => displayed.id === category.id));
   function selectedProducts(key: string, source: CatalogOffer[]) {
     const selectedIds = coreContent[key]?.product_ids ?? [];
     if (!selectedIds.length) return source.slice(0, coreContent[key]?.count ?? 10);
@@ -55,7 +56,7 @@ export default async function Home() {
     'core:hero': !layout.section_order && layout.blocks.some((block) => block.config.slot === 'hero') ? null : defaultHero,
     'core:categories': <section id="categories" className="home-category-anchor" aria-labelledby="home-categories-title">
       <div className="section-title"><div><p className="eyebrow">BROWSE CATEGORIES</p><h2 id="home-categories-title">{renderWebsiteRichText(categoryContent.title || 'What are you shopping for?')}</h2>{categoryContent.body && <span className="home-managed-copy">{renderWebsiteRichText(categoryContent.body)}</span>}</div></div>
-      {displayedCategories.length ? <ScrollRail className="home-category-row" label="categories">{displayedCategories.map((category) => <CategoryCard href={`/category/${category.slug}`} imageUrl={category.image_url} name={category.name} key={category.id}/>)}</ScrollRail> : <div className="home-empty"><b>Categories are being prepared</b><span>They will appear here when available.</span></div>}
+      {displayedCategories.length ? <ScrollRail className="home-category-row" label="categories" viewAllHref="/categories" hasMoreItems={hasMoreCategories}>{displayedCategories.map((category) => <CategoryCard href={`/category/${category.slug}`} imageUrl={category.image_url} name={category.name} key={category.id}/>)}</ScrollRail> : <div className="home-empty"><b>Categories are being prepared</b><span>They will appear here when available.</span></div>}
     </section>,
     'core:stores': <StoreSection content={coreContent.stores}/>,
     'core:best_deals': <section id="deals"><div className="section-title"><div><p className="eyebrow">BEST DEALS</p><h2>{renderWebsiteRichText(coreContent.best_deals?.title || 'Best deals right now')}</h2>{coreContent.best_deals?.body && <span className="home-managed-copy">{renderWebsiteRichText(coreContent.best_deals.body)}</span>}</div><a href="/deals?sort=best">View all deals</a></div><HomeOfferRail offers={selectedProducts('best_deals', bestDeals)} bestDeal/></section>,

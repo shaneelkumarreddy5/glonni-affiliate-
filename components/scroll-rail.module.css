@@ -6,4 +6,7 @@
 .control:focus-visible, .track:focus-visible { outline: 3px solid color-mix(in srgb, var(--glonni-yellow) 60%, transparent); outline-offset: 2px; }
 .previous { left: -18px; }
 .next { right: -18px; }
+.viewAllLink { position: absolute; z-index: 3; top: -33px; right: 84px; display: inline-flex; height: 32px; align-items: center; gap: 2px; color: var(--glonni-navy); font: 800 12px/1 'DM Sans',sans-serif; white-space: nowrap; }
+.viewAllLink:hover { text-decoration: underline; }
+.viewAllLink:focus-visible { outline: 3px solid var(--glonni-yellow); outline-offset: 3px; border-radius: 3px; }
 @media (max-width: 760px) { .control { display: none; } }
