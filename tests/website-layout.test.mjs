@@ -63,7 +63,7 @@ test('Vouchers & Bills section types accept one, multiple or all supported servi
   assert.deepEqual(normalizeWebsiteServiceTypes(['mobile_recharge', 'bill_payments']), ['mobile_recharge', 'bill_payments']);
   assert.deepEqual(normalizeWebsiteServiceTypes(websiteServiceTypeOptions.map((option) => option.key)), ['gift_cards', 'mobile_recharge', 'bill_payments']);
   assert.deepEqual(normalizeWebsiteServiceTypes(['gift_cards', 'gift_cards', 'unsupported']), ['gift_cards']);
-  assert.equal(websiteServiceTypeOptions.find((option) => option.key === 'gift_cards')?.href, '/vouchers-bills?type=gift-cards');
+  assert.equal(websiteServiceTypeOptions.find((option) => option.key === 'gift_cards')?.href, '/vouchers-bills?tab=buy');
   assert.equal(websiteServiceTypeOptions.find((option) => option.key === 'mobile_recharge')?.href, '/vouchers-bills?type=mobile-recharge');
   assert.equal(websiteServiceTypeOptions.find((option) => option.key === 'bill_payments')?.href, '/vouchers-bills?type=bill-payments');
 });

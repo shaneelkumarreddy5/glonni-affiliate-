@@ -55,3 +55,32 @@
 @media(max-width:1050px){.couponGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.page{padding:8px 16px 64px}.intro{min-height:180px;margin-top:7px;padding:24px}.introArtwork{width:100px;height:120px}.introArtwork svg{width:30px;height:30px;padding:12px}.introArtwork svg:nth-child(2){margin-left:50px;margin-top:52px}.introArtwork svg:nth-child(3){width:22px;height:22px;padding:8px;margin-left:35px;margin-top:-80px}.intro p{font-size:13px}.tabs{margin-top:19px}.tabs a{min-width:0;flex:1;padding:0 10px}.couponGrid{grid-template-columns:1fr}.serviceGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.sectionHeading{align-items:start}.sectionHeading h2{font-size:21px}}
 @media(max-width:430px){.introArtwork{display:none}.serviceGrid{grid-template-columns:1fr}.sectionHeading{display:block}.sectionHeading>span{display:inline-block;margin-top:11px}}
+.tabs{gap:28px;padding-bottom:0;overflow-x:auto;scrollbar-width:none}
+.tabs a{min-width:auto;height:49px;padding:0 8px;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;white-space:nowrap}
+.tabs a:hover{border-color:#d8e1ed;background:transparent}
+.tabs a.activeTab{border-color:#ffbe0b;background:transparent;color:#14244b}
+.categoryChips{display:flex;flex-wrap:wrap;gap:9px;margin:0 0 16px}
+.categoryChips a{display:inline-flex;align-items:center;min-height:36px;padding:0 15px;border:1px solid #e0e7f0;border-radius:8px;background:#f6f8fc;color:#31415f;font-size:12px;font-weight:700;text-decoration:none}
+.categoryChips a:hover{border-color:#ffbe0b}
+.categoryChips a.selectedChip{border-color:#ffbe0b;background:#fff3cc;color:#14244b}
+.voucherGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.voucherCard{min-width:0;overflow:hidden;border:1px solid #dfe7f1;border-radius:13px;background:#fff;box-shadow:0 5px 18px #1b2a4e08}
+.voucherArtwork{display:grid;place-items:center;height:145px;margin:9px 9px 0;overflow:hidden;border-radius:9px;background:#eff4fa;color:#1b2a4e}
+.voucherArtwork img{width:100%;height:100%;object-fit:cover}
+.voucherBody{display:flex;flex-direction:column;gap:7px;padding:14px}
+.voucherMerchant{color:#1b2a4e;font-size:12px;font-weight:800}
+.voucherBody h3{margin:0;color:#14244b;font:800 15px/1.3 'Plus Jakarta Sans',sans-serif}
+.voucherBody p,.voucherBody small{margin:0;color:#68758d;font-size:11px;line-height:1.4}
+.voucherBody small{max-height:34px;overflow:hidden}
+.voucherPrice{display:flex;align-items:baseline;justify-content:space-between;gap:7px;margin-top:auto;padding-top:8px;color:#53617a;font-size:11px}
+.voucherPrice strong{color:#14244b;font-size:16px}
+.voucherBody button{min-height:38px;margin-top:7px;border:0;border-radius:8px;background:#edf1f7;color:#65738a;font-size:12px;font-weight:800;cursor:not-allowed}
+.howPanel{display:flex;align-items:center;gap:25px;margin-top:18px;padding:19px 22px;border:1px solid #dce6f4;border-radius:12px;background:#f3f7fc}
+.howPanel>div{min-width:220px;max-width:320px}
+.howPanel h3{margin:0;color:#14244b;font:800 17px 'Plus Jakarta Sans',sans-serif}
+.howPanel p{margin:5px 0 0;color:#6b7890;font-size:11px;line-height:1.45}
+.howPanel ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;flex:1;list-style:none;margin:0;padding:0}
+.howPanel li{display:flex;align-items:center;gap:9px;color:#203254;font-size:11px;font-weight:750}
+.howPanel li b{display:grid;flex:none;place-items:center;width:26px;height:26px;border-radius:50%;background:#dbe8f8;color:#14244b}
+@media(max-width:1050px){.voucherGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.howPanel{align-items:flex-start;flex-direction:column}.howPanel ol{width:100%}}
+@media(max-width:700px){.tabs{gap:12px}.tabs a{flex:none;min-width:max-content;padding:0 5px}.voucherGrid{grid-template-columns:1fr}.howPanel ol{grid-template-columns:1fr}.intro h1{letter-spacing:-1px}}

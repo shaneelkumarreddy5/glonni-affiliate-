@@ -1,7 +1,7 @@
 export type WebsitePageKey = 'home' | 'stores' | 'product';
 export type WebsiteBlockType = 'hero' | 'banner' | 'product_rail' | 'store_rail' | 'category_rail' | 'store_directory' | 'service_rail';
 export const websiteServiceTypeOptions = [
-  { key: 'gift_cards', label: 'Gift cards', href: '/vouchers-bills?type=gift-cards', description: 'Digital gift cards from supported brands' },
+  { key: 'gift_cards', label: 'Gift cards', href: '/vouchers-bills?tab=buy', description: 'Digital gift cards from supported brands' },
   { key: 'mobile_recharge', label: 'Mobile recharge', href: '/vouchers-bills?type=mobile-recharge', description: 'Recharge services from a connected partner' },
   { key: 'bill_payments', label: 'Pay bills', href: '/vouchers-bills?type=bill-payments', description: 'Bill services available from a connected partner' },
 ] as const;
