@@ -18,12 +18,13 @@
 .search:focus-within{border-color:#6b90bd;box-shadow:0 0 0 3px #aac4e933}
 .search input{min-width:0;flex:1;height:100%;padding:0 8px 0 14px;border:0;outline:0;background:transparent;color:#14244b;font:500 13px 'DM Sans',sans-serif}
 .search input::placeholder{color:#8190a4}.search button{display:grid;place-items:center;flex:none;width:42px;height:100%;border:0;background:transparent;color:#213458;cursor:pointer}
-.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));justify-items:center;gap:28px 14px}
+.grid{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));justify-items:center;gap:24px 14px}
 .directoryCard{justify-self:center}
 .empty{display:grid;justify-items:center;gap:7px;padding:55px 20px;border:1px solid #e1e7f0;border-radius:12px;background:#fafcff;text-align:center;color:#617089}
 .empty h3{margin:5px 0 0;color:#14244b}.empty p{margin:0;font-size:13px}.empty a{display:inline-flex;align-items:center;gap:6px;margin-top:10px;color:#0753bd;font-weight:700}
 .dealsBanner{display:flex;align-items:center;justify-content:space-between;gap:25px;margin-top:32px;padding:25px 35px;border:1px solid #dfe9f6;border-radius:12px;background:linear-gradient(100deg,#eef4fd,#f7faff)}
 .dealsBanner h2{margin:4px 0 5px;color:#14244b;font:800 21px/1.25 'Plus Jakarta Sans',sans-serif}.dealsBanner p{margin:0;color:#65738a;font-size:13px}.dealsBanner .primaryButton{flex:none}
-@media(max-width:1120px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:850px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.hero{min-height:275px}.heroCopy{max-width:550px}}
-@media(max-width:650px){.page{padding:0 16px 48px}.hero{min-height:265px;margin:0 -16px;padding:16px 22px;background-position:60% center}.hero::before{background:linear-gradient(90deg,#fffaf1 0%,#fffaf1f2 48%,#fffaf199 77%,#fffaf144 100%)}.heroCopy{padding-top:42px;max-width:410px}.hero h1{font-size:clamp(31px,8vw,42px);letter-spacing:-1.3px}.hero p{font-size:14px}.catalogue{margin-top:23px}.catalogueHeader{display:block}.search{width:100%;margin-top:14px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 10px}.dealsBanner{align-items:start;flex-direction:column;padding:22px;margin-top:24px}.dealsBanner h2{font-size:18px}}
+@media(max-width:1120px){.grid{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@media(max-width:850px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}.hero{min-height:275px}.heroCopy{max-width:550px}}
+@media(max-width:650px){.page{padding:0 16px 48px}.hero{min-height:265px;margin:0 -16px;padding:16px 22px;background-position:60% center}.hero::before{background:linear-gradient(90deg,#fffaf1 0%,#fffaf1f2 48%,#fffaf199 77%,#fffaf144 100%)}.heroCopy{padding-top:42px;max-width:410px}.hero h1{font-size:clamp(31px,8vw,42px);letter-spacing:-1.3px}.hero p{font-size:14px}.catalogue{margin-top:23px}.catalogueHeader{display:block}.search{width:100%;margin-top:14px}.grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px 10px}.dealsBanner{align-items:start;flex-direction:column;padding:22px;margin-top:24px}.dealsBanner h2{font-size:18px}}
+@media(max-width:350px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
