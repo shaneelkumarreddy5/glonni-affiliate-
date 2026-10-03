@@ -7,6 +7,7 @@ export type CatalogOffer = {
   list_price: number | null;
   cashback_amount: number | null;
   reward_type: string | null;
+  reward_points: number | null;
   cashback_percent: number | null;
   cashback_cap: number | null;
   coupon_code: string | null;
@@ -47,7 +48,7 @@ export type CatalogFilters = {
   categoryIds?: string[];
 };
 const selection =
-  "id,updated_at,current_price,list_price,cashback_amount,reward_type,cashback_percent,cashback_cap,coupon_code,reward_terms,cashback_tracking_supported,reward_funding_source,bank_offer,customer_rating,rating_count,stock_status,cashback_confirmation_days,variant_label,products!inner(id,title,slug,image_url,brand,description,gallery_images,variants,specifications,product_information,categories(id,name,slug)),merchants!inner(name,slug,logo_url,storefront_url,review_notes)";
+  "id,updated_at,current_price,list_price,cashback_amount,reward_type,reward_points,cashback_percent,cashback_cap,coupon_code,reward_terms,cashback_tracking_supported,reward_funding_source,bank_offer,customer_rating,rating_count,stock_status,cashback_confirmation_days,variant_label,products!inner(id,title,slug,image_url,brand,description,gallery_images,variants,specifications,product_information,categories(id,name,slug)),merchants!inner(name,slug,logo_url,storefront_url,review_notes)";
 export async function getCatalogOffers(filters: CatalogFilters = {}) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return [] as CatalogOffer[];
   const supabase = await createClient();

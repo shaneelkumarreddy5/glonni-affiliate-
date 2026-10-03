@@ -1,5 +1,6 @@
 export type RewardOffer = {
   reward_type?: string | null;
+  reward_points?: number | null;
   cashback_amount?: number | null;
   cashback_percent?: number | null;
   cashback_cap?: number | null;
@@ -10,6 +11,8 @@ export type RewardOffer = {
 const money = (value: number) => `₹${value.toLocaleString('en-IN')}`;
 
 export function rewardLabel(offer: RewardOffer) {
+  if (offer.reward_type === 'points' && (offer.reward_points ?? 0) > 0)
+    return `Earn ${Number(offer.reward_points).toLocaleString('en-IN')} Glonni points`;
   if (offer.reward_type === 'fixed_cashback' && (offer.cashback_amount ?? 0) > 0)
     return `Get ${money(offer.cashback_amount!)} Glonni Cashback`;
   if (offer.reward_type === 'percentage_cashback' && (offer.cashback_percent ?? 0) > 0)

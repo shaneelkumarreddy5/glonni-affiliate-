@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { verifySimpleCaptcha } from '@/lib/security/simple-captcha';
+import { allPages } from '@/lib/supabase/paginate';
 
 const outstandingStatuses = ['requested', 'on_hold', 'approved', 'batched', 'processing'];
 
@@ -19,12 +20,13 @@ export async function requestWithdrawal(formData: FormData) {
     redirect('/wallet?error=Enter+an+amount+of+at+least+%E2%82%B9100+and+a+valid+UPI+ID.');
   }
 
-  const [{ data: entries }, { data: requests }] = await Promise.all([
-    supabase.from('wallet_entries').select('amount,entry_type'),
-    supabase.from('withdrawal_requests').select('amount,status'),
+  const [entries, requests] = await Promise.all([
+    allPages((from, to) => supabase.from('wallet_entries').select('amount,entry_type').order('created_at').range(from, to)),
+    allPages((from, to) => supabase.from('withdrawal_requests').select('amount,status').order('created_at').range(from, to)),
   ]);
-  const ledgerBalance = (entries ?? []).reduce((total, entry) => total + Number(entry.amount), 0);
-  const reservedAmount = (requests ?? []).filter((request) => outstandingStatuses.includes(request.status)).reduce((total, request) => total + Number(request.amount), 0);
+  if (entries.error || requests.error) redirect('/wallet?error=Your+balance+could+not+be+verified.+Please+try+again.');
+  const ledgerBalance = entries.data.reduce((total, entry) => total + Number(entry.amount), 0);
+  const reservedAmount = requests.data.filter((request) => outstandingStatuses.includes(request.status)).reduce((total, request) => total + Number(request.amount), 0);
   const availableAmount = Math.max(0, ledgerBalance - reservedAmount);
   if (amount > availableAmount) redirect('/wallet?error=The+requested+amount+is+greater+than+your+available+confirmed+cashback.');
 

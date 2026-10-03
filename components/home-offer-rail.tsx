@@ -16,7 +16,7 @@ export function HomeOfferRail({ offers, bestDeal = false, returnTo = '/' }: { of
       const discount = offer.current_price != null && offer.list_price != null && offer.list_price > offer.current_price
         ? Math.round((1 - offer.current_price / offer.list_price) * 100)
         : null;
-      const benefit = hasCashback(offer)
+      const benefit = hasCashback(offer) || offer.reward_type === 'points'
         ? rewardLabel(offer)
         : bestDeal || index === 0 ? 'Best deal' : 'Compare this offer';
       return <ProductCard
