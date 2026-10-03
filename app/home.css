@@ -23,8 +23,9 @@
 .home-main .home-store-rail .scroll-rail-track{gap:10px;padding:2px 1px 8px}
 .home-main .home-store-card{min-height:72px;background:#fff}
 .home-main .home-store-rail .rail-control{width:34px;height:34px;box-shadow:0 4px 14px rgb(27 42 78 / 12%)}
-.home-main .home-category-row .rail-control{top:-29px;width:32px;height:32px;box-shadow:none;background:#f3f5fa}
-.home-main .home-category-row .rail-prev{left:auto;right:42px}
-.home-main .home-category-row .rail-next{right:2px}
+.home-main .home-category-row .rail-control{top:50%;width:34px;height:34px;box-shadow:0 4px 14px rgb(27 42 78 / 12%);background:#fff}
+.home-main .home-category-row .rail-prev{left:-18px;right:auto}
+.home-main .home-category-row .rail-next{right:-18px}
+.home-main .home-category-row .scroll-rail-view-all{right:0}
 @media(max-width:900px){.home-main{padding-right:24px;padding-left:24px}.home-main>.home-hero{margin-right:-24px;margin-left:-24px}.home-main .home-category-anchor>.section-title h2,.home-main .home-store-section>.section-title h2,.home-main #deals>.section-title h2{font-size:22px}}
 @media(max-width:650px){.home-main{padding:0 16px 44px}.home-main section{margin-top:22px}.home-main>.home-hero{margin:0 -16px}.home-category-anchor{margin-top:17px}.home-main .home-category-anchor>.section-title h2,.home-main .home-store-section>.section-title h2,.home-main #deals>.section-title h2{font-size:20px}.home-category-row .scroll-rail-track{gap:14px;padding-right:2px;padding-left:2px}.home-main .home-store-rail .scroll-rail-track{margin-right:-16px;padding-right:16px}.home-main .home-store-card{width:164px;min-width:164px;flex-basis:164px}.home-main .home-category-row .rail-control{display:none}.home-main .home-category-row .scroll-rail-view-all{right:2px}}
