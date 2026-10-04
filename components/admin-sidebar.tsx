@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   BarChart3, Bell, Bot, Boxes, Building2, BriefcaseBusiness, Cable, ChartNoAxesCombined, Clock3, Headphones,
-  ChevronDown, ChevronLeft, ClipboardCheck, FolderKanban, Gift, KeyRound,
+  ChevronDown, ClipboardCheck, FolderKanban, Gift, KeyRound,
   LogOut, Megaphone, Menu, Package, PlugZap, ReceiptText, Search, Settings, Share2, ShieldCheck, Store, FileClock, Scale, GitCompareArrows, X,
   Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote, FlaskConical, FileSearch, ShoppingBag, PenTool,
 } from 'lucide-react';
@@ -69,26 +69,14 @@ const sections = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const sidebarRef = useRef<HTMLElement>(null);
-  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [periodOpen, setPeriodOpen] = useState(false);
   const [period, setPeriod] = useState('This month');
 
   useEffect(() => {
-    const compactNavigation = window.matchMedia('(max-width: 1020px)');
-    const syncSidebarMode = () => {
-      setCollapsed(!compactNavigation.matches && window.localStorage.getItem('glonni-admin-sidebar') === 'collapsed');
-    };
-    syncSidebarMode();
-    compactNavigation.addEventListener('change', syncSidebarMode);
     setPeriod(window.localStorage.getItem('glonni-admin-period') || 'This month');
-    return () => compactNavigation.removeEventListener('change', syncSidebarMode);
   }, []);
-
-  useEffect(() => {
-    sidebarRef.current?.closest('.admin-v2')?.classList.toggle('sidebar-collapsed', collapsed);
-  }, [collapsed]);
 
   useEffect(() => {
     sidebarRef.current?.closest('.admin-v2')?.classList.toggle('mobile-nav-open', mobileOpen);
@@ -98,12 +86,6 @@ export function AdminSidebar() {
     setMobileOpen(false);
   }, [pathname]);
 
-  function toggle() {
-    const next = !collapsed;
-    setCollapsed(next);
-    window.localStorage.setItem('glonni-admin-sidebar', next ? 'collapsed' : 'expanded');
-  }
-
   const active = (href: string) => {
     if (href === '/admin') return pathname === '/admin' || pathname.startsWith('/admin/stores/');
     if (href === '/admin/team') return pathname === href || (pathname.startsWith('/admin/team/') && pathname !== '/admin/team/new');
@@ -111,7 +93,7 @@ export function AdminSidebar() {
   };
 
   const linkActive = (link: { href: string; children?: readonly { href: string }[] }) => active(link.href) || Boolean(link.children?.some((child) => active(child.href)));
-  const sectionOpen = (title: string, links: readonly { href: string; children?: readonly { href: string }[] }[]) => !collapsed && (expanded === title || (expanded === null && links.some(linkActive)));
+  const sectionOpen = (title: string, links: readonly { href: string; children?: readonly { href: string }[] }[]) => expanded === title || (expanded === null && links.some(linkActive));
 
   function choosePeriod(value: string) {
     setPeriod(value);
@@ -128,7 +110,6 @@ export function AdminSidebar() {
       <a className="admin-brand" href="/admin/dashboard" aria-label="Glonni admin dashboard">
         <span className="admin-brand-logo-wrap" aria-hidden="true"><img src="/brand/glonni-logo-horizontal-navy.svg" alt=""/></span>
       </a>
-      <button className="sidebar-toggle" type="button" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggle}><ChevronLeft/></button>
     </div>
     <nav>{sections.map((section) => { const SectionIcon = section.icon; const isOpen = sectionOpen(section.title, section.links); return <section key={section.title} className={isOpen ? 'open' : ''}><button className="nav-group" type="button" title={section.title} onClick={() => setExpanded(isOpen ? null : section.title)}><span><SectionIcon size={16}/><b>{section.title}</b></span><ChevronDown size={15}/></button><div className="nav-links">{section.links.map((link) => { const Icon = link.icon; const isActive = active(link.href); const children = ('children' in link ? link.children : undefined) as readonly { href: string; label: string; icon: LucideIcon }[] | undefined; const isParentActive = isActive || Boolean(children?.some((child) => active(child.href))); return <div className={children ? 'nav-item-with-children' : undefined} key={link.href}><a className={isParentActive ? 'selected' : ''} href={link.href} title={link.label} aria-current={isActive ? 'page' : undefined}><span className="nav-icon"><Icon className="nav-symbol" size={17}/></span><span className="nav-label">{link.label}</span></a>{children?.length ? <div className="nav-sub-links">{children.map((child) => { const ChildIcon = child.icon; const childActive = active(child.href); return <a key={child.href} className={childActive ? 'selected' : ''} href={child.href} title={child.label} aria-current={childActive ? 'page' : undefined}><span className="nav-icon"><ChildIcon className="nav-symbol" size={15}/></span><span className="nav-label">{child.label}</span></a>; })}</div> : null}</div>; })}</div></section>; })}</nav>
   </aside><button type="button" className="admin-nav-backdrop" aria-label="Close navigation" onClick={() => setMobileOpen(false)}/><AdminTabRepair/><AdminActionRepair/><CampaignUiRepair/><header className="admin-global-topbar" aria-label="Admin workspace controls">
