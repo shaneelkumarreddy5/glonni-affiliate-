@@ -41,6 +41,29 @@
   color: #6638e8;
 }
 
+/* Keep every sidebar group heading visible; navigation must not become an icon-only rail. */
+.admin-v2 .admin-side .nav-group {
+  display: flex !important;
+  justify-content: space-between !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.admin-v2 .admin-side .nav-group > span {
+  display: flex !important;
+  min-width: 0;
+  align-items: center;
+}
+
+.admin-v2 .admin-side .nav-group b {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: inherit !important;
+  font-size: 10px !important;
+  line-height: 1.3;
+}
+
 .admin-v2 .nav-group,
 .admin-v2 .nav-group:hover,
 .admin-v2 section.open .nav-group {
