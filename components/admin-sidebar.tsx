@@ -120,7 +120,7 @@ export function AdminSidebar() {
   return <><aside ref={sidebarRef} className="admin-side" aria-label="Admin navigation">
     <div className="sidebar-brand-row">
       <a className="admin-brand" href="/admin/dashboard" aria-label="Glonni admin dashboard">
-        <span className="admin-brand-logo-wrap" aria-hidden="true"><img src="/brand/glonni-logo-horizontal-white-on-navy.svg" alt=""/></span>
+        <span className="admin-brand-logo-wrap" aria-hidden="true"><img src="/brand/glonni-logo-horizontal-navy.svg" alt=""/></span>
       </a>
       <button className="sidebar-toggle" type="button" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={toggle}><ChevronLeft/></button>
     </div>
