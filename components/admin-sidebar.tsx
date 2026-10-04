@@ -76,8 +76,14 @@ export function AdminSidebar() {
   const [period, setPeriod] = useState('This month');
 
   useEffect(() => {
-    setCollapsed(window.localStorage.getItem('glonni-admin-sidebar') === 'collapsed');
+    const compactNavigation = window.matchMedia('(max-width: 1020px)');
+    const syncSidebarMode = () => {
+      setCollapsed(!compactNavigation.matches && window.localStorage.getItem('glonni-admin-sidebar') === 'collapsed');
+    };
+    syncSidebarMode();
+    compactNavigation.addEventListener('change', syncSidebarMode);
     setPeriod(window.localStorage.getItem('glonni-admin-period') || 'This month');
+    return () => compactNavigation.removeEventListener('change', syncSidebarMode);
   }, []);
 
   useEffect(() => {
