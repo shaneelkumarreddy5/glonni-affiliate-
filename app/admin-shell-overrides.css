@@ -267,7 +267,7 @@
 }
 
 /* Keep summary metrics together, but give every information panel its own row. */
-.admin-v2 :is(
+.admin-v2 main.admin-content:not(.website-workspace-content) :is(
   .admin-stats,
   .store-kpis,
   .store-detail-kpis,
@@ -285,7 +285,7 @@
   margin-bottom: 14px;
 }
 
-.admin-v2 :is(.admin-stats article, .store-kpis > a, .store-detail-kpis > a, .dashboard-kpi) {
+.admin-v2 main.admin-content:not(.website-workspace-content) :is(.admin-stats article, .store-kpis > a, .store-detail-kpis > a, .dashboard-kpi) {
   min-width: 0;
   min-height: 78px;
   padding: 12px;
@@ -293,7 +293,7 @@
   box-shadow: none !important;
 }
 
-.admin-v2 :is(.admin-grid, .stores-workspace, .dashboard-grid, .dashboard-primary-grid,
+.admin-v2 main.admin-content:not(.website-workspace-content) :is(.admin-grid, .stores-workspace, .dashboard-grid, .dashboard-primary-grid,
   .dashboard-health-grid, .dashboard-bottom-grid, .wallet-system-grid, .wallet-review-grid,
   .cm-overview-grid, .campaign-distribution-grid, .product-admin-grid, .offer-collections-grid,
   .affiliate-control-grid, .manager-grid, .ceo-agent-grid, .ceo-final-content-grid,
@@ -303,23 +303,23 @@
 }
 
 /* Page-level information sections use a full-width vertical flow. */
-.admin-v2 .admin-content > section[class*="grid"]:not(.admin-stats):not(.store-kpis):not(.dashboard-kpis):not(.wallet-metrics-grid):not(.offer-kpi-grid):not(.profile-summary-grid),
-.admin-v2 .admin-content > div[class*="grid"]:not(.wallet-metrics-grid):not(.offer-kpi-grid):not(.profile-summary-grid) {
+.admin-v2 main.admin-content:not(.website-workspace-content) > section[class*="grid"]:not(.admin-stats):not(.store-kpis):not(.dashboard-kpis):not(.wallet-metrics-grid):not(.offer-kpi-grid):not(.profile-summary-grid),
+.admin-v2 main.admin-content:not(.website-workspace-content) > div[class*="grid"]:not(.wallet-metrics-grid):not(.offer-kpi-grid):not(.profile-summary-grid) {
   min-width: 0;
 }
 
-.admin-v2 .admin-content :is(section, div)[class*="grid"]:has(> article):not(.admin-stats):not(.wallet-metrics-grid):not(.offer-kpi-grid):not(.profile-summary-grid) {
+.admin-v2 main.admin-content:not(.website-workspace-content) :is(section, div)[class*="grid"]:has(> article):not(.admin-stats):not(.wallet-metrics-grid):not(.offer-kpi-grid):not(.profile-summary-grid) {
   grid-template-columns: minmax(0, 1fr) !important;
 }
 
-.admin-v2 :is(.admin-right, .stores-sidepanels) {
+.admin-v2 main.admin-content:not(.website-workspace-content) :is(.admin-right, .stores-sidepanels) {
   width: 100%;
   grid-template-columns: minmax(0, 1fr) !important;
   gap: 12px;
   margin-top: 12px;
 }
 
-.admin-v2 :is(.dashboard-panel, .store-table, .stores-directory, .stores-sidepanels article,
+.admin-v2 main.admin-content:not(.website-workspace-content) :is(.dashboard-panel, .store-table, .stores-directory, .stores-sidepanels article,
   .quick-add, .wallet-table-card, .payout-execution, .offers-table-card) {
   min-width: 0;
   border-radius: 10px !important;
@@ -348,7 +348,7 @@
 }
 
 @media (max-width: 1020px) and (min-width: 761px) {
-  .admin-v2 .admin-content:not(.website-workspace-content) {
+  .admin-v2 main.admin-content:not(.website-workspace-content) {
     padding: 18px 18px 30px !important;
   }
 }
@@ -492,7 +492,7 @@
     height: 32px;
   }
 
-  .admin-v2 .admin-content:not(.website-workspace-content) {
+  .admin-v2 main.admin-content:not(.website-workspace-content) {
     padding: 14px 12px 28px !important;
   }
 
@@ -502,7 +502,7 @@
     margin-bottom: 10px;
   }
 
-  .admin-v2 :is(.admin-stats, .store-kpis, .store-detail-kpis, .dashboard-kpis,
+  .admin-v2 main.admin-content:not(.website-workspace-content) :is(.admin-stats, .store-kpis, .store-detail-kpis, .dashboard-kpis,
     .wallet-metrics-grid, .offer-kpi-grid, .profile-summary-grid, .store-overview-metrics,
     .cm-stats, .product-kpis) {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -511,18 +511,18 @@
     margin-bottom: 12px;
   }
 
-  .admin-v2 :is(.admin-stats article, .store-kpis > a, .store-detail-kpis > a, .dashboard-kpi) {
+  .admin-v2 main.admin-content:not(.website-workspace-content) :is(.admin-stats article, .store-kpis > a, .store-detail-kpis > a, .dashboard-kpi) {
     min-height: 72px;
     padding: 10px;
   }
 
-  .admin-v2 :is(.stores-workspace, .dashboard-grid, .admin-grid, .wallet-system-grid,
+  .admin-v2 main.admin-content:not(.website-workspace-content) :is(.stores-workspace, .dashboard-grid, .admin-grid, .wallet-system-grid,
     .wallet-review-grid, .cm-overview-grid, .campaign-distribution-grid, .product-admin-grid,
     .offer-collections-grid, .affiliate-control-grid, .manager-grid) {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  .admin-v2 :is(.admin-right, .stores-sidepanels) {
+  .admin-v2 main.admin-content:not(.website-workspace-content) :is(.admin-right, .stores-sidepanels) {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
@@ -532,7 +532,7 @@
 }
 
 @media (max-width: 420px) {
-  .admin-v2 :is(.admin-stats, .store-kpis, .store-detail-kpis, .dashboard-kpis,
+  .admin-v2 main.admin-content:not(.website-workspace-content) :is(.admin-stats, .store-kpis, .store-detail-kpis, .dashboard-kpis,
     .wallet-metrics-grid, .offer-kpi-grid, .profile-summary-grid, .store-overview-metrics,
     .cm-stats, .product-kpis) {
     grid-template-columns: minmax(0, 1fr) !important;
