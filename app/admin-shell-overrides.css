@@ -183,3 +183,46 @@
     padding-top: 64px !important;
   }
 }
+
+/* Keep tablet navigation expanded; the old icon rail's flyout was clipped by sidebar overflow. */
+@media (min-width: 761px) and (max-width: 1020px) {
+  .admin-v2,
+  .admin-v2.sidebar-collapsed {
+    grid-template-columns: 248px minmax(0, 1fr) !important;
+  }
+
+  .admin-v2 > .admin-side,
+  .admin-v2.sidebar-collapsed > .admin-side {
+    width: 248px !important;
+    padding: 18px 12px 16px !important;
+    overflow-x: hidden;
+  }
+
+  .admin-v2 .brand-copy,
+  .admin-v2 .nav-group b,
+  .admin-v2 .nav-group > svg {
+    display: block !important;
+  }
+
+  .admin-v2 .admin-side section.open .nav-links,
+  .admin-v2 .admin-side section:has(a.selected) .nav-links {
+    display: grid !important;
+    position: static !important;
+    width: auto !important;
+    margin: 0 !important;
+    padding: 1px 0 7px !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .admin-v2 .sidebar-toggle {
+    display: none !important;
+  }
+
+  .admin-v2 > .admin-global-topbar,
+  .admin-v2.sidebar-collapsed > .admin-global-topbar {
+    left: 248px !important;
+  }
+}
