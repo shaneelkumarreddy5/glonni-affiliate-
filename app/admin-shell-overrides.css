@@ -1,0 +1,185 @@
+/* Shared Glonni admin shell: compact, bright, and consistent across admin routes. */
+.admin-v2 {
+  background: #f8f9fc !important;
+  color: #17213b;
+}
+
+.admin-v2 > .admin-side {
+  background: #fff !important;
+  color: #34415b !important;
+  border-right: 1px solid #e8eaf1 !important;
+  box-shadow: none !important;
+}
+
+.admin-brand-logo-wrap {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+}
+
+.admin-brand-logo-wrap img {
+  display: block;
+  width: min(100%, 172px);
+  max-height: 42px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.admin-v2 .sidebar-brand-row {
+  border-bottom-color: #edf0f5;
+}
+
+.admin-v2 .sidebar-toggle {
+  background: #fff;
+  color: #596780;
+  border-color: #e1e5ed;
+}
+
+.admin-v2 .sidebar-toggle:hover {
+  background: #f5f3ff;
+  color: #6638e8;
+}
+
+.admin-v2 .nav-group,
+.admin-v2 .nav-group:hover,
+.admin-v2 section.open .nav-group {
+  color: #7b8498 !important;
+}
+
+.admin-v2 .nav-group > span > svg,
+.admin-v2 .nav-group > svg {
+  color: #9099ac;
+}
+
+.admin-v2 .admin-side section a {
+  color: #414e66;
+}
+
+.admin-v2 .admin-side section a:hover {
+  background: #f7f5ff !important;
+  color: #5e35dc !important;
+}
+
+.admin-v2 .admin-side section a.selected {
+  background: #f1edff !important;
+  color: #6036df !important;
+  box-shadow: inset 3px 0 #7044f5 !important;
+}
+
+.admin-v2 .admin-side section a .nav-icon {
+  background: #f4f5f8;
+  color: #77829a;
+}
+
+.admin-v2 .admin-side section a.selected .nav-icon {
+  background: #e7e0ff !important;
+  color: #6036df !important;
+}
+
+.admin-v2 .admin-global-topbar {
+  height: 68px;
+  padding: 0 clamp(20px, 2vw, 32px);
+  gap: 12px;
+  background: rgba(255, 255, 255, .98);
+  border-bottom-color: #e8eaf1;
+  box-shadow: none;
+}
+
+.admin-v2 > .admin-main {
+  padding-top: 68px !important;
+}
+
+.admin-v2 .admin-global-topbar form {
+  width: min(470px, 36vw);
+  height: 40px;
+  margin: 0 auto 0 20px;
+  border-color: #e3e6ee;
+  border-radius: 9px;
+  background: #fafbfc;
+  box-shadow: none;
+}
+
+.admin-v2 .admin-global-topbar input {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.admin-v2 .topbar-period,
+.admin-v2 .topbar-mode {
+  height: 40px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.admin-v2 .topbar-period {
+  padding: 0 12px;
+  border-color: #e3e6ee;
+}
+
+.admin-v2 .topbar-mode {
+  padding: 0 12px;
+  font-size: 10px;
+}
+
+.admin-v2 .topbar-avatar {
+  width: 38px;
+  height: 38px;
+}
+
+.admin-v2 .topbar-owner b {
+  font-size: 13px;
+}
+
+.admin-v2 .topbar-owner small {
+  font-size: 11px;
+}
+
+.admin-v2 .admin-content {
+  padding-top: 22px;
+}
+
+/* Wide data tables remain one record per row and can be panned with a grab cursor. */
+.admin-v2 .admin-table-pan-enabled {
+  overflow-x: auto !important;
+  cursor: grab;
+  touch-action: pan-y pinch-zoom;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.admin-v2 .admin-table-pan-enabled::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-v2 .admin-table-pan-enabled:focus-visible {
+  outline: 2px solid #a78bfa;
+  outline-offset: -2px;
+}
+
+.admin-v2 .admin-table-pan-enabled.admin-table-panning {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+  scroll-behavior: auto !important;
+}
+
+@media (max-width: 980px) {
+  .admin-v2 .admin-global-topbar {
+    height: 64px;
+  }
+
+  .admin-v2 > .admin-main {
+    padding-top: 64px !important;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-v2 .admin-global-topbar {
+    height: 64px;
+  }
+
+  .admin-v2 > .admin-main {
+    padding-top: 64px !important;
+  }
+}
