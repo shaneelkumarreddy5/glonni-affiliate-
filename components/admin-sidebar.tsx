@@ -6,7 +6,7 @@ import {
   BarChart3, Bell, Bot, Boxes, Building2, BriefcaseBusiness, Cable, ChartNoAxesCombined, Clock3, Headphones,
   ChevronDown, ClipboardCheck, FolderKanban, Gift, KeyRound,
   LogOut, Megaphone, Menu, Package, PlugZap, ReceiptText, Search, Settings, Share2, ShieldCheck, Store, FileClock, Scale, GitCompareArrows, X,
-  Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote, FlaskConical, FileSearch, ShoppingBag, PenTool,
+  Tags, UserPlus, Users, UsersRound, WalletCards, Award, Banknote, CreditCard, FlaskConical, FileSearch, ShoppingBag, PenTool,
 } from 'lucide-react';
 import { AdminTabRepair } from '@/components/admin-tab-repair';
 import { AdminActionRepair } from '@/components/admin-action-repair';
@@ -29,7 +29,7 @@ const sections = [
     { label: 'AI Quality Control', href: '/admin/ai-quality', icon: FlaskConical }, { label: 'Product Freshness', href: '/admin/product-freshness', icon: Clock3 }, { label: 'Change Approvals', href: '/admin/product-changes', icon: GitCompareArrows }] },
   { title: 'OPERATIONS', icon: ChartNoAxesCombined, links: [
     { label: 'Dashboard', href: '/admin/dashboard', icon: ChartNoAxesCombined }, { label: 'Users', href: '/admin/users', icon: Users },
-    { label: 'Wallet & Payouts', href: '/admin/wallet', icon: WalletCards }, { label: 'Payout Operations', href: '/admin/payout-operations', icon: Banknote }, { label: 'Offers & Rewards', href: '/admin/offers', icon: Gift },
+    { label: 'Wallet & Payouts', href: '/admin/wallet', icon: WalletCards }, { label: 'Payout Operations', href: '/admin/payout-operations', icon: Banknote }, { label: 'Payment Providers', href: '/admin/payment-providers', icon: CreditCard }, { label: 'Offers & Rewards', href: '/admin/offers', icon: Gift },
   ] },
   { title: 'CATALOGUE', icon: Store, links: [
     { label: 'Stores & Brands', href: '/admin', icon: Store }, { label: 'Categories', href: '/admin/categories', icon: Boxes },
