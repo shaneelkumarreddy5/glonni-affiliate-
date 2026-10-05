@@ -1,5 +1,5 @@
 import { AdminSidebar } from '@/components/admin-sidebar';
-import { Activity, Banknote, Bell, Cable, CheckCircle2, CircleAlert, CreditCard, Gift, Plus, ShieldCheck, WalletCards, XCircle } from 'lucide-react';
+import { Activity, Bell, Cable, CheckCircle2, CircleAlert, CreditCard, Plus, ShieldCheck, WalletCards } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { addPaymentProvider, setPaymentProviderEnabled } from './actions';
 import styles from './payment-providers.module.css';
