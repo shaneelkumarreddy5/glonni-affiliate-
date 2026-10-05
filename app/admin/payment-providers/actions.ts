@@ -31,7 +31,8 @@ function slug(value: string) {
 export async function addPaymentProvider(formData: FormData) {
   const { supabase, user } = await requirePaymentAdmin();
   const name = String(formData.get('name') ?? '').trim();
-  const providerKey = slug(String(formData.get('providerKey') ?? name));
+  const providerKeyInput = String(formData.get('providerKey') ?? '').trim();
+  const providerKey = slug(providerKeyInput || name);
   const services = [...new Set(formData.getAll('services').map(String).filter((key) => serviceKeys.has(key)))];
   const priority = Number(formData.get('priority') ?? 100);
   if (name.length < 2 || name.length > 100 || providerKey.length < 2 || !services.length || !Number.isInteger(priority) || priority < 1 || priority > 9999) {
