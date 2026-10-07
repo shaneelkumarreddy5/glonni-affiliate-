@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { createClient } from '@/lib/supabase/server';
 import { getFinanceTaxReport } from '@/lib/finance-tax/report-data';
-import { resolveFiscalPeriod } from '@/lib/finance-tax/fiscal-period';
+import { resolveReportPeriod } from '@/lib/finance-tax/report-period';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -37,8 +37,8 @@ function makeCsv(columns:string[],rows:any[]) {
 export async function GET(request:Request) {
   const url=new URL(request.url);
   const dataset=url.searchParams.get('dataset')??'';
-  const period=resolveFiscalPeriod(url.searchParams.get('fy')??'',url.searchParams.get('q')??'');
-  if(!period||!DATASETS.has(dataset))return Response.json({error:'Select a valid Indian financial year, quarter and report dataset.'},{status:400});
+  const period=resolveReportPeriod({mode:url.searchParams.get('mode'),date:url.searchParams.get('date'),from:url.searchParams.get('from'),to:url.searchParams.get('to'),fy:url.searchParams.get('fy'),q:url.searchParams.get('q')});
+  if(!period||!DATASETS.has(dataset))return Response.json({error:'Select a valid report period and dataset.'},{status:400});
 
   const supabase=await createClient();
   const [{data:{user}},{data:assurance}]=await Promise.all([
@@ -126,7 +126,7 @@ export async function GET(request:Request) {
     status:200,
     headers:{
       'Content-Type':'text/csv; charset=utf-8',
-      'Content-Disposition':`attachment; filename="glonni-${dataset}-${period.fy}-q${period.q}.csv"`,
+      'Content-Disposition':`attachment; filename="glonni-${dataset}-${period.mode}-${period.start}-to-${period.end}.csv"`,
       'Cache-Control':'private, no-store',
       'X-Content-Type-Options':'nosniff',
     },
