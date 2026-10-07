@@ -80,7 +80,7 @@ export default async function ProviderDocumentsPage({searchParams}:{searchParams
   const labelStyle={display:'block',fontSize:11,fontWeight:600,color:'#46546a'};
   const conversionOptions=(conversions??[]).map(c=>({
     value:`affiliate_conversion:${c.id}`,
-    label:`${affiliateNames.get(c.provider_id)||'Affiliate'} · ${c.provider_order_reference||c.id.slice(0,8)} · commission ${money(c.commission_amount)} · ${c.occurred_at?new Date(c.occurred_at).toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata'}):'date n/a'}`,
+    label:`${(c.provider_id?affiliateNames.get(c.provider_id):null)||'Affiliate'} · ${c.provider_order_reference||c.id.slice(0,8)} · commission ${money(c.commission_amount)} · ${c.occurred_at?new Date(c.occurred_at).toLocaleDateString('en-IN',{timeZone:'Asia/Kolkata'}):'date n/a'}`,
   }));
   const orderOptions=(orders??[]).map(o=>({
     value:`commerce_order:${o.id}`,
@@ -127,8 +127,8 @@ export default async function ProviderDocumentsPage({searchParams}:{searchParams
           <div style={{display:'grid',gridTemplateColumns:'repeat(4,minmax(0,1fr))',gap:10}}>
             {[
               ['taxableValue','Taxable value (₹)'],['cgstAmount','CGST (₹)'],['sgstAmount','SGST (₹)'],['igstAmount','IGST (₹)'],
-              ['cessAmount','Cess (₹)'],['otherCharges','Other charges (₹)'],['roundOff','Round off (₹)'],['documentTotal','Document total (₹)'],
-            ].map(([name,label])=><label key={name} style={labelStyle}>{label}<input name={name} type="number" step="0.01" min={name==='roundOff'?'-100':'0'} max={name==='roundOff'?'100':undefined} defaultValue={name==='roundOff'?'0':undefined} required style={fieldStyle}/></label>)}
+              ['cessAmount','Cess (₹)'],['otherAdjustments','Other adjustments (+/-) (₹)'],['roundOff','Round off (₹)'],['documentTotal','Document total (₹)'],
+            ].map(([name,label])=><label key={name} style={labelStyle}>{label}<input name={name} type="number" step="0.01" min={name==='roundOff'?'-100':name==='otherAdjustments'?'-10000000':'0'} max={name==='roundOff'?'100':name==='otherAdjustments'?'10000000':undefined} defaultValue={['roundOff','otherAdjustments'].includes(name)?'0':undefined} required style={fieldStyle}/></label>)}
           </div>
           <label style={labelStyle}>Notes / adviser reference<textarea name="notes" maxLength={2000} rows={2} style={fieldStyle}/></label>
           <button className="add-store" type="submit">Save provider document</button>
@@ -148,7 +148,7 @@ export default async function ProviderDocumentsPage({searchParams}:{searchParams
                 <b style={{marginLeft:'auto'}}>{money(doc.document_total)}</b><span style={{fontSize:10,padding:'4px 7px',borderRadius:10,background:doc.entry_status==='active'?'#eaf6ed':'#fbeceb',color:doc.entry_status==='active'?'#277247':'#a63d36'}}>{labels(doc.entry_status)}</span>
               </summary>
               <div style={{display:'grid',gap:12,marginTop:13}}>
-                <div style={{fontSize:12,color:'#536078'}}><b>Period:</b> {doc.period_start||'—'} to {doc.period_end||'—'} · <b>Flow:</b> {labels(doc.document_flow)} · <b>GSTIN:</b> {doc.counterparty_gstin||'not supplied'}<br/><b>Tax values:</b> Base {money(doc.taxable_value)} · CGST {money(doc.cgst_amount)} · SGST {money(doc.sgst_amount)} · IGST {money(doc.igst_amount)} · cess {money(doc.cess_amount)} · charges {money(doc.other_charges)} · round {money(doc.round_off)}<br/><b>Provider links:</b> {doc.affiliate_provider_id?affiliateNames.get(doc.affiliate_provider_id):null}{doc.merchant_id?merchantNames.get(doc.merchant_id):null}{doc.payment_provider_id?(paymentProviders??[]).find(p=>p.id===doc.payment_provider_id)?.name:null}{doc.provider_key?' · '+doc.provider_key:''}{doc.notes?' · '+doc.notes:''}</div>
+                <div style={{fontSize:12,color:'#536078'}}><b>Period:</b> {doc.period_start||'—'} to {doc.period_end||'—'} · <b>Flow:</b> {labels(doc.document_flow)} · <b>GSTIN:</b> {doc.counterparty_gstin||'not supplied'}<br/><b>Tax values:</b> Base {money(doc.taxable_value)} · CGST {money(doc.cgst_amount)} · SGST {money(doc.sgst_amount)} · IGST {money(doc.igst_amount)} · cess {money(doc.cess_amount)} · adjustments {money(doc.other_adjustments)} · round {money(doc.round_off)}<br/><b>Provider links:</b> {doc.affiliate_provider_id?affiliateNames.get(doc.affiliate_provider_id):null}{doc.merchant_id?merchantNames.get(doc.merchant_id):null}{doc.payment_provider_id?(paymentProviders??[]).find(p=>p.id===doc.payment_provider_id)?.name:null}{doc.provider_key?' · '+doc.provider_key:''}{doc.notes?' · '+doc.notes:''}</div>
                 <div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
                   <form action={openFinanceProviderDocumentFile}><input type="hidden" name="documentId" value={doc.id}/><button className="add-store" disabled={!doc.document_path} type="submit">{doc.document_path?'Open private file':'No source file'}</button></form>
                   {doc.entry_status==='active'&&<ProviderDocumentUploader documentId={doc.id} fileName={doc.document_file_name}/>}
