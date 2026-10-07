@@ -57,7 +57,7 @@ export async function createFinanceProviderDocument(formData:FormData) {
   const periodEnd=val(formData,'periodEnd');
   const invoiceDate=val(formData,'invoiceDate');
   const gstin=val(formData,'counterpartyGstin').toUpperCase();
-  const amountKeys=['taxableValue','cgstAmount','sgstAmount','igstAmount','cessAmount','otherCharges','roundOff','documentTotal'];
+  const amountKeys=['taxableValue','cgstAmount','sgstAmount','igstAmount','cessAmount','otherAdjustments','roundOff','documentTotal'];
   const nums=Object.fromEntries(amountKeys.map(key=>[key,Number(val(formData,key)||'0')]));
   if(!providerTypes.has(providerType)||!documentKinds.has(documentKind)||!flows.has(documentFlow)||
     providerName.length<2||providerName.length>200||providerKey.length>120||val(formData,'invoiceNumber').length>120||val(formData,'notes').length>2000||
@@ -66,8 +66,8 @@ export async function createFinanceProviderDocument(formData:FormData) {
     (periodStart&&!periodEnd)||(periodEnd&&!periodStart)||(periodStart&&periodEnd&&periodEnd<periodStart)||
     (invoiceDate&&!/^\d{4}-\d{2}-\d{2}$/.test(invoiceDate))||
     (gstin&&gstin.length!==15)||
-    amountKeys.some(key=>!Number.isFinite(nums[key])||(key!=='roundOff'&&nums[key]<0)||(key==='roundOff'&&Math.abs(nums[key])>100))||
-    Math.abs(nums.documentTotal-(nums.taxableValue+nums.cgstAmount+nums.sgstAmount+nums.igstAmount+nums.cessAmount+nums.otherCharges+nums.roundOff))>.02) {
+    amountKeys.some(key=>!Number.isFinite(nums[key])||(!['roundOff','otherAdjustments'].includes(key)&&nums[key]<0)||(key==='roundOff'&&Math.abs(nums[key])>100)||(key==='otherAdjustments'&&Math.abs(nums[key])>10000000))||
+    Math.abs(nums.documentTotal-(nums.taxableValue+nums.cgstAmount+nums.sgstAmount+nums.igstAmount+nums.cessAmount+nums.otherAdjustments+nums.roundOff))>.02) {
     fail('invalid_document');
   }
   const {data:id,error}=await supabase.rpc('create_finance_provider_document',{p_document:{
