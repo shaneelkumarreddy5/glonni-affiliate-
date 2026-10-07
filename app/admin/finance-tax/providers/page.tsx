@@ -60,8 +60,8 @@ export default async function ProviderDocumentsPage({searchParams}:{searchParams
   for(const row of matches)matchesByDocument.set(row.document_id,[...(matchesByDocument.get(row.document_id)??[]),row]);
   const auditCounts=new Map<string,number>();
   for(const row of audit)auditCounts.set(row.document_id,(auditCounts.get(row.document_id)??0)+1);
-  const affiliateNames=new Map((affiliates??[]).map(x=>[x.id,x.name]));
-  const merchantNames=new Map((merchants??[]).map(x=>[x.id,x.name]));
+  const affiliateNames=new Map<string,string>((affiliates??[]).map(x=>[x.id,x.name] as [string,string]));
+  const merchantNames=new Map<string,string>((merchants??[]).map(x=>[x.id,x.name] as [string,string]));
   const notices:Record<string,string>={
     document_saved:'Provider document saved. Attach its source file and reconcile listed amounts.',
     match_saved:'Reconciliation line saved with a system amount snapshot and variance.',
