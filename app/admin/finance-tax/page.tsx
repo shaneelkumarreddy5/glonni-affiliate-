@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation';
 import { AdminSidebar } from '@/components/admin-sidebar';
+import { createClient } from '@/lib/supabase/server';
 import { AlertTriangle, ArrowRight, FileText, LockKeyhole, ReceiptText, Upload, WalletCards } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -10,6 +12,20 @@ const plannedSections = [
 ];
 
 export default async function FinanceTaxPage() {
+  const supabase = await createClient();
+  const [{ data: { user } }, { data: assurance }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+  ]);
+  if (!user) redirect('/admin/login?next=/admin/finance-tax');
+  const [{ data: profile }, { data: employee }] = await Promise.all([
+    supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    supabase.from('employees').select('status').eq('profile_id', user.id).maybeSingle(),
+  ]);
+  const canView = assurance?.currentLevel === 'aal2'
+    && !!profile && ['owner', 'admin'].includes(profile.role)
+    && employee?.status === 'active';
+  if (!canView) redirect('/admin/login?next=/admin/finance-tax');
   return <main className="admin-v2"><AdminSidebar/><section className="admin-main">
     <header className="admin-top"><ReceiptText size={21}/><b>Finance &amp; Tax</b><span className="dashboard-date">Admin · Finance records</span><span className="avatar">SR</span></header>
     <main className="admin-content">
