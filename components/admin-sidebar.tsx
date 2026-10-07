@@ -29,7 +29,7 @@ const sections = [
     { label: 'AI Quality Control', href: '/admin/ai-quality', icon: FlaskConical }, { label: 'Product Freshness', href: '/admin/product-freshness', icon: Clock3 }, { label: 'Change Approvals', href: '/admin/product-changes', icon: GitCompareArrows }] },
   { title: 'OPERATIONS', icon: ChartNoAxesCombined, links: [
     { label: 'Dashboard', href: '/admin/dashboard', icon: ChartNoAxesCombined }, { label: 'Users', href: '/admin/users', icon: Users },
-    { label: 'Wallet & Payouts', href: '/admin/wallet', icon: WalletCards }, { label: 'Payout Operations', href: '/admin/payout-operations', icon: Banknote }, { label: 'Payment Providers', href: '/admin/payment-providers', icon: CreditCard }, { label: 'Offers & Rewards', href: '/admin/offers', icon: Gift },
+    { label: 'Wallet & Payouts', href: '/admin/wallet', icon: WalletCards }, { label: 'Payout Operations', href: '/admin/payout-operations', icon: Banknote }, { label: 'Payment Providers', href: '/admin/payment-providers', icon: CreditCard }, { label: 'Offers & Rewards', href: '/admin/offers', icon: Gift }, { label: 'Finance & Tax', href: '/admin/finance-tax', icon: ReceiptText },
   ] },
   { title: 'CATALOGUE', icon: Store, links: [
     { label: 'Stores & Brands', href: '/admin', icon: Store }, { label: 'Categories', href: '/admin/categories', icon: Boxes },
