@@ -35,10 +35,18 @@ export default async function BusinessExpensesPage({searchParams}:{searchParams:
   }
   const {data:expenses,error}=await supabase.from('business_expenses').select('*').order('expense_date',{ascending:false}).limit(300);
   const ids=(expenses??[]).map(row=>row.id);
-  const [{data:lines,error:lineError},{data:audit}]=ids.length?await Promise.all([
-    supabase.from('business_expense_lines').select('*').in('expense_id',ids).order('line_number'),
-    supabase.from('business_expense_audit').select('expense_id,entity_type,event_type,created_at').in('expense_id',ids).order('created_at',{ascending:false}).limit(100),
-  ]):[{data:[],error:null},{data:[]}];
+  let lines:any[]=[];
+  let audit:any[]=[];
+  let lineError:any=null;
+  if(ids.length) {
+    const [lineResult,auditResult]=await Promise.all([
+      supabase.from('business_expense_lines').select('*').in('expense_id',ids).order('line_number'),
+      supabase.from('business_expense_audit').select('expense_id,entity_type,event_type,created_at').in('expense_id',ids).order('created_at',{ascending:false}).limit(100),
+    ]);
+    lines=lineResult.data??[];
+    lineError=lineResult.error;
+    audit=auditResult.data??[];
+  }
   const byExpense=new Map<string,any[]>();
   for(const line of lines??[]) byExpense.set(line.expense_id,[...(byExpense.get(line.expense_id)??[]),line]);
   const auditByExpense=new Map<string,any[]>();
