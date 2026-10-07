@@ -26,7 +26,7 @@ create table public.finance_provider_documents (
   sgst_amount numeric(14,2) not null default 0 check (sgst_amount >= 0),
   igst_amount numeric(14,2) not null default 0 check (igst_amount >= 0),
   cess_amount numeric(14,2) not null default 0 check (cess_amount >= 0),
-  other_charges numeric(14,2) not null default 0 check (other_charges >= 0),
+  other_adjustments numeric(14,2) not null default 0 check (other_adjustments between -10000000 and 10000000),
   round_off numeric(8,2) not null default 0 check (round_off between -100 and 100),
   document_total numeric(14,2) not null check (document_total >= 0),
   currency text not null default 'INR' check (currency ~ '^[A-Z]{3}$'),
@@ -43,7 +43,7 @@ create table public.finance_provider_documents (
   updated_at timestamptz not null default now(),
   check ((period_start is null and period_end is null) or (period_start is not null and period_end is not null and period_end >= period_start)),
   check (counterparty_gstin is null or length(trim(counterparty_gstin)) = 15),
-  check (abs((taxable_value + cgst_amount + sgst_amount + igst_amount + cess_amount + other_charges + round_off) - document_total) <= 0.02),
+  check (abs((taxable_value + cgst_amount + sgst_amount + igst_amount + cess_amount + other_adjustments + round_off) - document_total) <= 0.02),
   check ((entry_status = 'void') = (length(trim(coalesce(void_reason,''))) > 0)),
   check (
     (document_path is null and document_file_name is null and document_mime_type is null and document_size_bytes is null)
@@ -168,7 +168,7 @@ begin
   insert into public.finance_provider_documents(
     provider_type,provider_name,provider_key,affiliate_provider_id,merchant_id,payment_provider_id,
     document_kind,document_flow,period_start,period_end,invoice_number,invoice_date,counterparty_gstin,
-    taxable_value,cgst_amount,sgst_amount,igst_amount,cess_amount,other_charges,round_off,document_total,currency,notes,
+    taxable_value,cgst_amount,sgst_amount,igst_amount,cess_amount,other_adjustments,round_off,document_total,currency,notes,
     created_by,updated_by
   ) values (
     p_document->>'providerType',trim(p_document->>'providerName'),nullif(trim(p_document->>'providerKey'),''),
@@ -182,7 +182,7 @@ begin
     coalesce(nullif(p_document->>'sgstAmount','')::numeric,0),
     coalesce(nullif(p_document->>'igstAmount','')::numeric,0),
     coalesce(nullif(p_document->>'cessAmount','')::numeric,0),
-    coalesce(nullif(p_document->>'otherCharges','')::numeric,0),
+    coalesce(nullif(p_document->>'otherAdjustments','')::numeric,0),
     coalesce(nullif(p_document->>'roundOff','')::numeric,0),total,'INR',
     nullif(trim(p_document->>'notes'),''),
     actor,actor
