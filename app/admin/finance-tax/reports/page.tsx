@@ -4,17 +4,18 @@ import { AdminSidebar } from '@/components/admin-sidebar';
 import { createClient } from '@/lib/supabase/server';
 import { AlertTriangle,ArrowLeft,Download,FileClock,ReceiptText,ShieldCheck } from 'lucide-react';
 import { getFinanceTaxReport } from '@/lib/finance-tax/report-data';
-import { fiscalYearOptions,getLatestCompletedFiscalSelection,resolveFiscalPeriod } from '@/lib/finance-tax/fiscal-period';
+import { fiscalYearOptions,getLatestCompletedFiscalSelection } from '@/lib/finance-tax/fiscal-period';
+import { resolveReportPeriod } from '@/lib/finance-tax/report-period';
 import { ReportPrintButton } from '@/components/report-print-button';
 
 export const dynamic='force-dynamic';
-type Search={fy?:string;q?:string};
+type Search={mode?:string;date?:string;from?:string;to?:string;fy?:string;q?:string};
 const money=(v:number|string|null|undefined)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(v??0));
 const sum=(rows:any[],key:string)=>rows.reduce((total,row)=>total+Number(row[key]??0),0);
 const labels=(v:string)=>v.replaceAll('_',' ');
 const localDate=(v:string)=>new Date(v).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'});
 const datasetLabels:Record<string,string>={
-  report_summary:'Quarter summary',
+  report_summary:'Selected-period summary',
   affiliate_conversions:'Affiliate commissions and conversions',
   commerce_orders:'Voucher and bill orders',
   cashback_awards:'Cashback award register',
@@ -28,8 +29,9 @@ const datasetLabels:Record<string,string>={
 export default async function FinanceTaxReportsPage({searchParams}:{searchParams:Promise<Search>}) {
   const query=await searchParams;
   const latest=getLatestCompletedFiscalSelection();
-  const period=resolveFiscalPeriod(query.fy??latest.fy,query.q??latest.q)??resolveFiscalPeriod(latest.fy,latest.q)!;
+  const period=resolveReportPeriod(query)??resolveReportPeriod({mode:'quarter',fy:latest.fy,q:latest.q})!;
   const fyOptions=fiscalYearOptions(latest.fy);
+  const selectedDate=query.date??new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata'}).format(new Date());
   const supabase=await createClient();
   const [{data:{user}},{data:assurance}]=await Promise.all([supabase.auth.getUser(),supabase.auth.mfa.getAuthenticatorAssuranceLevel()]);
   if(!user)redirect('/admin/login?next=/admin/finance-tax/reports');
@@ -65,19 +67,23 @@ export default async function FinanceTaxReportsPage({searchParams}:{searchParams
   const expensesMissing=activeExpenses.filter(row=>!row.document_name).length;
   const activeDocsByFlow=(flow:string)=>activeDocs.filter(row=>row.document_flow===flow);
   const flowTax=(flow:string,key:string)=>sum(activeDocsByFlow(flow),key);
-  const exportUrl=(dataset:string)=>`/admin/finance-tax/reports/export?fy=${encodeURIComponent(period.fy)}&q=${period.q}&dataset=${dataset}`;
+  const exportUrl=(dataset:string)=>`/admin/finance-tax/reports/export?mode=custom&from=${period.start}&to=${period.end}&dataset=${dataset}`;
   const metricStyle={display:'grid',gap:4,background:'#fff',border:'1px solid #e5e9f0',borderRadius:10,padding:15,minWidth:0};
   const labelStyle={fontSize:11,fontWeight:700,color:'#536078'};
 
   return <main className="admin-v2"><AdminSidebar/><section className="admin-main">
-    <header className="admin-top"><ReceiptText size={21}/><b>Finance &amp; Tax · Quarterly report</b><span className="dashboard-date">Auditor source pack</span><span className="avatar">SR</span></header>
+    <header className="admin-top"><ReceiptText size={21}/><b>Finance &amp; Tax · Reports</b><span className="dashboard-date">Auditor source pack</span><span className="avatar">SR</span></header>
     <main className="admin-content">
-      <div className="admin-title"><div><p>FINANCE · REPORTING</p><h1>Quarterly tax &amp; audit report</h1><span>Review source records and download period-specific registers for your auditor.</span></div><div style={{display:'flex',gap:8}}><ReportPrintButton/><Link href="/admin/finance-tax" className="add-store"><ArrowLeft size={14} style={{verticalAlign:'middle',marginRight:5}}/>Finance &amp; Tax</Link></div></div>
+      <div className="admin-title"><div><p>FINANCE · REPORTING</p><h1>Finance &amp; tax reports</h1><span>Review source records and download selected-period registers for your auditor.</span></div><div style={{display:'flex',gap:8}}><ReportPrintButton/><Link href="/admin/finance-tax" className="add-store"><ArrowLeft size={14} style={{verticalAlign:'middle',marginRight:5}}/>Finance &amp; Tax</Link></div></div>
       <form method="get" action="/admin/finance-tax/reports" style={{display:'flex',gap:10,alignItems:'end',flexWrap:'wrap',background:'#fff',border:'1px solid #e5e9f0',borderRadius:10,padding:14,marginTop:16}}>
-        <label style={{fontSize:11,fontWeight:700}}>Indian financial year<select name="fy" defaultValue={period.fy} style={{display:'block',padding:9,marginTop:5,border:'1px solid #d7deea',borderRadius:7}}>{fyOptions.map(fy=><option key={fy} value={fy}>{fy}</option>)}</select></label>
-        <label style={{fontSize:11,fontWeight:700}}>Quarter<select name="q" defaultValue={period.q} style={{display:'block',padding:9,marginTop:5,border:'1px solid #d7deea',borderRadius:7}}><option value="1">Q1 · Apr–Jun</option><option value="2">Q2 · Jul–Sep</option><option value="3">Q3 · Oct–Dec</option><option value="4">Q4 · Jan–Mar</option></select></label>
+        <label style={{fontSize:11,fontWeight:700}}>Report period<select name="mode" defaultValue={period.mode} style={{display:'block',padding:9,marginTop:5,border:'1px solid #d7deea',borderRadius:7}}><option value="day">Daily</option><option value="week">Weekly (Monday–Sunday)</option><option value="month">Monthly</option><option value="quarter">Quarterly</option><option value="custom">Custom dates</option></select></label>
+        <label style={{fontSize:11,fontWeight:700}}>Date for daily / weekly / monthly<input type="date" name="date" defaultValue={selectedDate} style={{display:'block',padding:8,marginTop:5,border:'1px solid #d7deea',borderRadius:7}}/></label>
+        <label style={{fontSize:11,fontWeight:700}}>Custom from<input type="date" name="from" defaultValue={query.from??period.start} style={{display:'block',padding:8,marginTop:5,border:'1px solid #d7deea',borderRadius:7}}/></label>
+        <label style={{fontSize:11,fontWeight:700}}>Custom to<input type="date" name="to" defaultValue={query.to??period.end} style={{display:'block',padding:8,marginTop:5,border:'1px solid #d7deea',borderRadius:7}}/></label>
+        <label style={{fontSize:11,fontWeight:700}}>FY<select name="fy" defaultValue={query.fy??latest.fy} style={{display:'block',padding:8,marginTop:5,border:'1px solid #d7deea',borderRadius:7}}>{fyOptions.map(fy=><option key={fy} value={fy}>{fy}</option>)}</select></label>
+        <label style={{fontSize:11,fontWeight:700}}>Quarter<select name="q" defaultValue={query.q??latest.q} style={{display:'block',padding:8,marginTop:5,border:'1px solid #d7deea',borderRadius:7}}><option value="1">Q1 · Apr–Jun</option><option value="2">Q2 · Jul–Sep</option><option value="3">Q3 · Oct–Dec</option><option value="4">Q4 · Jan–Mar</option></select></label>
         <button className="add-store" type="submit">Load report</button>
-        <b style={{marginLeft:'auto',fontSize:12,color:'#536078'}}>Period: {period.start} to {period.end}</b>
+        <b style={{marginLeft:'auto',fontSize:12,color:'#536078'}}>Showing {period.label} · {period.start} to {period.end}</b>
       </form>
 
       <section style={{display:'flex',gap:10,alignItems:'flex-start',padding:14,margin:'14px 0',border:'1px solid #f2d28c',borderRadius:9,background:'#fff9e9',color:'#73520a',fontSize:12,lineHeight:1.6}}>
