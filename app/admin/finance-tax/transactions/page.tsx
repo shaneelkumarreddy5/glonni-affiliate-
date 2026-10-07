@@ -33,7 +33,7 @@ const titles: Record<string,string> = {
   payout_event:'Payout event',
   voucher_bill_order:'Voucher / bill order',
 };
-const money=(value:number|string|null,currency:string|null='INR')=>value===null||value===undefined?'—':new Intl.NumberFormat('en-IN',{style:'currency',currency:currency||'INR',maximumFractionDigits:2}).format(Number(value));
+const money=(value:number|string|null,currency:string|null='INR')=>{if(value===null||value===undefined)return '—';const unit=(currency||'INR').toUpperCase();return new Intl.NumberFormat('en-IN',{style:'currency',currency:/^[A-Z]{3}$/.test(unit)?unit:'INR',maximumFractionDigits:2}).format(Number(value));};
 const shortId=(id:string|null)=>id?id.slice(0,8)+'…':'—';
 
 export default async function FinanceTaxTransactionsPage() {
@@ -71,7 +71,7 @@ export default async function FinanceTaxTransactionsPage() {
       {rows.length>0&&<section style={{background:'#fff',border:'1px solid #e5e9f0',borderRadius:10,marginTop:16,overflow:'hidden'}}>
         <div style={{overflowX:'auto'}}><table><thead><tr><th>DATE</th><th>RECORD TYPE</th><th>SOURCE / RELATED ID</th><th>REFERENCE</th><th>CUSTOMER ID</th><th>ORDER VALUE</th><th>COMMISSION</th><th>CASHBACK</th><th>RECORD AMOUNT</th><th>STATUS</th></tr></thead><tbody>
         {rows.map((row)=><tr key={row.source_type+row.source_id}>
-          <td>{new Date(row.occurred_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})}</td>
+          <td>{row.occurred_at?new Date(row.occurred_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}):'—'}</td>
           <td><b>{titles[row.source_type]??row.source_type}</b></td>
           <td><code>{shortId(row.source_id)}</code>{row.related_source_id&&<small style={{display:'block',color:'#68758b'}}>related {shortId(row.related_source_id)}</small>}</td>
           <td>{row.source_reference??'—'}</td>
