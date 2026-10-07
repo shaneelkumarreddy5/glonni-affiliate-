@@ -32,6 +32,7 @@ const titles: Record<string,string> = {
   payout_item:'Payout item',
   payout_event:'Payout event',
   voucher_bill_order:'Voucher / bill order',
+  business_expense:'Business expense / supplier invoice',
 };
 const money=(value:number|string|null,currency:string|null='INR')=>{if(value===null||value===undefined)return '—';const unit=(currency||'INR').toUpperCase();return new Intl.NumberFormat('en-IN',{style:'currency',currency:/^[A-Z]{3}$/.test(unit)?unit:'INR',maximumFractionDigits:2}).format(Number(value));};
 const shortId=(id:string|null)=>id?id.slice(0,8)+'…':'—';
