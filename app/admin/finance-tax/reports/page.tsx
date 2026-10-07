@@ -67,7 +67,7 @@ export default async function FinanceTaxReportsPage({searchParams}:{searchParams
   const expensesMissing=activeExpenses.filter(row=>!row.document_name).length;
   const activeDocsByFlow=(flow:string)=>activeDocs.filter(row=>row.document_flow===flow);
   const flowTax=(flow:string,key:string)=>sum(activeDocsByFlow(flow),key);
-  const exportUrl=(dataset:string)=>`/admin/finance-tax/reports/export?mode=${period.mode}&from=${period.start}&to=${period.end}&dataset=${dataset}`;
+  const exportUrl=(dataset:string)=>`/admin/finance-tax/reports/export?mode=custom&from=${period.start}&to=${period.end}&dataset=${dataset}`;
   const metricStyle={display:'grid',gap:4,background:'#fff',border:'1px solid #e5e9f0',borderRadius:10,padding:15,minWidth:0};
   const labelStyle={fontSize:11,fontWeight:700,color:'#536078'};
 
