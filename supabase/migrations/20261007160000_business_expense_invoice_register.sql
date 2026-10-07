@@ -39,7 +39,7 @@ create table public.business_expenses (
     or
     (document_path is not null and document_name is not null and document_mime_type in ('application/pdf','image/jpeg','image/png','image/webp') and document_size_bytes between 1 and 10485760)
   ),
-  check (vendor_gstin is null or length(trim(vendor_gstin)) = 15),
+  check (vendor_gstin is null or length(trim(vendor_gstin)) = 15)
 );
 
 create index business_expenses_date_idx on public.business_expenses (expense_date desc, created_at desc);
