@@ -60,7 +60,7 @@ export async function createFinanceProviderDocument(formData:FormData) {
   const amountKeys=['taxableValue','cgstAmount','sgstAmount','igstAmount','cessAmount','otherCharges','roundOff','documentTotal'];
   const nums=Object.fromEntries(amountKeys.map(key=>[key,Number(val(formData,key)||'0')]));
   if(!providerTypes.has(providerType)||!documentKinds.has(documentKind)||!flows.has(documentFlow)||
-    providerName.length<2||providerName.length>200||
+    providerName.length<2||providerName.length>200||providerKey.length>120||val(formData,'invoiceNumber').length>120||val(formData,'notes').length>2000||
     (periodStart&&!/^\d{4}-\d{2}-\d{2}$/.test(periodStart))||
     (periodEnd&&!/^\d{4}-\d{2}-\d{2}$/.test(periodEnd))||
     (periodStart&&!periodEnd)||(periodEnd&&!periodStart)||(periodStart&&periodEnd&&periodEnd<periodStart)||
@@ -93,7 +93,7 @@ export async function recordFinanceProviderMatch(formData:FormData) {
   const reportedAmount=Number(val(formData,'reportedAmount'));
   const note=val(formData,'matchNote');
   const sourceReference=val(formData,'sourceReference');
-  if(!documentId||!Number.isFinite(reportedAmount)||reportedAmount<0||note.length<3) fail('invalid_match');
+  if(!documentId||!Number.isFinite(reportedAmount)||reportedAmount<0||note.length<3||note.length>1000||sourceReference.length>160) fail('invalid_match');
   let error;
   if(selection==='manual') {
     ({error}=await supabase.rpc('record_manual_finance_provider_match',{
