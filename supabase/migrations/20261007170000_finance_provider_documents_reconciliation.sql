@@ -60,6 +60,11 @@ create table public.finance_provider_documents (
 create index finance_provider_documents_date_idx on public.finance_provider_documents (invoice_date desc, created_at desc);
 create index finance_provider_documents_period_idx on public.finance_provider_documents (period_start,period_end);
 create index finance_provider_documents_provider_idx on public.finance_provider_documents (provider_type,provider_name);
+create index finance_provider_docs_affiliate_idx on public.finance_provider_documents (affiliate_provider_id) where affiliate_provider_id is not null;
+create index finance_provider_docs_merchant_idx on public.finance_provider_documents (merchant_id) where merchant_id is not null;
+create index finance_provider_docs_payment_idx on public.finance_provider_documents (payment_provider_id) where payment_provider_id is not null;
+create index finance_provider_docs_created_by_idx on public.finance_provider_documents (created_by);
+create index finance_provider_docs_updated_by_idx on public.finance_provider_documents (updated_by);
 
 create table public.finance_provider_document_matches (
   id uuid primary key default gen_random_uuid(),
@@ -84,6 +89,7 @@ create table public.finance_provider_document_matches (
 );
 create index finance_provider_matches_doc_idx on public.finance_provider_document_matches (document_id,created_at);
 create index finance_provider_matches_source_idx on public.finance_provider_document_matches (source_type,source_id);
+create index finance_provider_matches_created_by_idx on public.finance_provider_document_matches (created_by);
 create unique index finance_provider_matches_source_unique
   on public.finance_provider_document_matches(document_id,source_type,source_id)
   where source_id is not null;
