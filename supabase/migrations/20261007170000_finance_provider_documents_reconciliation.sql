@@ -8,7 +8,7 @@ create table public.finance_provider_documents (
     'affiliate_network','brand','voucher_bill_provider','payment_gateway','payout_provider','other'
   )),
   provider_name text not null check (length(trim(provider_name)) between 2 and 200),
-  provider_key text,
+  provider_key text check (provider_key is null or length(trim(provider_key)) between 1 and 120),
   affiliate_provider_id uuid references public.affiliate_providers(id) on delete restrict,
   merchant_id uuid references public.merchants(id) on delete restrict,
   payment_provider_id uuid references public.payment_provider_configs(id) on delete restrict,
@@ -18,7 +18,7 @@ create table public.finance_provider_documents (
   document_flow text not null check (document_flow in ('inward','outward','settlement')),
   period_start date,
   period_end date,
-  invoice_number text,
+  invoice_number text check (invoice_number is null or length(trim(invoice_number)) <= 120),
   invoice_date date,
   counterparty_gstin text,
   taxable_value numeric(14,2) not null default 0 check (taxable_value >= 0),
@@ -30,7 +30,7 @@ create table public.finance_provider_documents (
   round_off numeric(8,2) not null default 0 check (round_off between -100 and 100),
   document_total numeric(14,2) not null check (document_total >= 0),
   currency text not null default 'INR' check (currency ~ '^[A-Z]{3}$'),
-  notes text,
+  notes text check (notes is null or length(notes) <= 2000),
   entry_status text not null default 'active' check (entry_status in ('active','void')),
   void_reason text,
   document_path text,
@@ -66,14 +66,14 @@ create table public.finance_provider_document_matches (
   document_id uuid not null references public.finance_provider_documents(id) on delete restrict,
   source_type text not null check (source_type in ('affiliate_conversion','commerce_order','payout_item','manual')),
   source_id uuid,
-  source_reference text,
+  source_reference text check (source_reference is null or length(source_reference) <= 160),
   provider_reported_amount numeric(14,2) not null check (provider_reported_amount >= 0),
   system_amount numeric(14,2) check (system_amount is null or system_amount >= 0),
   variance_amount numeric(14,2) generated always as (
     case when system_amount is null then null else provider_reported_amount - system_amount end
   ) stored,
   match_status text not null check (match_status in ('matched','difference','unmatched','manual')),
-  match_note text not null check (length(trim(match_note)) >= 3),
+  match_note text not null check (length(trim(match_note)) between 3 and 1000),
   created_by uuid not null references public.profiles(id) on delete restrict,
   created_at timestamptz not null default now(),
   check (
@@ -215,7 +215,10 @@ begin
     select c.commission_amount into expected from public.referral_conversions c
     where c.id=p_source_id
       and (doc.affiliate_provider_id is null or c.provider_id=doc.affiliate_provider_id)
-      and (doc.merchant_id is null or c.merchant_id=doc.merchant_id);
+      and (doc.merchant_id is null or c.merchant_id=doc.merchant_id)
+      and coalesce(c.currency,'INR')=doc.currency
+      and (doc.period_start is null or c.occurred_at::date>=doc.period_start)
+      and (doc.period_end is null or c.occurred_at::date<=doc.period_end);
   elsif p_source_type='commerce_order' then
     if doc.provider_type not in ('voucher_bill_provider','payment_gateway') then raise exception 'This document cannot match commerce orders'; end if;
     select o.amount into expected from public.commerce_finance_orders o
@@ -227,10 +230,16 @@ begin
       )
       and (doc.payment_provider_id is null or o.payment_provider_key=(
         select p.provider_key from public.payment_provider_configs p where p.id=doc.payment_provider_id
-      ));
+      ))
+      and o.currency=doc.currency
+      and (doc.period_start is null or o.created_at::date>=doc.period_start)
+      and (doc.period_end is null or o.created_at::date<=doc.period_end);
   elsif p_source_type='payout_item' then
     if doc.provider_type <> 'payout_provider' then raise exception 'This document cannot match payout items'; end if;
-    select i.amount into expected from public.payout_items i where i.id=p_source_id;
+    select i.amount into expected from public.payout_items i
+    where i.id=p_source_id and i.currency=doc.currency
+      and (doc.period_start is null or i.created_at::date>=doc.period_start)
+      and (doc.period_end is null or i.created_at::date<=doc.period_end);
   else
     raise exception 'Select a supported system source';
   end if;
