@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { AdminSidebar } from '@/components/admin-sidebar';
 import { createClient } from '@/lib/supabase/server';
@@ -52,6 +53,7 @@ export default async function FinanceTaxPage({searchParams}:{searchParams:Promis
       <section style={{display:'flex',gap:11,alignItems:'flex-start',padding:14,margin:'18px 0',border:'1px solid #f2d28c',borderRadius:9,background:'#fff9e9',color:'#73520a',fontSize:12,lineHeight:1.6}}>
         <AlertTriangle size={19}/><span><b>Configuration only.</b> No rate is guessed or applied to transactions. Enter a rate only after your tax adviser confirms the treatment and effective date. The next steps will connect approved codes to transaction records.</span>
       </section>
+      <Link href="/admin/finance-tax/transactions" style={{display:'flex',alignItems:'center',gap:10,padding:14,margin:'0 0 16px',border:'1px solid #dbe4f2',borderRadius:9,background:'#fff',fontSize:13,fontWeight:700,color:'#234b9a'}}><ReceiptText size={18}/>Open source-linked transaction ledger<span style={{marginLeft:'auto',fontSize:11,color:'#68758b'}}>Affiliate, cashback, wallet, payouts, voucher orders →</span></Link>
       <section style={{display:'grid',gridTemplateColumns:'minmax(0,1fr) minmax(320px,1fr)',gap:16,alignItems:'start'}}>
         <form action={saveTaxBusinessProfile} style={{background:'#fff',border:'1px solid #e5e9f0',borderRadius:10,padding:18,display:'grid',gap:12}}>
           <div style={{display:'flex',gap:10,alignItems:'center'}}><Building2 size={19}/><div><h2 style={{margin:0,fontSize:16}}>Business tax profile</h2><small style={{color:'#68758b'}}>Enter details exactly as registered.</small></div></div>
