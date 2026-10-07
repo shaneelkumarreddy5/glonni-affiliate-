@@ -25,7 +25,7 @@ function csvCell(value:any,key:string) {
     'metric_value',
   ]);
   const safe=numeric.has(key)&&Number.isFinite(Number(text))?String(Number(text)):
-    (/^[\t\r ]*[=+\-@]/.test(text)?`'${text}`:text);
+    (/^[\s]*[=+\-@]/.test(text)?`'${text}`:text);
   return `"${safe.replaceAll('"','""')}"`;
 }
 function makeCsv(columns:string[],rows:any[]) {
@@ -54,8 +54,8 @@ export async function GET(request:Request) {
 
   const report=await getFinanceTaxReport(supabase,period.start,period.end);
   if(report.errors.length)return Response.json({error:'The source data is incomplete; no auditor export was produced.',details:report.errors},{status:503});
-  const documentById=new Map(report.providerDocuments.map(doc=>[doc.id,doc]));
-  const expenseById=new Map(report.expenses.map(expense=>[expense.id,expense]));
+  const documentById=new Map<string,any>(report.providerDocuments.map(doc=>[doc.id,doc] as [string,any]));
+  const expenseById=new Map<string,any>(report.expenses.map(expense=>[expense.id,expense] as [string,any]));
   let rows:any[]=[];
   let columns:string[]=[];
 
