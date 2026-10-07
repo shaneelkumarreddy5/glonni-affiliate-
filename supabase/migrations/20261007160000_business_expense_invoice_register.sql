@@ -40,7 +40,6 @@ create table public.business_expenses (
     (document_path is not null and document_name is not null and document_mime_type in ('application/pdf','image/jpeg','image/png','image/webp') and document_size_bytes between 1 and 10485760)
   ),
   check (vendor_gstin is null or length(trim(vendor_gstin)) = 15),
-  check (invoice_date is null or invoice_date <= expense_date + 31)
 );
 
 create index business_expenses_date_idx on public.business_expenses (expense_date desc, created_at desc);
@@ -235,7 +234,7 @@ begin
     trim(p_expense ->> 'vendorName'),
     nullif(upper(trim(p_expense ->> 'vendorGstin')),''),
     nullif(trim(p_expense ->> 'invoiceNumber'),''),
-    nullif(p_expense ->> 'invoiceDate','')::date,
+    nullif(nullif(p_expense ->> 'invoiceDate',''),'')::date,
     p_expense ->> 'invoiceType',
     nullif(trim(p_expense ->> 'placeOfSupplyState'),''),
     trim(p_expense ->> 'description'),
