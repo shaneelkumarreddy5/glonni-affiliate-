@@ -224,13 +224,12 @@ begin
     select o.amount into expected from public.commerce_finance_orders o
     where o.id=p_source_id
       and (
-        doc.provider_key is null
-        or (doc.provider_type='voucher_bill_provider' and o.fulfilment_provider_key=doc.provider_key)
-        or (doc.provider_type='payment_gateway' and o.payment_provider_key=doc.provider_key)
+        (doc.provider_type='voucher_bill_provider' and doc.provider_key is not null and o.fulfilment_provider_key=doc.provider_key)
+        or
+        (doc.provider_type='payment_gateway' and o.payment_provider_key=coalesce(
+          doc.provider_key,(select p.provider_key from public.payment_provider_configs p where p.id=doc.payment_provider_id)
+        ) and (doc.provider_key is not null or doc.payment_provider_id is not null))
       )
-      and (doc.payment_provider_id is null or o.payment_provider_key=(
-        select p.provider_key from public.payment_provider_configs p where p.id=doc.payment_provider_id
-      ))
       and o.currency=doc.currency
       and (doc.period_start is null or o.created_at::date>=doc.period_start)
       and (doc.period_end is null or o.created_at::date<=doc.period_end);
