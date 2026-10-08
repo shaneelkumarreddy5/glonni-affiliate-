@@ -1,4 +1,5 @@
 import { ProductCard } from '@/components/ui/catalog-cards';
+import { SaveOfferButton } from '@/components/save-offer-button';
 import { ScrollRail } from '@/components/scroll-rail';
 import type { CatalogOffer } from '@/lib/catalog';
 import { hasCashback, rewardLabel } from '@/lib/rewards';
@@ -27,13 +28,13 @@ export function HomeOfferRail({ offers, bestDeal = false, returnTo = '/' }: { of
         storeName={merchant?.name ?? 'Store'}
         storeLogoUrl={merchant?.logo_url}
         imageUrl={product?.image_url}
-        subtitle={product?.brand || product?.categories?.name || 'Glonni deal'}
         price={formatPrice(offer.current_price)}
         originalPrice={offer.list_price == null ? null : formatPrice(offer.list_price)}
         rating={offer.customer_rating}
         ratingCount={offer.rating_count}
         badgeText={discount ? `${discount}% OFF` : null}
         badgeVariant="sale"
+        actionSlot={<SaveOfferButton compact offer={{ offerId: offer.id, productTitle: product?.title ?? 'Deal', productSlug: product?.slug ?? '', imageUrl: product?.image_url ?? null, merchantName: merchant?.name ?? 'Store', price: offer.current_price, benefit }}/>} 
         rewardText={benefit}
         rewardTone={hasCashback(offer) ? 'cashback' : bestDeal || index === 0 ? 'best' : 'neutral'}
       />;
