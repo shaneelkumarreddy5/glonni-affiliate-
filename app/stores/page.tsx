@@ -1,5 +1,8 @@
 import Link from 'next/link';
-import { Search, Store } from 'lucide-react';
+import { ChevronDown, Search, SlidersHorizontal, Store } from 'lucide-react';
+import { CustomerFilterChips } from '@/components/customer-filter-chips';
+import { CustomerSortControl } from '@/components/customer-sort-control';
+import { MobileFilterPanelBehavior } from '@/components/mobile-filter-panel-behavior';
 import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
 import { ScrollRail } from '@/components/scroll-rail';
@@ -44,6 +47,11 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
         : 0);
   const topCategories = categories.filter((category) => category.parent_id === null).sort((a, b) => a.display_order - b.display_order);
   const hasFilters = Boolean(filters.q || filters.category || filters.cashback === 'yes' || (filters.sort && filters.sort !== 'featured'));
+  const activeFilters = [
+    ...(filters.q?.trim() ? [{ label: `Search: ${filters.q.trim()}`, href: storesHref({ ...filters, q: undefined }, filters.category) }] : []),
+    ...(selectedCategory ? [{ label: selectedCategory.name, href: storesHref(filters, undefined) }] : []),
+    ...(filters.cashback === 'yes' ? [{ label: 'Cashback', href: storesHref({ ...filters, cashback: undefined }, filters.category) }] : []),
+  ];
   const heroStores = stores.filter((store) => store.logo_url).slice(0, 8);
 
   return <><Header/><main className="vertical-page stores-browse-page">
@@ -70,46 +78,42 @@ export default async function StoresPage({ searchParams }: { searchParams: Promi
     </nav>
 
     <section className="stores-directory-layout" aria-label="Store directory">
-      <aside className="stores-filter-panel">
-        <form action="/stores" method="get">
-          <header><h2>Filters</h2>{hasFilters && <Link href="/stores">Clear all</Link>}</header>
-          {filters.q && <input type="hidden" name="q" value={filters.q}/>}
-          <fieldset>
-            <legend>Category</legend>
-            <div className="stores-filter-options">
-              <label><input type="radio" name="category" value="" defaultChecked={!selectedCategory}/><span>All stores</span></label>
-              {topCategories.map((category) => <label key={category.id}>
-                <input type="radio" name="category" value={category.slug} defaultChecked={selectedCategory?.id === category.id}/>
-                <span>{category.name}</span>
-              </label>)}
-            </div>
-          </fieldset>
-          <fieldset>
-            <legend>Cashback eligible</legend>
-            <div className="stores-filter-options">
-              <label><input type="checkbox" name="cashback" value="yes" defaultChecked={filters.cashback === 'yes'}/><span>Show stores with eligible offers</span></label>
-            </div>
-          </fieldset>
-          <label className="stores-sort-control"><span>Sort by</span><select name="sort" defaultValue={filters.sort ?? 'featured'}>
-            <option value="featured">Featured</option><option value="name-asc">A–Z (Store name)</option><option value="name-desc">Z–A (Store name)</option>
-          </select></label>
-          <button type="submit">Apply filters</button>
-        </form>
-      </aside>
-
       <div className="stores-directory-results">
         <header className="stores-results-heading">
-          <div><p className="eyebrow">STORE DIRECTORY</p><h2>Browse stores</h2></div>
-          <form className="store-directory-search" action="/stores" method="get">
-            <Search size={18}/><input type="search" name="q" defaultValue={filters.q} aria-label="Search stores" placeholder="Search stores…"/>
-            {filters.category && <input type="hidden" name="category" value={filters.category}/>}
-            {filters.cashback === 'yes' && <input type="hidden" name="cashback" value="yes"/>}
-            {filters.sort && <input type="hidden" name="sort" value={filters.sort}/>}
-          </form>
+          <div><p className="eyebrow">STORE DIRECTORY</p><h2>Browse stores</h2><p>{visibleStores.length.toLocaleString('en-IN')} {visibleStores.length === 1 ? 'store' : 'stores'} available</p></div>
         </header>
+        <div className="customer-filter-controls">
+          <MobileFilterPanelBehavior/>
+          <details className="category-filter-panel" data-filter-panel>
+            <summary><span className="customer-filter-title"><SlidersHorizontal size={19} aria-hidden="true"/>Filters{activeFilters.length > 0 && <b className="customer-filter-count">{activeFilters.length}</b>}</span><ChevronDown size={18} className="category-filter-summary-mark" aria-hidden="true"/></summary>
+            <form action="/stores" method="get">
+              <input type="hidden" name="sort" value={filters.sort ?? 'featured'}/>
+              <label className="category-filter-search"><span>Search stores</span><span><Search size={15}/><input type="search" name="q" defaultValue={filters.q} placeholder="Search stores"/></span></label>
+              <fieldset>
+                <legend>Category</legend>
+                <div className="category-filter-options">
+                  <label><input type="radio" name="category" value="" defaultChecked={!selectedCategory}/><span>All stores</span></label>
+                  {topCategories.map((category) => <label key={category.id}>
+                    <input type="radio" name="category" value={category.slug} defaultChecked={selectedCategory?.id === category.id}/>
+                    <span>{category.name}</span>
+                  </label>)}
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend>Cashback eligible</legend>
+                <div className="category-filter-options">
+                  <label><input type="checkbox" name="cashback" value="yes" defaultChecked={filters.cashback === 'yes'}/><span>Show stores with eligible offers</span></label>
+                </div>
+              </fieldset>
+              <button className="category-filter-submit" type="submit">Apply filters</button>
+            </form>
+          </details>
+          <CustomerSortControl action="/stores" value={filters.sort ?? 'featured'} params={filters} options={[{ value: 'featured', label: 'Featured' }, { value: 'name-asc', label: 'A–Z' }, { value: 'name-desc', label: 'Z–A' }]}/>
+        </div>
+        <CustomerFilterChips chips={activeFilters}/>
         {visibleStores.length ? <div className="store-directory-grid">
           {visibleStores.map((store) => <StoreCard key={store.id} href={`/store/${store.slug}?from=${encodeURIComponent('/stores')}`} name={store.name} logoUrl={store.logo_url} className="directory-store-card"/>)}
-        </div> : <div className="empty-state store-directory-empty"><Store size={30}/><h2>No stores match your filters</h2><p>Try another store name or category.</p><Link href="/stores" className="primary">Show all stores</Link></div>}
+        </div> : <div className="empty-state store-directory-empty"><Store size={30}/><h2>No stores match these filters</h2><p>Try another store name or category.</p><Link href="/stores" className="primary">Show all stores</Link></div>}
       </div>
     </section>
     <CmsManagedSections pageKey="stores" slot="page_end"/>
