@@ -797,6 +797,7 @@ main.deals-page .browse-nav { margin-bottom: 8px; }
   .customer-filter-controls .deals-filter-panel[open] > .deals-filter-form { max-height: min(72vh, 620px); }
 }
 @media (max-width: 760px) {
+  html.mobile-filter-sheet-open .customer-filter-controls { z-index: 1200; }
   .customer-filter-controls { gap: 8px; margin: 13px 0 8px; }
   .customer-filter-controls .category-filter-panel,
   .customer-filter-controls .deals-filter-panel { z-index: auto; }
