@@ -81,7 +81,7 @@ export function ProductCard({
   return (
     <article className={[styles.productCard, className].filter(Boolean).join(' ')}>
       {interactive ? <Link className={styles.productCardLink} href={href}>{content}</Link> : content}
-      {actionSlot && <span className={styles.saveSlot}>{actionSlot}</span>}
+
     </article>
   )
 }
