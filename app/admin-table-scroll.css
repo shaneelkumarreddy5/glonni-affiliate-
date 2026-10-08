@@ -1,0 +1,19 @@
+.admin-v2 .admin-horizontal-table-scroll{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  overflow-x:auto!important;
+  overscroll-behavior-x:contain;
+  scrollbar-width:thin;
+  scrollbar-color:#aab8cc #f1f4f8;
+  touch-action:pan-x pan-y pinch-zoom;
+}
+.admin-v2 .admin-horizontal-table-scroll.has-horizontal-overflow{cursor:grab}
+.admin-v2 .admin-horizontal-table-scroll.is-dragging{cursor:grabbing;user-select:none;scroll-behavior:auto!important}
+.admin-v2 .admin-horizontal-table-scroll:has(>table th:nth-child(6))>table{min-width:max-content}
+.admin-v2 .admin-horizontal-table-scroll::-webkit-scrollbar{display:block!important;height:9px!important}
+.admin-v2 .admin-horizontal-table-scroll::-webkit-scrollbar-track{border-radius:8px;background:#f1f4f8}
+.admin-v2 .admin-horizontal-table-scroll::-webkit-scrollbar-thumb{border:2px solid #f1f4f8;border-radius:8px;background:#aab8cc}
+.admin-v2 .admin-horizontal-table-scroll::-webkit-scrollbar-thumb:hover{background:#8192ac}
+.admin-horizontal-scroll-hint{margin:5px 0 4px;color:#71809a;font:600 9px/1.4 'DM Sans',sans-serif}
+.admin-horizontal-scroll-hint[hidden]{display:none}
