@@ -1,0 +1,168 @@
+.support-channel-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 6px;
+  margin: 18px 0;
+  padding: 6px;
+  border: 1px solid #e1e7f0;
+  border-radius: 12px;
+  background: #f7f9fc;
+}
+
+.support-channel-tabs > a {
+  display: flex;
+  min-width: 0;
+  min-height: 60px;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent !important;
+  color: #263754;
+  box-shadow: none !important;
+  transition: border-color .16s ease, color .16s ease, background .16s ease;
+}
+
+.support-channel-tabs > a:hover {
+  border-color: #dce4ef;
+  background: #fff !important;
+  color: #152747;
+}
+
+.support-channel-tabs > a.active {
+  position: relative;
+  border-color: #dce4ef;
+  background: #fff !important;
+  color: #152747;
+}
+
+.support-channel-tabs > a.active::after {
+  position: absolute;
+  right: 12px;
+  bottom: 0;
+  left: 12px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: #e3aa08;
+  content: '';
+}
+
+.support-channel-tabs > a > svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: #64758f;
+}
+
+.support-channel-tabs > a.active > svg {
+  color: #183864;
+}
+
+.support-channel-tabs > a > span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.support-channel-tabs > a b {
+  display: block;
+  overflow: hidden;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #283854;
+  font: 700 12px 'DM Sans', sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.support-channel-tabs > a.active b {
+  color: #142344;
+}
+
+.support-channel-tabs > a small {
+  overflow: hidden;
+  color: #7c899c;
+  font: 400 10px 'DM Sans', sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .support-channel-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 2px;
+    margin: 14px 0;
+    padding: 4px;
+  }
+
+  .support-channel-tabs > a,
+  .support-home-layout > .support-channel-tabs > a {
+    min-width: 0;
+    min-height: 64px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    padding: 6px 2px;
+    border-color: transparent;
+    border-radius: 8px;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-align: center;
+  }
+
+  .support-channel-tabs > a:hover,
+  .support-home-layout > .support-channel-tabs > a:hover {
+    transform: none;
+    border-color: transparent;
+    background: transparent !important;
+  }
+
+  .support-channel-tabs > a.active,
+  .support-home-layout > .support-channel-tabs > a.active {
+    border-color: transparent;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .support-channel-tabs > a.active::after {
+    right: 8px;
+    left: 8px;
+    height: 2px;
+  }
+
+  .support-channel-tabs > a > svg,
+  .support-home-layout > .support-channel-tabs > a > svg {
+    width: 19px;
+    height: 19px;
+    padding: 0;
+    border-radius: 0;
+    background: transparent !important;
+    color: #64758f;
+  }
+
+  .support-channel-tabs > a.active > svg,
+  .support-home-layout > .support-channel-tabs > a.active > svg {
+    color: #183864;
+  }
+
+  .support-channel-tabs > a > span,
+  .support-home-layout > .support-channel-tabs > a > span {
+    display: block;
+    width: 100%;
+  }
+
+  .support-channel-tabs > a b,
+  .support-home-layout > .support-channel-tabs > a b {
+    overflow-wrap: anywhere;
+    font-size: 9px;
+    line-height: 12px;
+    white-space: normal;
+  }
+
+  .support-channel-tabs > a small {
+    display: none;
+  }
+}

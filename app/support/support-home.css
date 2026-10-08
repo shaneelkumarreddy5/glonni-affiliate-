@@ -124,16 +124,6 @@
   white-space: nowrap;
 }
 
-.support-home-layout > .support-channel-nav a::after {
-  width: 7px;
-  height: 7px;
-  margin-left: auto;
-  border-top: 1.5px solid #536783;
-  border-right: 1.5px solid #536783;
-  content: '';
-  transform: rotate(45deg);
-}
-
 .support-home-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.88fr) minmax(285px, .86fr);
@@ -553,8 +543,7 @@
     line-height: 12px;
   }
 
-  .support-home-layout > .support-channel-nav a small,
-  .support-home-layout > .support-channel-nav a::after {
+  .support-home-layout > .support-channel-nav a small {
     display: none;
   }
 

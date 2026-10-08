@@ -11,7 +11,7 @@ const channels: Array<{ key: Channel; label: string; description: string; href: 
 ];
 
 export function SupportChannelNav({ active }: { active: Channel }) {
-  return <nav className="support-channel-nav" aria-label="Support channels">
+  return <nav className="support-channel-nav support-channel-tabs" aria-label="Support channels">
     {channels.map(({ key, label, description, href, icon: Icon }) => <Link key={key} href={href} className={key === active ? 'active' : ''} aria-current={key === active ? 'page' : undefined}><Icon size={17}/><span><b>{label}</b><small>{description}</small></span></Link>)}
   </nav>;
 }

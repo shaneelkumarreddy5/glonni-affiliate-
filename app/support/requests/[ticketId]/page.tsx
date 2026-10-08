@@ -8,6 +8,7 @@ import { replyToSupportTicket } from '../../actions';
 import { SupportChannelNav } from '@/components/support-channel-nav';
 import '../../support.css';
 import '../tickets.css';
+import '../../support-tabs.css';
 
 type Ticket={id:string;ticket_number:string;subject:string;category:string;status:string;support_state:string;source_channel:string;created_at:string;updated_at:string;resolution_note:string|null};
 type Message={id:string;author_type:string;body:string;created_at:string};

@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createSupportTicket } from '../actions';
 import { SupportChannelNav } from '@/components/support-channel-nav';
 import '../support.css';
+import '../support-tabs.css';
 import './tickets.css';
 
 type Ticket={id:string;ticket_number:string;subject:string;category:string;status:string;support_state:string;source_channel:string;updated_at:string};

@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import './support.css';
 import './support-home.css';
+import './support-tabs.css';
 
 export default async function SupportPage() {
   const supabase = await createClient();

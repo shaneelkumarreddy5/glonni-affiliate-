@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createSupportTicket } from '../actions';
 import { SupportChannelNav } from '@/components/support-channel-nav';
 import '../support.css';
+import '../support-tabs.css';
 
 export default async function ContactSupportPage() {
   const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser();

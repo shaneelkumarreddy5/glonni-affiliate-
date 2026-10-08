@@ -6,6 +6,7 @@ import { SupportChannelNav } from '@/components/support-channel-nav';
 import { createClient } from '@/lib/supabase/server';
 import { createSupportTicket } from '../actions';
 import '../support.css';
+import '../support-tabs.css';
 
 export default async function VoiceSupportPage() {
   const supabase = await createClient();
