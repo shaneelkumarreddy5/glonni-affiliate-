@@ -31,7 +31,6 @@ export function OfferGrid({ offers, contextHref, storeCounts, dealMode = false }
       storeName={merchant?.name ?? 'Store'}
       storeLogoUrl={merchant?.logo_url}
       imageUrl={product?.image_url}
-      subtitle={dealMode ? `Best at ${merchant?.name ?? 'this store'}` : `${merchant?.name ?? 'Store'} · ${product?.categories?.name ?? 'Catalogue'}`}
       price={formatPrice(offer.current_price)}
       originalPrice={offer.list_price == null ? null : formatPrice(offer.list_price)}
       rewardText={rewardLabel(offer)}
