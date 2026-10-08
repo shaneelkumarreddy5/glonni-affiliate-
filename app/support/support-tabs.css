@@ -1,4 +1,8 @@
 .support-channel-tabs {
+  box-sizing: border-box;
+  width: 100%;
+  height: auto;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: stretch;
