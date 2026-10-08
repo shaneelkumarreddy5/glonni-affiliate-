@@ -660,3 +660,216 @@ main.deals-page .browse-nav { margin-bottom: 8px; }
   .category-filter-panel[open] .category-filter-submit,
   .deals-filter-panel[open] .deals-filter-form > button { min-height: 48px; margin-top: 12px; font-size: 14px; }
 }
+
+
+/* Shared compact filter toolbar used on Deals, Category and Store offer listings. */
+.deals-page .deals-layout,
+.category-browse-page .category-deals,
+.store-detail-page .category-deals {
+  display: block;
+}
+.customer-filter-controls {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  margin: 16px 0 9px;
+}
+.customer-filter-controls .category-filter-panel,
+.customer-filter-controls .deals-filter-panel {
+  position: relative;
+  z-index: 4;
+  top: auto;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+}
+.customer-filter-controls .category-filter-panel > summary,
+.customer-filter-controls .deals-filter-panel > summary,
+.customer-sort-control {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 54px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 18px;
+  border: 1px solid #dce3ee;
+  border-radius: 12px;
+  color: var(--glonni-navy);
+  background: #f4f6fa;
+  font: 600 16px/1.2 var(--glonni-font-sans);
+  text-align: left;
+}
+.customer-filter-controls .category-filter-panel > summary,
+.customer-filter-controls .deals-filter-panel > summary { justify-content: space-between; cursor: pointer; list-style: none; }
+.customer-filter-controls .category-filter-panel > summary::-webkit-details-marker,
+.customer-filter-controls .deals-filter-panel > summary::-webkit-details-marker { display: none; }
+.customer-filter-title { display: inline-flex; min-width: 0; align-items: center; gap: 12px; }
+.customer-filter-title > svg { flex: 0 0 auto; stroke-width: 2; }
+.customer-filter-count {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--glonni-navy);
+  background: var(--glonni-yellow);
+  font-size: 18px;
+  font-weight: 800;
+}
+.customer-filter-controls .category-filter-summary-mark,
+.customer-filter-controls .deals-filter-chevron { flex: 0 0 auto; color: var(--glonni-navy); }
+.customer-sort-control { position: relative; gap: 10px; padding-right: 14px; }
+.customer-sort-control > svg:first-child { flex: 0 0 auto; }
+.customer-sort-control label { flex: 0 0 auto; white-space: nowrap; }
+.customer-sort-control select {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  color: var(--glonni-navy);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.customer-sort-control > svg:last-child { flex: 0 0 auto; pointer-events: none; }
+.customer-filter-controls .category-filter-panel[open] > form,
+.customer-filter-controls .deals-filter-panel[open] > .deals-filter-form {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  left: 0;
+  box-sizing: border-box;
+  width: min(480px, calc(100vw - 40px));
+  max-height: min(72vh, 620px);
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid #dce3ee;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 14px 36px rgb(15 28 59 / 18%);
+  overscroll-behavior: contain;
+}
+.customer-filter-controls .category-filter-panel > .category-filter-clear,
+.customer-filter-controls .deals-filter-panel > .deals-filter-clear { display: none; }
+.customer-filter-chips {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+  margin: 0 0 14px;
+  overflow-x: auto;
+  padding: 2px 0 4px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.customer-filter-chips::-webkit-scrollbar { display: none; }
+.customer-filter-chips > a {
+  display: inline-flex;
+  min-height: 40px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 999px;
+  color: #18375f;
+  background: #e3f1ff;
+  font: 500 14px/1.2 var(--glonni-font-sans);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.customer-filter-chips > a:hover { background: #d5eaff; }
+.customer-filter-chips > a svg { flex: 0 0 auto; }
+@media (min-width: 761px) {
+  .deals-page .deals-layout { margin-top: 8px; }
+  .customer-filter-controls .category-filter-panel[open] > form,
+  .customer-filter-controls .deals-filter-panel[open] > .deals-filter-form { max-height: min(72vh, 620px); }
+}
+@media (max-width: 760px) {
+  .customer-filter-controls { gap: 8px; margin: 13px 0 8px; }
+  .customer-filter-controls .category-filter-panel,
+  .customer-filter-controls .deals-filter-panel { z-index: auto; }
+  .customer-filter-controls .category-filter-panel:not([open]),
+  .customer-filter-controls .deals-filter-panel:not([open]) { min-height: 52px; padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .customer-filter-controls .category-filter-panel:not([open]) > summary,
+  .customer-filter-controls .deals-filter-panel:not([open]) > summary,
+  .customer-sort-control { min-height: 52px; gap: 7px; padding: 0 10px; border-radius: 11px; font-size: 13px; }
+  .customer-filter-title { gap: 7px; }
+  .customer-filter-count { width: 28px; height: 28px; flex-basis: 28px; font-size: 14px; }
+  .customer-filter-controls .category-filter-panel:not([open]) .category-filter-summary-mark,
+  .customer-filter-controls .deals-filter-panel:not([open]) .deals-filter-chevron { width: 16px; }
+  .customer-sort-control { gap: 6px; padding-right: 8px; }
+  .customer-sort-control > svg:first-child { width: 17px; }
+  .customer-sort-control > svg:last-child { width: 15px; }
+  .customer-sort-control label { font-size: 12px; }
+  .customer-sort-control select { font-size: 12px; }
+  .customer-filter-chips { gap: 7px; margin-bottom: 12px; }
+  .customer-filter-chips > a { min-height: 36px; padding: 7px 11px; font-size: 13px; }
+  .customer-filter-controls .category-filter-panel[open],
+  .customer-filter-controls .deals-filter-panel[open] {
+    position: fixed;
+    z-index: 1200;
+    inset: auto 0 0;
+    width: 100%;
+    max-height: min(86dvh, 720px);
+    display: block;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 10px 16px max(18px, env(safe-area-inset-bottom));
+    border: 1px solid var(--glonni-sky-tint);
+    border-radius: 20px 20px 0 0;
+    background: #f3f5fa;
+    box-shadow: 0 -8px 34px rgb(15 28 59 / 17%);
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .customer-filter-controls .category-filter-panel[open] > form,
+  .customer-filter-controls .deals-filter-panel[open] > .deals-filter-form {
+    position: static;
+    width: auto;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+  .customer-filter-controls .category-filter-panel[open] > summary,
+  .customer-filter-controls .deals-filter-panel[open] > summary {
+    position: sticky;
+    z-index: 2;
+    top: -10px;
+    min-height: 52px;
+    margin: -10px -16px 8px;
+    padding: 0 18px;
+    border-bottom: 1px solid rgb(27 42 78 / 8%);
+    border-radius: 20px 20px 0 0;
+    background: #f3f5fa;
+  }
+  .customer-filter-controls .category-filter-panel[open] > summary::after,
+  .customer-filter-controls .deals-filter-panel[open] > summary::after {
+    content: "Done";
+    color: color-mix(in srgb,var(--glonni-navy) 68%,#fff);
+    font: 600 13px/1 var(--glonni-font-sans);
+  }
+  .customer-filter-controls .category-filter-panel[open] .category-filter-summary-mark,
+  .customer-filter-controls .deals-filter-panel[open] .deals-filter-chevron { display: none; }
+  .customer-filter-controls .category-filter-panel[open] .category-filter-options,
+  .customer-filter-controls .deals-filter-panel[open] .deals-filter-options { max-height: 150px; }
+  .customer-filter-controls .category-filter-panel[open] .category-filter-options label,
+  .customer-filter-controls .deals-filter-panel[open] .deals-filter-options label { min-height: 38px; font-size: 13px; }
+  .customer-filter-controls .category-filter-panel[open] .category-filter-submit,
+  .customer-filter-controls .deals-filter-panel[open] .deals-filter-form > button { min-height: 48px; margin-top: 12px; font-size: 14px; }
+}

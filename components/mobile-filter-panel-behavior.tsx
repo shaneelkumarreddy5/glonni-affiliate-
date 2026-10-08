@@ -2,55 +2,45 @@
 
 import { useEffect } from 'react';
 
-const FILTER_PANEL_SELECTOR = '.category-filter-panel, .deals-filter-panel';
+const FILTER_PANEL_SELECTOR = '[data-filter-panel]';
 
 export function MobileFilterPanelBehavior() {
   useEffect(() => {
     const panels = Array.from(document.querySelectorAll<HTMLDetailsElement>(FILTER_PANEL_SELECTOR));
     if (!panels.length) return;
 
-    const isMobile = () => window.matchMedia('(max-width: 760px)').matches;
-    let previousMobile: boolean | null = null;
-    const updateScrollLock = () => {
-      const shouldLock = isMobile() && panels.some((panel) => panel.open);
-      document.documentElement.classList.toggle('mobile-filter-sheet-open', shouldLock);
-    };
-    const syncViewport = () => {
-      const mobile = isMobile();
-      if (mobile !== previousMobile) {
+    const media = window.matchMedia('(max-width: 760px)');
+    let wasMobile: boolean | null = null;
+    const sync = () => {
+      const mobile = media.matches;
+      if (wasMobile !== mobile) {
         panels.forEach((panel) => { panel.open = !mobile; });
-        previousMobile = mobile;
+        wasMobile = mobile;
       }
-      updateScrollLock();
+      document.documentElement.classList.toggle('mobile-filter-sheet-open', mobile && panels.some((panel) => panel.open));
     };
-    const handleToggle = () => updateScrollLock();
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      panels.forEach((panel) => { if (isMobile()) panel.open = false; });
-      updateScrollLock();
+    const updateLock = () => document.documentElement.classList.toggle('mobile-filter-sheet-open', media.matches && panels.some((panel) => panel.open));
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && media.matches) panels.forEach((panel) => { panel.open = false; });
     };
-    const handleOutsideClick = (event: MouseEvent) => {
-      if (!isMobile()) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!media.matches) return;
       panels.forEach((panel) => {
         if (panel.open && !panel.contains(event.target as Node)) panel.open = false;
       });
-      updateScrollLock();
     };
-
-    panels.forEach((panel) => panel.addEventListener('toggle', handleToggle));
-    window.addEventListener('resize', syncViewport);
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('click', handleOutsideClick);
-    syncViewport();
-
+    panels.forEach((panel) => panel.addEventListener('toggle', updateLock));
+    media.addEventListener('change', sync);
+    document.addEventListener('keydown', handleEscape);
+    document.addEventListener('click', handleClickOutside);
+    sync();
     return () => {
-      panels.forEach((panel) => panel.removeEventListener('toggle', handleToggle));
-      window.removeEventListener('resize', syncViewport);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('click', handleOutsideClick);
+      panels.forEach((panel) => panel.removeEventListener('toggle', updateLock));
+      media.removeEventListener('change', sync);
+      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('click', handleClickOutside);
       document.documentElement.classList.remove('mobile-filter-sheet-open');
     };
   }, []);
-
   return null;
 }

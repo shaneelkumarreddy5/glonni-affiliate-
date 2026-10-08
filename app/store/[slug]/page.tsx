@@ -1,7 +1,10 @@
 import { Fragment, type ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Clock3, ExternalLink, RotateCcw, Search, ShoppingBag, Store, WalletCards } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ChevronDown, Clock3, ExternalLink, Search, ShoppingBag, SlidersHorizontal, Store, WalletCards } from 'lucide-react';
 import { notFound } from 'next/navigation';
+import { CustomerFilterChips } from '@/components/customer-filter-chips';
+import { CustomerSortControl } from '@/components/customer-sort-control';
+
 import { MobileFilterPanelBehavior } from '@/components/mobile-filter-panel-behavior';
 import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
@@ -163,6 +166,14 @@ export default async function StorePage({ params, searchParams }: { params: Prom
   const filteredStoreOffers = sortOffers(matchingStoreOffers, filters.sort ?? 'relevance');
   const collection = ['top25', 'top-cashback'].includes(filters.collection ?? '') ? filters.collection! : 'top50';
   const hasStoreFilters = Boolean(query || selectedCategorySlugs.length || filters.cashback === 'yes' || filters.price);
+  const activeStoreFilterCount = selectedCategorySlugs.length + (filters.q?.trim() ? 1 : 0) + (filters.cashback === 'yes' ? 1 : 0) + (filters.price ? 1 : 0);
+  const storePriceLabels: Record<string, string> = { 'under-1000': 'Under ₹1,000', '1000-5000': '₹1,000 – ₹5,000', '5000-10000': '₹5,000 – ₹10,000', 'over-10000': 'Above ₹10,000' };
+  const activeStoreFilterChips = [
+    ...(filters.q?.trim() ? [{ label: `Search: ${filters.q.trim()}`, href: storeFilterPath(slug, { ...filters, q: '' }) }] : []),
+    ...selectedCategorySlugs.map((value) => ({ label: categories.find((item) => item.slug === value)?.name ?? value, href: storeFilterPath(slug, { ...filters, category: selectedCategorySlugs.filter((item) => item !== value) }) })),
+    ...(filters.price ? [{ label: storePriceLabels[filters.price] ?? 'Price filter', href: storeFilterPath(slug, { ...filters, price: '' }) }] : []),
+    ...(filters.cashback === 'yes' ? [{ label: 'Cashback', href: storeFilterPath(slug, { ...filters, cashback: '' }) }] : []),
+  ];
   const storeBrowsePath = storeFilterPath(slug, { ...filters, from: returnPath });
   const clearStoreFiltersPath = storeFilterPath(slug, { from: returnPath });
   const layout = await getPublishedWebsiteLayout('stores');
@@ -230,25 +241,28 @@ export default async function StorePage({ params, searchParams }: { params: Prom
       </section>}
       <section className={styles.catalogSection} id="store-catalog" aria-labelledby="store-catalog-title">
         <div className="category-deals">
-          <MobileFilterPanelBehavior/>
-          <details className="category-filter-panel" open>
-            <summary><span>Filters</span><span className="category-filter-summary-mark" aria-hidden="true">⌄</span></summary>
-            {hasStoreFilters && <Link className="category-filter-clear" href={clearStoreFiltersPath}><RotateCcw size={13}/>Clear</Link>}
+          <div className="category-deal-results">
+            <header className="category-deal-heading"><div><h2 id="store-catalog-title">{renderWebsiteRichText(productContent.title || `Deals on ${store.name}`)}</h2><p>{productContent.body ? renderWebsiteRichText(productContent.body) : `${filteredStoreOffers.length.toLocaleString('en-IN')} products with active offers from this store.`}</p></div><span>{displayedStoreOffers.length} shown</span></header>
+            <div className="customer-filter-controls">
+              <MobileFilterPanelBehavior/>
+              <details className="category-filter-panel" open data-filter-panel>
+            <summary><span className="customer-filter-title"><SlidersHorizontal size={19} aria-hidden="true"/>Filters{activeStoreFilterCount > 0 && <b className="customer-filter-count">{activeStoreFilterCount}</b>}</span><ChevronDown size={18} className="category-filter-summary-mark" aria-hidden="true"/></summary>
             <form action={`/store/${encodeURIComponent(store.slug)}`} method="get">
               <input type="hidden" name="from" value={returnPath}/>
-              <input type="hidden" name="collection" value={collection}/>
+              <input type="hidden" name="collection" value={collection}/><input type="hidden" name="sort" value={filters.sort ?? "relevance"}/>
               <label className="category-filter-search"><span>Search products</span><span><Search size={15}/><input type="search" name="q" defaultValue={filters.q} placeholder={`Search ${store.name}`}/></span></label>
               {allStoreCategories.length > 0 && <fieldset><legend>Category</legend><div className="category-filter-options category-filter-subcategories">{allStoreCategories.map((category) => <label key={category.id} style={{ paddingInlineStart: `${Math.min(category.level, 4) * 8}px` }}><input type="checkbox" name="category" value={category.slug} defaultChecked={selectedCategorySlugs.includes(category.slug)}/><span>{category.name}</span><small>{storeCategoryCounts.get(category.slug) ?? 0}</small></label>)}</div></fieldset>}
               <fieldset><legend>Price</legend><div className="category-filter-options">
                 {[['', 'Any price'], ['under-1000', 'Under ₹1,000'], ['1000-5000', '₹1,000 – ₹5,000'], ['5000-10000', '₹5,000 – ₹10,000'], ['over-10000', 'Above ₹10,000']].map(([value, label]) => <label key={value || 'any-price'}><input type="radio" name="price" value={value} defaultChecked={(filters.price ?? '') === value}/><span>{label}</span></label>)}
               </div></fieldset>
               <fieldset><legend>Cashback eligible</legend><div className="category-filter-options"><label><input type="checkbox" name="cashback" value="yes" defaultChecked={filters.cashback === 'yes'}/><span>Show only cashback offers</span><small>{cashbackProductCount}</small></label></div></fieldset>
-              <label className="category-sort-control"><span>Sort by</span><select name="sort" defaultValue={filters.sort ?? 'relevance'}><option value="relevance">Relevance</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="cashback">Highest cashback</option><option value="discount">Biggest discount</option></select></label>
               <button className="category-filter-submit" type="submit">Apply filters</button>
             </form>
           </details>
-          <div className="category-deal-results">
-            <header className="category-deal-heading"><div><h2 id="store-catalog-title">{renderWebsiteRichText(productContent.title || `Deals on ${store.name}`)}</h2><p>{productContent.body ? renderWebsiteRichText(productContent.body) : `${filteredStoreOffers.length.toLocaleString('en-IN')} products with active offers from this store.`}</p></div><span>{displayedStoreOffers.length} shown</span></header>
+              <CustomerSortControl action={`/store/${encodeURIComponent(store.slug)}`} value={filters.sort ?? 'relevance'} params={{ ...filters, from: returnPath, collection }} options={[{ value: 'relevance', label: 'Relevance' }, { value: 'price-low', label: 'Price: low to high' }, { value: 'price-high', label: 'Price: high to low' }, { value: 'cashback', label: 'Highest cashback' }, { value: 'discount', label: 'Biggest discount' }]}/>
+            </div>
+            <CustomerFilterChips chips={activeStoreFilterChips}/>
+
             <nav className="category-collections" aria-label={`${store.name} deal collections`}>
               {[
                 ['top50', 'Top 50'],
@@ -256,7 +270,6 @@ export default async function StorePage({ params, searchParams }: { params: Prom
                 ['top-cashback', 'Top cashback'],
               ].map(([key, label]) => <Link key={key} href={storeFilterPath(slug, { ...filters, from: returnPath, collection: key })} aria-current={collection === key ? 'page' : undefined} className={collection === key ? 'active' : ''}>{label}</Link>)}
             </nav>
-            {hasStoreFilters && <Link className="category-clear-filters" href={clearStoreFiltersPath}><RotateCcw size={14}/>Clear filters</Link>}
             {displayedStoreOffers.length ? <OfferGrid offers={displayedStoreOffers} contextHref={storeBrowsePath}/> : <div className="empty-state category-empty"><Store size={30}/><h2>{hasStoreFilters ? 'No products match these filters' : `No products from ${store.name} yet`}</h2><p>{hasStoreFilters ? 'Clear a filter or try a broader search.' : `Approved products with active offers from ${store.name} will appear here.`}</p>{hasStoreFilters && <Link href={clearStoreFiltersPath} className="primary">Clear all filters</Link>}</div>}
           </div>
         </div>

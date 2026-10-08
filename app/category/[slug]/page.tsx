@@ -1,6 +1,9 @@
 import Link from 'next/link';
-import { ArrowRight, ChevronRight, RotateCcw, Search, Store } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronRight, Search, SlidersHorizontal, Store } from 'lucide-react';
 import { notFound } from 'next/navigation';
+import { CustomerFilterChips } from '@/components/customer-filter-chips';
+import { CustomerSortControl } from '@/components/customer-sort-control';
+
 import { MobileFilterPanelBehavior } from '@/components/mobile-filter-panel-behavior';
 import { Header } from '@/components/header';
 import { OfferGrid } from '@/components/offer-grid';
@@ -116,6 +119,15 @@ export default async function CategoryPage({ params, searchParams }: { params: P
   const productOffers = sortOffers(uniqueOffers(filteredOffers), filters.sort ?? 'relevance');
   const cashbackCount = new Set(allOffers.filter(hasCashback).map((offer) => offer.products?.id).filter(Boolean)).size;
   const hasFilters = Boolean(query || selectedStores.length || selectedSubcategories.length || filters.cashback === 'yes' || filters.price);
+  const activeFilterCount = selectedStores.length + selectedSubcategories.length + (filters.q?.trim() ? 1 : 0) + (filters.cashback === 'yes' ? 1 : 0) + (filters.price ? 1 : 0);
+  const priceLabels: Record<string, string> = { 'under-1000': 'Under ₹1,000', '1000-5000': '₹1,000 – ₹5,000', '5000-10000': '₹5,000 – ₹10,000', 'over-10000': 'Above ₹10,000' };
+  const activeFilterChips = [
+    ...(filters.q?.trim() ? [{ label: `Search: ${filters.q.trim()}`, href: categoryLink(category.slug, filters, { q: '' }) }] : []),
+    ...selectedSubcategories.map((value) => ({ label: categories.find((item) => item.slug === value)?.name ?? value, href: categoryLink(category.slug, filters, { subcategory: selectedSubcategories.filter((item) => item !== value) }) })),
+    ...selectedStores.map((value) => ({ label: stores.find((item) => item.slug === value)?.name ?? value, href: categoryLink(category.slug, filters, { store: selectedStores.filter((item) => item !== value) }) })),
+    ...(filters.price ? [{ label: priceLabels[filters.price] ?? 'Price filter', href: categoryLink(category.slug, filters, { price: '' }) }] : []),
+    ...(filters.cashback === 'yes' ? [{ label: 'Cashback', href: categoryLink(category.slug, filters, { cashback: '' }) }] : []),
+  ];
   const collection = ['top25', 'top-cashback'].includes(filters.collection ?? '') ? filters.collection! : 'top50';
   const displayedOffers = collection === 'top-cashback'
     ? sortOffers(productOffers, 'cashback').slice(0, 50)
@@ -158,11 +170,15 @@ export default async function CategoryPage({ params, searchParams }: { params: P
 
     <section className="category-deals" id="category-deals" aria-labelledby="category-deals-title">
       <MobileFilterPanelBehavior/>
-      <details className="category-filter-panel" open>
-        <summary><span>Filters</span><span className="category-filter-summary-mark" aria-hidden="true">⌄</span></summary>
-        {hasFilters && <Link className="category-filter-clear" href={`/category/${category.slug}`}><RotateCcw size={13}/>Clear</Link>}
+
+
+      <div className="category-deal-results">
+        <header className="category-deal-heading"><div><h2 id="category-deals-title">Top deals in {category.name}</h2><p>{productOffers.length.toLocaleString('en-IN')} products with available offers</p></div><span>{displayedOffers.length} shown</span></header>
+        <div className="customer-filter-controls">
+          <details className="category-filter-panel" open data-filter-panel>
+        <summary><span className="customer-filter-title"><SlidersHorizontal size={19} aria-hidden="true"/>Filters{activeFilterCount > 0 && <b className="customer-filter-count">{activeFilterCount}</b>}</span><ChevronDown size={18} className="category-filter-summary-mark" aria-hidden="true"/></summary>
         <form action={`/category/${category.slug}`} method="get">
-          <input type="hidden" name="collection" value={collection}/>
+          <input type="hidden" name="collection" value={collection}/><input type="hidden" name="sort" value={filters.sort ?? "relevance"}/>
           <label className="category-filter-search"><span>Search products</span><span><Search size={15}/><input type="search" name="q" defaultValue={filters.q} placeholder={`Search ${category.name}`}/></span></label>
           {categoryChildren.length > 0 && <fieldset><legend>Category</legend><div className="category-filter-options category-filter-subcategories">{categoryChildren.map((item) => <label key={item.id} style={{ paddingInlineStart: `${Math.min(item.level, 4) * 8}px` }}><input type="checkbox" name="subcategory" value={item.slug} defaultChecked={selectedSubcategories.includes(item.slug)}/><span>{item.name}</span><small>{subcategoryCounts.get(item.slug) ?? 0}</small></label>)}</div></fieldset>}
           {categoryStores.length > 0 && <fieldset><legend>Store</legend><div className="category-filter-options">{categoryStores.map((store) => <label key={store.id}><input type="checkbox" name="store" value={store.slug} defaultChecked={selectedStores.includes(store.slug)}/><span>{store.name}</span><small>{storeProducts.get(store.slug)?.size ?? 0}</small></label>)}</div></fieldset>}
@@ -170,13 +186,13 @@ export default async function CategoryPage({ params, searchParams }: { params: P
             {[['', 'Any price'], ['under-1000', 'Under ₹1,000'], ['1000-5000', '₹1,000 – ₹5,000'], ['5000-10000', '₹5,000 – ₹10,000'], ['over-10000', 'Above ₹10,000']].map(([value, label]) => <label key={value || 'any-price'}><input type="radio" name="price" value={value} defaultChecked={(filters.price ?? '') === value}/><span>{label}</span></label>)}
           </div></fieldset>
           <fieldset><legend>Cashback eligible</legend><div className="category-filter-options"><label><input type="checkbox" name="cashback" value="yes" defaultChecked={filters.cashback === 'yes'}/><span>Show only cashback offers</span><small>{cashbackCount}</small></label></div></fieldset>
-          <label className="category-sort-control"><span>Sort by</span><select name="sort" defaultValue={filters.sort ?? 'relevance'}><option value="relevance">Relevance</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="cashback">Highest cashback</option><option value="discount">Biggest discount</option></select></label>
           <button className="category-filter-submit" type="submit">Apply filters</button>
         </form>
       </details>
+          <CustomerSortControl action={`/category/${category.slug}`} value={filters.sort ?? 'relevance'} params={{ ...filters, collection }} options={[{ value: 'relevance', label: 'Relevance' }, { value: 'price-low', label: 'Price: low to high' }, { value: 'price-high', label: 'Price: high to low' }, { value: 'cashback', label: 'Highest cashback' }, { value: 'discount', label: 'Biggest discount' }]}/>
+        </div>
+        <CustomerFilterChips chips={activeFilterChips}/>
 
-      <div className="category-deal-results">
-        <header className="category-deal-heading"><div><h2 id="category-deals-title">Top deals in {category.name}</h2><p>{productOffers.length.toLocaleString('en-IN')} products with available offers</p></div><span>{displayedOffers.length} shown</span></header>
         <nav className="category-collections" aria-label="Product collections">
           {[
             ['top50', 'Top 50'],
@@ -184,7 +200,6 @@ export default async function CategoryPage({ params, searchParams }: { params: P
             ['top-cashback', 'Top cashback'],
           ].map(([key, label]) => <Link key={key} href={categoryLink(category.slug, filters, { collection: key })} aria-current={collection === key ? 'page' : undefined} className={collection === key ? 'active' : ''}>{label}</Link>)}
         </nav>
-        {hasFilters && <Link className="category-clear-filters" href={`/category/${category.slug}`}><RotateCcw size={14}/>Clear filters</Link>}
         {displayedOffers.length ? <OfferGrid offers={displayedOffers} contextHref={categoryLink(category.slug, filters, {})}/> : <div className="empty-state category-empty"><Store size={30}/><h2>{hasFilters ? 'No products match these filters' : `No products in ${category.name} yet`}</h2><p>{hasFilters ? 'Clear a filter or try a broader search.' : `Approved products assigned to ${category.name} or its subcategories will appear here automatically.`}</p>{hasFilters && <Link href={`/category/${category.slug}`} className="primary">Clear all filters</Link>}</div>}
       </div>
     </section>

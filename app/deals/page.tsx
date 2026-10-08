@@ -14,9 +14,10 @@ import {
   SlidersHorizontal,
   Sparkles,
   Tag,
-  X,
 } from 'lucide-react';
 import { MobileFilterPanelBehavior } from '@/components/mobile-filter-panel-behavior';
+import { CustomerFilterChips } from '@/components/customer-filter-chips';
+import { CustomerSortControl } from '@/components/customer-sort-control';
 import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
 import { OfferGrid } from '@/components/offer-grid';
@@ -177,11 +178,15 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
 
     <CmsManagedSections pageKey="deals" slot="before_results"/>
     <div className="deals-layout">
-      <MobileFilterPanelBehavior/>
-      <details className="deals-filter-panel" open>
-        <summary><span><SlidersHorizontal size={17}/>Filters</span><ChevronDown size={18} className="deals-filter-chevron" aria-hidden="true"/></summary>
-        {activeFilters.length > 0 && <Link className="deals-filter-clear" href="/deals">Clear all filters</Link>}
-        <form action="/deals" method="get" className="deals-filter-form">
+
+
+      <section className="deals-results" id="deals-results" aria-labelledby="deals-results-title">
+        <div className="deals-toolbar"><div><h2 id="deals-results-title">{isTrending ? 'Popular right now' : title}</h2><small>{products.length.toLocaleString('en-IN')} {products.length === 1 ? 'product' : 'products'} with available offers</small></div></div>
+        <div className="customer-filter-controls">
+          <MobileFilterPanelBehavior/>
+          <details className="deals-filter-panel" open data-filter-panel>
+        <summary><span className="customer-filter-title"><SlidersHorizontal size={19} aria-hidden="true"/>Filters{activeFilters.length > 0 && <b className="customer-filter-count">{activeFilters.length}</b>}</span><ChevronDown size={18} className="deals-filter-chevron" aria-hidden="true"/></summary>
+        <form action="/deals" method="get" className="deals-filter-form"><input type="hidden" name="sort" value={sort}/>
           <label className="deals-filter-search"><span>Search products</span><span className="deals-filter-search-box"><Search size={16}/><input type="search" name="q" defaultValue={filters.q} placeholder="Search deals"/></span></label>
           <fieldset><legend>Category</legend><div className="deals-filter-options">{orderedCategories.map((category) => <label key={category.id} style={{ paddingInlineStart: `${Math.min(category.treeDepth, 3) * 8}px` }}><input type="checkbox" name="category" value={category.slug} defaultChecked={selectedCategorySlugs.includes(category.slug)}/><span>{category.name}</span><small>{categoryCounts.get(category.slug) ?? 0}</small></label>)}</div></fieldset>
           <fieldset><legend>Store</legend><div className="deals-filter-options">{stores.filter((store) => productsByStore.has(store.slug)).map((store) => <label key={store.id}><input type="checkbox" name="store" value={store.slug} defaultChecked={selectedStoreSlugs.includes(store.slug)}/><span>{store.name}</span><small>{productsByStore.get(store.slug)?.size ?? 0}</small></label>)}</div></fieldset>
@@ -190,17 +195,16 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
           </div></fieldset>
           <fieldset><legend>Availability</legend><div className="deals-filter-options"><label><input type="checkbox" name="stock" value="in-stock" defaultChecked={filters.stock === 'in-stock'}/><span>In stock</span></label></div></fieldset>
           <fieldset><legend>Cashback eligible</legend><div className="deals-filter-options"><label><input type="checkbox" name="cashback" value="yes" defaultChecked={filters.cashback === 'yes'}/><span>Show only cashback offers</span><small>{cashbackCount}</small></label></div></fieldset>
-          <label className="deals-filter-sort"><span>Sort by</span><select name="sort" defaultValue={sort}><option value="effective-price">Best effective price</option><option value="trending">Trending</option><option value="discount">Biggest discount</option><option value="cashback">Highest cashback</option><option value="rating">Customer rating</option></select></label>
           <button type="submit">Apply filters</button>
         </form>
       </details>
+          <CustomerSortControl action="/deals" value={sort} params={filters} options={[{ value: 'effective-price', label: 'Relevance' }, { value: 'trending', label: 'Trending' }, { value: 'discount', label: 'Biggest discounts' }, { value: 'cashback', label: 'Top cashback' }, { value: 'rating', label: 'Customer rating' }]}/>
+        </div>
+        <CustomerFilterChips chips={activeFilters.map((filter) => ({ label: filter.label.startsWith('Price: ') ? ({ 'under-1000': 'Under ₹1,000', '1000-5000': '₹1,000 – ₹4,999', '5000-25000': '₹5,000 – ₹24,999', 'over-25000': '₹25,000+' }[filters.price ?? ''] ?? filter.label) : filter.label === 'Cashback eligible' ? 'Cashback' : filter.label, href: dealsLink(filters, filter.clear) }))}/>
 
-      <section className="deals-results" id="deals-results" aria-labelledby="deals-results-title">
-        <div className="deals-toolbar"><div><h2 id="deals-results-title">{isTrending ? 'Popular right now' : title}</h2><small>{products.length.toLocaleString('en-IN')} {products.length === 1 ? 'product' : 'products'} with available offers</small></div><label className="deals-toolbar-sort"><span>Sort by</span><form action="/deals">{Object.entries(filters).filter(([key, value]) => key !== 'sort' && key !== 'page' && value).flatMap(([key, value]) => Array.isArray(value) ? value.map((item, index) => <input type="hidden" name={key} value={item} key={`${key}-${index}`}/>) : <input type="hidden" name={key} value={value} key={key}/>)}<select name="sort" defaultValue={sort} aria-label="Sort deals"><option value="effective-price">Relevance</option><option value="trending">Trending</option><option value="discount">Biggest discounts</option><option value="cashback">Top cashback</option><option value="rating">Customer rating</option></select><button type="submit"><ChevronDown size={15}/></button></form></label></div>
         <nav className="deals-collection-tabs" aria-label="Deal collections">
           {[[ 'trending', 'Trending' ], [ 'discount', 'Biggest discounts' ], [ 'cashback', 'Top cashback' ]].map(([value, label]) => <Link key={value} href={dealsLink(filters, { sort: value, page: '' })} className={(value === 'trending' ? isTrending : sort === value) ? 'active' : ''} aria-current={(value === 'trending' ? isTrending : sort === value) ? 'page' : undefined}>{label}</Link>)}
         </nav>
-        {activeFilters.length > 0 && <div className="active-deal-filters">{activeFilters.map((filter) => <Link href={dealsLink(filters, filter.clear)} key={filter.label}>{filter.label}<X size={12}/></Link>)}</div>}
         {visibleProducts.length ? <OfferGrid offers={visibleProducts} contextHref={dealsLink(filters, {})} storeCounts={storeCounts} dealMode/> : <div className="empty-state deals-empty"><Search size={31}/><h2>No products match these filters</h2><p>Try a broader search, another category, or clear the current filters.</p><Link href="/deals" className="primary">Clear all filters</Link></div>}
         {products.length > PAGE_SIZE && <nav className="deals-pagination" aria-label="Deals pages">{page > 1 ? <Link href={dealsLink(filters, { page: String(page - 1) })}><ArrowRight className="deals-page-previous" size={15}/>Previous</Link> : <span>Previous</span>}<b>Page {page} of {totalPages}</b>{page < totalPages ? <Link href={dealsLink(filters, { page: String(page + 1) })}>Next<ArrowRight size={15}/></Link> : <span>Next</span>}</nav>}
       </section>
