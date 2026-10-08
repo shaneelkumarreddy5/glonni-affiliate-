@@ -10,7 +10,7 @@
   line-height: 1;
 }
 
-@media (min-width: 901px) {
+@media (min-width: 1101px) {
   .customerHeader {
     display: grid;
     grid-template-columns: auto minmax(200px, 1fr) auto auto;
@@ -60,7 +60,7 @@
   }
 }
 
-@media (min-width: 901px) and (max-width: 1100px) {
+@media (min-width: 1101px) and (max-width: 1100px) {
   .customerHeader {
     grid-template-columns: auto minmax(160px, 1fr) auto auto;
   }
@@ -74,7 +74,7 @@
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .headerNav {
     display: none;
   }
@@ -237,7 +237,7 @@
   object-fit: cover;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .mobileActions {
     display: flex;
     flex: none;
@@ -250,7 +250,7 @@
   }
 }
 
-@media (max-width: 1120px) and (min-width: 901px) {
+@media (max-width: 1120px) and (min-width: 1101px) {
   .actionBar {
     gap: 13px;
   }
