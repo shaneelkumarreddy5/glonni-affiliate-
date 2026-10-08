@@ -50,3 +50,23 @@
   .home-category-row .home-category,
   .home-category-row .categoryCard { width: 84px; min-width: 84px; flex-basis: 84px; }
 }
+
+
+/* Keep narrow mobile section headings and links from colliding. */
+@media (max-width: 650px) {
+  .home-main .section-title {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+  .home-main .section-title > div {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  .home-main .section-title > a {
+    align-self: flex-end;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+}
+
