@@ -52,21 +52,25 @@
 }
 
 
-/* Keep narrow mobile section headings and links from colliding. */
+/* Keep each section's View all link on the title row on mobile. */
 @media (max-width: 650px) {
   .home-main .section-title {
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 7px;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
   }
   .home-main .section-title > div {
     min-width: 0;
-    flex: 1 1 100%;
+    flex: 1 1 auto;
   }
   .home-main .section-title > a {
-    align-self: flex-end;
-    margin-left: auto;
+    flex: 0 0 auto;
+    align-self: center;
+    margin-left: 0;
     white-space: nowrap;
+    font-size: 11px;
   }
 }
-
