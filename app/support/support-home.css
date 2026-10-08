@@ -56,74 +56,6 @@
   background: #fffaf0;
 }
 
-.support-home-layout > .support-channel-nav {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin: 0 0 16px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-
-.support-home-layout > .support-channel-nav a {
-  position: relative;
-  min-height: 76px;
-  padding: 12px 16px;
-  border: 1px solid #e1e8f3;
-  border-radius: 13px;
-  background: #fff;
-  color: #142344;
-  box-shadow: 0 4px 14px rgb(20 35 68 / 3%);
-  transition: border-color .18s ease, background .18s ease, transform .18s ease;
-}
-
-.support-home-layout > .support-channel-nav a:hover {
-  transform: translateY(-1px);
-  border-color: #cad8ed;
-  background: #fbfcff;
-}
-
-.support-home-layout > .support-channel-nav a.active {
-  border-color: #ffbd08;
-  background: linear-gradient(110deg, #fff8e5, #fff);
-  color: #142344;
-  box-shadow: 0 5px 16px rgb(245 181 0 / 9%);
-}
-
-.support-home-layout > .support-channel-nav a > svg {
-  display: block;
-  flex: none;
-  width: 42px;
-  height: 42px;
-  padding: 11px;
-  border-radius: 50%;
-  background: #edf3ff;
-  color: #1755ce;
-}
-
-.support-home-layout > .support-channel-nav a.active > svg {
-  background: #fff0c2;
-  color: #d89a00;
-}
-
-.support-home-layout > .support-channel-nav a > span {
-  min-width: 0;
-  gap: 4px;
-}
-
-.support-home-layout > .support-channel-nav a b {
-  color: #172747;
-  font: 800 13px 'Plus Jakarta Sans', sans-serif;
-}
-
-.support-home-layout > .support-channel-nav a small {
-  overflow: hidden;
-  color: #718097;
-  font-size: 10px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .support-home-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.88fr) minmax(285px, .86fr);
@@ -435,25 +367,6 @@
     gap: 12px;
   }
 
-  .support-home-layout > .support-channel-nav {
-    gap: 8px;
-  }
-
-  .support-home-layout > .support-channel-nav a {
-    gap: 8px;
-    padding: 10px;
-  }
-
-  .support-home-layout > .support-channel-nav a > svg {
-    width: 38px;
-    height: 38px;
-    padding: 10px;
-  }
-
-  .support-home-layout > .support-channel-nav a b {
-    font-size: 12px;
-  }
-
   .support-home-chat .chat-header-actions span {
     display: none;
   }
@@ -488,63 +401,6 @@
   .support-home-heading > a svg {
     width: 19px;
     height: 19px;
-  }
-
-  .support-home-layout > .support-channel-nav {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 5px;
-    margin-bottom: 12px;
-    padding: 6px;
-    border: 1px solid #e1e8f3;
-    border-radius: 13px;
-    background: #f7f9fd;
-  }
-
-  .support-home-layout > .support-channel-nav a {
-    display: flex;
-    min-width: 0;
-    min-height: 72px;
-    flex-direction: column;
-    justify-content: center;
-    gap: 5px;
-    padding: 7px 2px;
-    border-color: transparent;
-    border-radius: 9px;
-    background: transparent;
-    box-shadow: none;
-    text-align: center;
-  }
-
-  .support-home-layout > .support-channel-nav a:hover {
-    transform: none;
-  }
-
-  .support-home-layout > .support-channel-nav a.active {
-    border-color: #f5c33f;
-    background: #fff;
-    box-shadow: 0 2px 8px rgb(20 35 68 / 5%);
-  }
-
-  .support-home-layout > .support-channel-nav a > svg {
-    width: 35px;
-    height: 35px;
-    padding: 9px;
-  }
-
-  .support-home-layout > .support-channel-nav a > span {
-    display: block;
-    width: 100%;
-  }
-
-  .support-home-layout > .support-channel-nav a b {
-    display: block;
-    overflow-wrap: anywhere;
-    font-size: 9px;
-    line-height: 12px;
-  }
-
-  .support-home-layout > .support-channel-nav a small {
-    display: none;
   }
 
   .support-home-grid {
