@@ -880,3 +880,24 @@ main.deals-page .browse-nav { margin-bottom: 8px; }
     display: inline-block;
   }
 }
+
+
+/* Keep the stores sheet vertically scrollable on phones; avoid a second,
+   nested scroll area for the long category list. */
+@media (max-width: 760px) {
+  .stores-browse-page .customer-filter-controls .category-filter-panel[open] {
+    max-height: min(90dvh, 760px);
+    touch-action: pan-y;
+  }
+  .stores-browse-page .customer-filter-controls .category-filter-panel[open] .category-filter-options {
+    max-height: none;
+    overflow: visible;
+  }
+  .stores-browse-page .customer-filter-controls .category-filter-panel[open] .category-filter-submit {
+    position: sticky;
+    z-index: 3;
+    bottom: 0;
+    margin-top: 12px;
+    box-shadow: 0 -8px 18px rgb(243 245 250 / 95%);
+  }
+}
