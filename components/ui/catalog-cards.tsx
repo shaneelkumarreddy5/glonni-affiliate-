@@ -47,6 +47,10 @@ export function ProductCard({
   interactive = true,
   className,
 }: ProductCardProps) {
+  const hasRating = rating != null && rating > 0;
+  const ratingText = hasRating
+    ? `${rating.toFixed(1)}${ratingCount != null ? ` (${ratingCount.toLocaleString()})` : ''}`
+    : 'No ratings yet';
   const content = (
     <>
       <div className={styles.productMedia}>
@@ -55,18 +59,19 @@ export function ProductCard({
           {storeLogoUrl && <img className={styles.merchantLogo} src={storeLogoUrl} alt="" loading="lazy"/>}
           <span className={styles.merchantName}>{storeName}</span>
         </span>
-        {badgeText && <span className={[styles.productBadge, actionSlot ? styles.productBadgeWithAction : ''].filter(Boolean).join(' ')}><Badge variant={badgeVariant}>{badgeText}</Badge></span>}
       </div>
       <div className={styles.productBody}>
         <h3 className={styles.productTitle}>{title}</h3>
-        {subtitle && <p className={styles.productSubtitle}>{subtitle}</p>}
-        {rating != null && rating > 0 && <div className={styles.rating} aria-label={`Rated ${rating.toFixed(1)} out of 5${ratingCount ? `, ${ratingCount.toLocaleString()} reviews` : ''}`}>
-          <span className={styles.ratingStars} aria-hidden="true">{Array.from({ length: 5 }, (_, index) => <Star key={index} size={11} fill={index < Math.round(rating) ? 'currentColor' : 'none'} strokeWidth={1.7}/>)}</span>
-          <span>{rating.toFixed(1)}{ratingCount ? ` (${ratingCount.toLocaleString()})` : ''}</span>
-        </div>}
+        <div className={styles.productInfoRow}>
+          <div className={styles.rating} aria-label={hasRating ? `Rated ${rating.toFixed(1)} out of 5${ratingCount != null ? `, ${ratingCount.toLocaleString()} reviews` : ''}` : 'No customer rating available'}>
+            <Star className={styles.ratingStar} size={14} fill={hasRating ? 'currentColor' : 'none'} strokeWidth={1.8} aria-hidden="true"/>
+            <span>{ratingText}</span>
+          </div>
+          {badgeText && <Badge className={styles.discountBadge} variant={badgeVariant}>{badgeText}</Badge>}
+        </div>
         <div className={styles.priceRow}>
           <span className={styles.price}>{price}</span>
-        {originalPrice && originalPrice !== price && <del className={styles.originalPrice}>{originalPrice}</del>}
+          {originalPrice && originalPrice !== price && <del className={styles.originalPrice}>{originalPrice}</del>}
         </div>
         {meta && <span className={styles.productMeta}>{meta}</span>}
         {rewardText && <span className={[styles.reward, styles[`reward_${rewardTone}`]].join(' ')}>{rewardText}</span>}
