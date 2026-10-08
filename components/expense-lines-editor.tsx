@@ -23,32 +23,38 @@ export function ExpenseLinesEditor() {
   const [lines,setLines] = useState<ExpenseLine[]>([blankLine()]);
   const update = (index:number,key:keyof ExpenseLine,value:string) =>
     setLines(current=>current.map((line,i)=>i===index?{...line,[key]:value}:line));
-  return <section style={{borderTop:"1px solid #e5e9f0",paddingTop:16,marginTop:16}}>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-      <div><b>Invoice lines</b><small style={{display:"block",color:"#68758b",marginTop:4}}>Enter the line wording, HSN/SAC and GST amounts exactly as shown on the supplier document.</small></div>
+  return <section className="expense-lines-editor" aria-label="Invoice lines">
+    <div className="expense-lines-heading">
+      <div><h2>Invoice lines</h2><p>Enter the line wording, HSN/SAC and GST amounts exactly as shown on the supplier document.</p></div>
       <button type="button" className="add-store" disabled={lines.length>=30} onClick={()=>setLines(current=>[...current,blankLine()])}>Add line</button>
     </div>
     <input type="hidden" name="lines" value={JSON.stringify(lines)} />
-    <div style={{display:"grid",gap:12,marginTop:12}}>
-      {lines.map((line,index)=><fieldset key={index} style={{border:"1px solid #e5e9f0",borderRadius:8,padding:12,minWidth:0}}>
-        <legend style={{fontSize:12,fontWeight:700}}>Line {index+1}</legend>
-        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:9}}>
+    <div className="expense-lines-list">
+      {lines.map((line,index)=><fieldset key={index} className="expense-line-card">
+        <legend>Line {index+1}</legend>
+        <div className="expense-line-fields expense-line-details">
           <label>Description<input required maxLength={300} value={line.description} onChange={e=>update(index,"description",e.target.value)} /></label>
           <label>HSN / SAC<input maxLength={24} value={line.hsnSac} onChange={e=>update(index,"hsnSac",e.target.value)} /></label>
           <label>GST treatment<select value={line.gstTreatment} onChange={e=>update(index,"gstTreatment",e.target.value)}>{treatments.map(([v,t])=><option key={v} value={v}>{t}</option>)}</select></label>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:9,marginTop:9}}>
+        <div className="expense-line-fields expense-line-values">
           <label>Quantity<input type="number" min="0.001" step="0.001" required value={line.quantity} onChange={e=>update(index,"quantity",e.target.value)} /></label>
           <label>Unit<input maxLength={40} value={line.unitName} onChange={e=>update(index,"unitName",e.target.value)} /></label>
           <label>Taxable / assessable value (₹)<input type="number" min="0" step="0.01" required value={line.assessableValue} onChange={e=>update(index,"assessableValue",e.target.value)} /></label>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(0,1fr))",gap:9,marginTop:9}}>
-          {(["gstRatePercent","cgstRatePercent","sgstRatePercent","igstRatePercent","cessRatePercent"] as const).map((key)=><label key={key}>{key.replace("Percent","").replace(/([A-Z])/g," $1")} %<input type="number" min="0" max="100" step="0.0001" value={line[key]} onChange={e=>update(index,key,e.target.value)} /></label>)}
+        <div className="expense-line-tax-group">
+          <h3>Tax rates (%)</h3>
+          <div className="expense-line-fields expense-line-rates">
+            {(["gstRatePercent","cgstRatePercent","sgstRatePercent","igstRatePercent","cessRatePercent"] as const).map((key)=><label key={key}>{key.replace("RatePercent","").toUpperCase()} rate (%)<input type="number" min="0" max="100" step="0.0001" value={line[key]} onChange={e=>update(index,key,e.target.value)} /></label>)}
+          </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:9,marginTop:9}}>
-          {(["cgstAmount","sgstAmount","igstAmount","cessAmount"] as const).map((key)=><label key={key}>{key.replace("Amount","").toUpperCase()} (₹)<input type="number" min="0" step="0.01" value={line[key]} onChange={e=>update(index,key,e.target.value)} /></label>)}
+        <div className="expense-line-tax-group">
+          <h3>Tax amounts (₹)</h3>
+          <div className="expense-line-fields expense-line-amounts">
+            {(["cgstAmount","sgstAmount","igstAmount","cessAmount"] as const).map((key)=><label key={key}>{key.replace("Amount","").toUpperCase()} amount (₹)<input type="number" min="0" step="0.01" value={line[key]} onChange={e=>update(index,key,e.target.value)} /></label>)}
+          </div>
         </div>
-        {lines.length>1&&<button type="button" onClick={()=>setLines(current=>current.filter((_,i)=>i!==index))} style={{marginTop:8,color:"#a63d36",border:0,background:"transparent",cursor:"pointer"}}>Remove line</button>}
+        {lines.length>1&&<button type="button" className="expense-line-remove" onClick={()=>setLines(current=>current.filter((_,i)=>i!==index))}>Remove line</button>}
       </fieldset>)}
     </div>
   </section>;

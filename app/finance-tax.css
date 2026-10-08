@@ -72,3 +72,29 @@
 .finance-tax-record-grid small{color:#77859a;font-size:9px;line-height:1.4}
 @media(max-width:1180px){.finance-tax-page .admin-title{grid-template-columns:1fr;gap:12px}.finance-tax-quick-links{justify-content:flex-start}.finance-tax-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.finance-tax-page .admin-title h1{font-size:27px}.finance-tax-quick-links{gap:3px 0}.finance-tax-quick-links a{padding:8px 7px;font-size:9px}.finance-tax-card{padding:16px;gap:13px}.finance-tax-fields{grid-template-columns:1fr;gap:11px}.finance-tax-fields .finance-tax-wide{grid-column:auto}.finance-tax-form-footer{align-items:stretch;flex-wrap:wrap}.finance-tax-form-footer>span{width:100%;margin:0 0 3px}.finance-tax-primary{flex:1}.finance-tax-history li{grid-template-columns:1fr auto;gap:4px 10px}.finance-tax-history li time{grid-column:1/-1;justify-self:start}.finance-tax-record-grid{grid-template-columns:1fr}.finance-tax-notice{font-size:10px}}
+
+/* Supplier invoice lines use the same aligned controls as the expense header. */
+.expense-lines-editor { min-width: 0; margin-top: 16px; padding-top: 18px; border-top: 1px solid #e5e9f0; }
+.expense-lines-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.expense-lines-heading h2 { margin: 0; font-size: 16px; line-height: 1.4; }
+.expense-lines-heading p { margin: 5px 0 0; color: #68758b; font-size: 12px; line-height: 1.6; }
+.expense-lines-heading button { flex: none; cursor: pointer; }
+.expense-lines-heading button:disabled { opacity: .5; cursor: not-allowed; }
+.expense-lines-list { display: grid; gap: 18px; margin-top: 18px; }
+.expense-line-card { min-width: 0; margin: 0; padding: 18px; border: 1px solid #e0e6ef; border-radius: 10px; background: #fff; }
+.expense-line-card legend { padding: 0 8px; color: #1b2d56; font-size: 12px; font-weight: 800; }
+.expense-line-fields { display: grid; gap: 14px; min-width: 0; }
+.expense-line-details { grid-template-columns: minmax(0, 2fr) repeat(2, minmax(0, 1fr)); }
+.expense-line-values { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 16px; }
+.expense-line-rates { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.expense-line-amounts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.expense-line-fields label { display: flex; flex-direction: column; justify-content: space-between; gap: 7px; min-width: 0; color: #46546a; font-size: 11px; font-weight: 600; line-height: 1.5; }
+.expense-line-fields :is(input, select) { display: block; box-sizing: border-box; width: 100%; min-width: 0; height: 41px; margin: 0; padding: 9px 11px; border: 1px solid #d7deea; border-radius: 7px; background: #fff; color: #23324d; font: 400 12px/1.5 var(--glonni-font-sans); box-shadow: none; }
+.expense-line-fields :is(input, select):focus { outline: 0; border-color: #8ba6d2; box-shadow: 0 0 0 3px rgb(39 91 164 / 10%); }
+.expense-line-tax-group { margin-top: 18px; padding-top: 16px; border-top: 1px solid #edf1f6; }
+.expense-line-tax-group h3 { margin: 0 0 11px; color: #35445f; font-size: 12px; font-weight: 700; }
+.expense-line-remove { margin-top: 16px; padding: 7px 10px; border: 1px solid #efdad8; border-radius: 7px; background: #fff; color: #a63d36; font: 600 11px var(--glonni-font-sans); cursor: pointer; }
+.expense-line-remove:hover { background: #fff5f4; }
+@media (max-width: 1100px) { .expense-line-rates { grid-template-columns: repeat(3, minmax(0, 1fr)); } .expense-line-amounts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .expense-lines-heading { align-items: flex-start; flex-wrap: wrap; } .expense-line-card { padding: 14px; } .expense-line-details, .expense-line-values { grid-template-columns: 1fr; } .expense-line-rates { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 380px) { .expense-line-rates, .expense-line-amounts { grid-template-columns: 1fr; } }
