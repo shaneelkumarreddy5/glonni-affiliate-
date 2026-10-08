@@ -60,7 +60,7 @@
   }
 }
 
-@media (min-width: 1101px) and (max-width: 1100px) {
+@media (min-width: 1101px) and (max-width: 1200px) {
   .customerHeader {
     grid-template-columns: auto minmax(160px, 1fr) auto auto;
   }
@@ -250,7 +250,7 @@
   }
 }
 
-@media (max-width: 1120px) and (min-width: 1101px) {
+@media (max-width: 1200px) and (min-width: 1101px) {
   .actionBar {
     gap: 13px;
   }
