@@ -82,9 +82,11 @@
   gap: 8px;
   width: 100%;
   margin: 20px 0 16px;
-  padding: 0 0 12px;
+  padding: 5px 2px 12px;
   overflow-x: auto;
+  overflow-y: hidden;
   overscroll-behavior-inline: contain;
+  scroll-padding-inline: 2px;
   scrollbar-width: none;
   border-bottom: 1px solid var(--glonni-sky-tint);
   -webkit-overflow-scrolling: touch;
@@ -133,7 +135,7 @@
 .account-workspace .workspace-title h2 { font-size: 25px; }
 
 @media (max-width: 800px) {
-  .account-tabs { justify-content: flex-start; gap: 6px; margin: 16px 0 13px; padding-bottom: 9px; }
+  .account-tabs { justify-content: flex-start; gap: 6px; margin: 16px 0 13px; padding: 5px 2px 9px; }
   .account-tabs > a { min-height: 43px; padding: 0 12px; font-size: 12px; }
   .account-workspace { padding: 22px; }
 }
@@ -142,7 +144,7 @@
   .profile-avatar-large { width: 58px; height: 58px; }
   .profile-identity h1 { font-size: 21px; }
   .profile-identity > div:nth-child(2) > span { font-size: 11px; }
-  .account-tabs { margin-top: 13px; }
+  .account-tabs { margin-top: 13px; padding-top: 5px; }
   .account-tabs > a { min-height: 41px; padding: 0 11px; gap: 6px; font-size: 11px; }
   .account-tabs > a svg { width: 16px; height: 16px; }
   .account-workspace { padding: 18px; }
