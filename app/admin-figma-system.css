@@ -34,26 +34,28 @@
 }
 .admin-v2 .admin-brand-logo-wrap img { max-height: 38px; }
 .admin-v2 .sidebar-toggle {
-  border-color: rgb(255 253 247 / 20%);
-  background: transparent;
-  color: var(--glonni-cream);
+  border-color: #111827;
+  background: #fff;
+  color: #111827;
 }
-.admin-v2 .sidebar-toggle:hover { background: rgb(255 253 247 / 10%); color: var(--glonni-yellow); }
+.admin-v2 .sidebar-toggle svg { stroke-width: 3; }
+.admin-v2 .sidebar-toggle:hover { background: #f1f3f6; color: #000; }
 .admin-v2 .admin-side nav { padding: 4px 0 18px; }
 .admin-v2 .admin-side section { margin: 10px 0; }
 .admin-v2 .admin-side .nav-group {
   margin: 8px 0 4px;
-  color: rgb(255 253 247 / 62%) !important;
+  color: #111827 !important;
   font-family: var(--glonni-font-sans);
   font-size: 10px;
+  font-weight: 900;
   letter-spacing: .08em;
 }
 .admin-v2 .admin-side .nav-group > span > svg,
-.admin-v2 .admin-side .nav-group > svg { color: rgb(255 253 247 / 58%); }
+.admin-v2 .admin-side .nav-group > svg { color: #111827; stroke-width: 3; }
 .admin-v2 .admin-side .nav-group:hover,
 .admin-v2 .admin-side section.open .nav-group {
-  background: rgb(255 253 247 / 8%) !important;
-  color: var(--glonni-cream) !important;
+  background: #f1f3f6 !important;
+  color: #000 !important;
 }
 .admin-v2 .admin-side section a {
   min-height: 42px;

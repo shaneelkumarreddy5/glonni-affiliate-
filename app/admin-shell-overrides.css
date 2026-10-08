@@ -32,8 +32,12 @@
 
 .admin-v2 .sidebar-toggle {
   background: #fff;
-  color: #596780;
-  border-color: #e1e5ed;
+  color: #111827;
+  border-color: #111827;
+}
+
+.admin-v2 .sidebar-toggle svg {
+  stroke-width: 3;
 }
 
 .admin-v2 .sidebar-toggle:hover {
@@ -67,12 +71,14 @@
 .admin-v2 .nav-group,
 .admin-v2 .nav-group:hover,
 .admin-v2 section.open .nav-group {
-  color: #7b8498 !important;
+  color: #111827 !important;
+  font-weight: 900;
 }
 
 .admin-v2 .nav-group > span > svg,
 .admin-v2 .nav-group > svg {
-  color: #9099ac;
+  color: #111827;
+  stroke-width: 3;
 }
 
 .admin-v2 .admin-side section a {
