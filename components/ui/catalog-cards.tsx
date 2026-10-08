@@ -16,7 +16,6 @@ export interface ProductCardProps {
   originalPrice?: string | null
   rewardText?: string | null
   rewardTone?: 'cashback' | 'best' | 'neutral'
-  subtitle?: string | null
   meta?: ReactNode
   rating?: number | null
   ratingCount?: number | null
@@ -37,7 +36,6 @@ export function ProductCard({
   originalPrice,
   rewardText,
   rewardTone = 'cashback',
-  subtitle,
   meta,
   rating,
   ratingCount,
