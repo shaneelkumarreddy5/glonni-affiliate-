@@ -80,7 +80,48 @@
   }
 
   .customerHeader .actionBar {
-    display: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 44px;
+    margin-left: auto;
+  }
+
+  .customerHeader .iconAction {
+    width: 38px;
+    min-width: 38px;
+    height: 44px;
+    min-height: 44px !important;
+    gap: 2px;
+  }
+
+  .customerHeader .iconAction .actionIcon svg {
+    width: 19px !important;
+    height: 19px !important;
+  }
+
+  .customerHeader .iconAction > b {
+    font-size: 8px !important;
+    line-height: 9px !important;
+  }
+
+  .mobileActions {
+    display: none !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .customerHeader .actionBar {
+    gap: 2px;
+  }
+
+  .customerHeader .iconAction {
+    width: 30px;
+    min-width: 30px;
+  }
+
+  .customerHeader .iconAction > b {
+    display: none !important;
   }
 }
 
