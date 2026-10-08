@@ -611,7 +611,7 @@ export default async function ProductPage({
               <h2>{renderWebsiteRichText(coreContent.specifications?.title || 'Top 10 specifications')}</h2>
               <p>{coreContent.specifications?.body ? renderWebsiteRichText(coreContent.specifications.body) : 'Category-relevant details for faster comparison'}</p>
             </div>
-            <a href="#full-information">View all specifications</a>
+            <a href="#full-information" aria-label="View all specifications">View all</a>
           </header>
           {view.specs.length ? <div>
             {view.specs.map((spec) => (

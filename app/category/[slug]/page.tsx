@@ -146,7 +146,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
     </section>
 
     <section className="category-store-section" aria-labelledby="category-store-title">
-      <header><div><h2 id="category-store-title">Shop {category.name} stores</h2><p>{categoryStores.length} {categoryStores.length === 1 ? 'store' : 'stores'} available</p></div><Link href={`/stores?category=${encodeURIComponent(category.slug)}`}>View all stores <ArrowRight size={15}/></Link></header>
+      <header><div><h2 id="category-store-title">Shop {category.name} stores</h2><p>{categoryStores.length} {categoryStores.length === 1 ? 'store' : 'stores'} available</p></div><Link href={`/stores?category=${encodeURIComponent(category.slug)}`}>View all <ArrowRight size={15}/></Link></header>
       {categoryStores.length ? <ScrollRail className="category-store-rail" label={`${category.name} stores`}>
         {categoryStores.map((store) => <StoreCard key={store.id} href={`/store/${store.slug}?from=${encodeURIComponent(`/category/${category.slug}`)}`} name={store.name} logoUrl={store.logo_url} layout="horizontal" meta={`${storeProducts.get(store.slug)?.size ?? 0} available offers`} className="category-store-card"/>)}
       </ScrollRail> : <div className="category-store-empty"><Store size={18}/><span>Stores with active {category.name.toLowerCase()} offers will appear here.</span></div>}
