@@ -517,3 +517,58 @@ main.deals-page .browse-nav { margin-bottom: 8px; }
   .deals-results .offer-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
   .deals-pagination { justify-content: center!important; }
 }
+
+
+/* Narrow-phone fit: keep cards readable and section controls from competing. */
+@media (max-width: 380px) {
+  .category-deal-results .offer-grid,
+  .deals-results .offer-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .category-deal-results .offer-grid > article,
+  .deals-results .offer-grid > article {
+    width: 100%;
+    min-width: 0;
+  }
+  .stores-directory-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stores-directory-grid > .directory-store-card {
+    height: auto;
+    min-height: 100px;
+  }
+  .stores-directory-brand-collage {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .category-deal-heading {
+    flex-wrap: wrap;
+  }
+  .category-deal-heading > span {
+    white-space: normal;
+  }
+  .deals-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 360px) {
+  main.vertical-page.category-browse-page,
+  main.deals-page,
+  main.vertical-page,
+  main.store-detail-page {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+  .category-hero-copy {
+    width: 100%;
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+  .stores-directory-hero {
+    padding-right: 15px;
+    padding-left: 15px;
+  }
+}
+
