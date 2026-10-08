@@ -41,7 +41,7 @@
   .home-main .home-store-rail .home-store-card { width: clamp(190px, 34vw, 300px); min-width: clamp(190px, 34vw, 300px); flex-basis: clamp(190px, 34vw, 300px); }
   .home-main .home-offer-rail .railProductCard { width: min(78vw, 420px); min-width: min(78vw, 420px); flex-basis: min(78vw, 420px); height: auto; min-height: 360px; }
   .home-main .home-offer-rail .railProductCard .productMedia { height: auto; aspect-ratio: 4 / 3; }
-  .home-main .home-offer-rail .scroll-rail-track { overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; touch-action: pan-x; }
+  .home-main .home-offer-rail .scroll-rail-track { overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scroll-behavior: auto; touch-action: auto; -webkit-overflow-scrolling: touch; }
 }
 @media (max-width: 650px) {
   .home-main { padding: 0 16px 44px; }
