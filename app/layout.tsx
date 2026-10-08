@@ -28,6 +28,7 @@ import './admin-products-figma.css';
 import './admin-stores-figma.css';
 import './admin-categories-figma.css';
 import './admin-shell-overrides.css';
+import './finance-tax.css';
 import { createClient } from '@/lib/supabase/server';
 export const metadata: Metadata = { title: 'Glonni | Discover better deals', description: 'Provider-neutral product discovery and deals.' };
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) { const supabase=await createClient(); const {data:identity}=await supabase.from('website_identity').select('site_name,logo_url,default_language').eq('id',1).maybeSingle(); return <html lang={identity?.default_language??'en-IN'}><body><ActivityTracker/><AdminMockMode>{children}</AdminMockMode><SiteFooter siteName={identity?.site_name??'Glonni'} logoUrl={identity?.logo_url??''}/></body></html>; }

@@ -1,0 +1,74 @@
+.finance-tax-page{max-width:1700px;color:#1b2d56}
+.finance-tax-page .admin-title{display:grid;grid-template-columns:minmax(360px,1fr) auto;align-items:center;gap:24px;margin-bottom:18px}
+.finance-tax-page .admin-title>div:first-child{min-width:0}
+.finance-tax-page .admin-title>div:first-child>p{margin:0 0 5px;color:#72809a;font-size:10px;font-weight:800;letter-spacing:1px}
+.finance-tax-page .admin-title h1{margin:0;color:#1b2d56;font:800 clamp(27px,2.15vw,35px)/1.12 'Plus Jakarta Sans',sans-serif;letter-spacing:-1.2px}
+.finance-tax-page .admin-title span{display:block;margin-top:7px;color:#697891;font-size:12px;line-height:1.5}
+.finance-tax-quick-links{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:0 6px}
+.finance-tax-quick-links a{display:inline-flex;align-items:center;gap:7px;padding:9px 10px;color:#354866;font-size:10px;font-weight:750;white-space:nowrap;transition:color .15s,background .15s}
+.finance-tax-quick-links a+a{border-left:1px solid #e1e7f0}
+.finance-tax-quick-links a:hover{border-radius:7px;background:#f0f4fb;color:#173b75}
+.finance-tax-quick-links svg{flex:none;color:#647894}
+.finance-tax-status,.finance-tax-error{margin:0 0 14px;padding:11px 13px;border-radius:9px;font-size:11px;line-height:1.45}
+.finance-tax-status{border:1px solid #cfe8d5;background:#f2faf4;color:#24733c}
+.finance-tax-error{border:1px solid #f2d28c;background:#fff9e9;color:#73520a}
+.finance-tax-notice{display:flex;align-items:flex-start;gap:10px;margin:0 0 16px;padding:12px 15px;border:1px solid #f2d28c;border-left:3px solid #e7ad17;border-radius:10px;background:#fffaf0;color:#775719;font-size:11px;line-height:1.55}
+.finance-tax-notice svg{flex:none;margin-top:1px;color:#a87810}
+.finance-tax-card,.finance-tax-panel{min-width:0;border:1px solid #dfe7f2;border-radius:13px;background:#fff;box-shadow:0 3px 12px rgba(24,43,79,.025)}
+.finance-tax-card{display:grid;gap:16px;padding:20px 22px;margin:0 0 15px}
+.finance-tax-card-heading{display:flex;align-items:center;gap:11px;padding-bottom:13px;border-bottom:1px solid #edf1f6}
+.finance-tax-card-heading>svg{flex:none;width:38px;height:38px;padding:9px;border-radius:10px;background:#eef3fb;color:#1b2d56}
+.finance-tax-card-heading h2,.finance-tax-panel-heading h2,.finance-tax-records h2{margin:0;color:#1b2d56;font:800 17px/1.25 'Plus Jakarta Sans',sans-serif;letter-spacing:-.35px}
+.finance-tax-card-heading p,.finance-tax-records header p{margin:4px 0 0;color:#71809a;font-size:11px;line-height:1.45}
+.finance-tax-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 16px;min-width:0}
+.finance-tax-fields label{display:grid;align-content:start;gap:6px;min-width:0;color:#35445f;font-size:10px;font-weight:750;line-height:1.35}
+.finance-tax-fields input,.finance-tax-fields select,.finance-tax-fields textarea{display:block;width:100%;min-width:0;min-height:39px;border:1px solid #d8e1ee;border-radius:8px;background:#fff;padding:9px 11px;color:#23324d;font:500 11px/1.4 'DM Sans',sans-serif;box-shadow:none;transition:border-color .15s,box-shadow .15s}
+.finance-tax-fields textarea{min-height:62px;resize:vertical}
+.finance-tax-fields input::placeholder,.finance-tax-fields textarea::placeholder{color:#8996aa;font-weight:400}
+.finance-tax-fields input:focus,.finance-tax-fields select:focus,.finance-tax-fields textarea:focus{outline:0;border-color:#91add7;box-shadow:0 0 0 3px rgba(39,91,164,.1)}
+.finance-tax-fields .finance-tax-wide{grid-column:1/-1}
+.finance-tax-form-footer{display:flex;align-items:center;gap:9px;min-height:48px;padding-top:12px;border-top:1px solid #edf1f6}
+.finance-tax-form-footer>span{display:inline-flex;align-items:center;gap:7px;margin-right:auto;color:#71809a;font-size:10px}
+.finance-tax-form-footer>span i{width:8px;height:8px;border-radius:50%;background:#8d9bb1}
+.finance-tax-form-footer>span svg{flex:none;color:#71809a}
+.finance-tax-primary{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;border:1px solid #f0b80d;border-radius:8px;background:#ffbf12;padding:0 16px;color:#1b2d56;font:800 11px 'DM Sans',sans-serif;cursor:pointer;transition:background .15s,transform .15s}
+.finance-tax-primary:hover{background:#f2b300;transform:translateY(-1px)}
+.finance-tax-panel{overflow:hidden;margin-top:15px}
+.finance-tax-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 18px;border-bottom:1px solid #e9eef5}
+.finance-tax-panel-heading>div{display:flex;align-items:center;gap:9px;min-width:0}
+.finance-tax-panel-heading>div>svg{flex:none;color:#38577f}
+.finance-tax-panel-heading h2{font-size:14px}
+.finance-tax-panel-heading>span{flex:none;color:#72809a;font-size:10px;font-weight:700}
+.finance-tax-table-wrap{overflow-x:auto}
+.finance-tax-register table{width:100%;min-width:740px;border-collapse:collapse;color:#374660;font:500 10px/1.45 'DM Sans',sans-serif}
+.finance-tax-register th{padding:11px 14px;background:#f7f9fc;color:#6d7d95;font-size:9px;font-weight:800;letter-spacing:.45px;text-align:left;white-space:nowrap}
+.finance-tax-register td{padding:12px 14px;border-top:1px solid #edf1f6;color:#465570;vertical-align:middle}
+.finance-tax-register td:first-child{display:table-cell;min-width:180px}
+.finance-tax-register td:first-child b,.finance-tax-register td:first-child small{display:block}
+.finance-tax-register td:first-child b{color:#243550;font-size:10px}
+.finance-tax-register td:first-child small{margin-top:3px;color:#8491a5;font-size:9px}
+.finance-tax-code-status{display:inline-flex;padding:4px 7px;border-radius:20px;background:#f0f3f7;color:#5d6d84;font-size:9px;font-weight:800;text-transform:capitalize;white-space:nowrap}
+.finance-tax-code-status.approved{background:#eaf7ef;color:#1d8051}
+.finance-tax-empty{margin:0;padding:16px 18px;color:#75839a;font-size:11px;line-height:1.5}
+.finance-tax-history ul{display:grid;margin:0;padding:0 18px;list-style:none}
+.finance-tax-history li{display:grid;grid-template-columns:minmax(130px,.8fr) minmax(120px,.8fr) minmax(180px,1fr);gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #edf1f6;color:#475671;font-size:10px}
+.finance-tax-history li:last-child{border-bottom:0}
+.finance-tax-history li span{text-transform:capitalize}
+.finance-tax-history li b{font-weight:750;text-transform:capitalize}
+.finance-tax-history li time{justify-self:end;color:#7d8aa0;font-size:9px}
+.finance-tax-audit-note{display:flex;align-items:center;gap:7px;margin:0 18px 15px;color:#74829a;font-size:9px}
+.finance-tax-audit-note svg{flex:none}
+.finance-tax-records{margin-top:20px}
+.finance-tax-records header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:11px}
+.finance-tax-records h2{font-size:15px}
+.finance-tax-records header p{font-size:10px}
+.finance-tax-record-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.finance-tax-record-grid>a{display:grid;grid-template-columns:32px minmax(0,1fr) 15px;align-items:center;gap:10px;min-width:0;min-height:75px;padding:12px;border:1px solid #dfe7f2;border-radius:11px;background:#fff;color:#1b2d56;transition:border-color .15s,background .15s,transform .15s}
+.finance-tax-record-grid>a:hover{transform:translateY(-1px);border-color:#bacbe2;background:#fbfcfe}
+.finance-tax-record-grid>a>svg:first-child{width:31px;height:31px;padding:7px;border-radius:8px;background:#eff3f9;color:#314c75}
+.finance-tax-record-grid>a>svg:last-child{width:15px;color:#71809a}
+.finance-tax-record-grid span{display:grid;gap:3px;min-width:0}
+.finance-tax-record-grid b{overflow:hidden;color:#293b58;font-size:10px;font-weight:800;text-overflow:ellipsis;white-space:nowrap}
+.finance-tax-record-grid small{color:#77859a;font-size:9px;line-height:1.4}
+@media(max-width:1180px){.finance-tax-page .admin-title{grid-template-columns:1fr;gap:12px}.finance-tax-quick-links{justify-content:flex-start}.finance-tax-record-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.finance-tax-page .admin-title h1{font-size:27px}.finance-tax-quick-links{gap:3px 0}.finance-tax-quick-links a{padding:8px 7px;font-size:9px}.finance-tax-card{padding:16px;gap:13px}.finance-tax-fields{grid-template-columns:1fr;gap:11px}.finance-tax-fields .finance-tax-wide{grid-column:auto}.finance-tax-form-footer{align-items:stretch;flex-wrap:wrap}.finance-tax-form-footer>span{width:100%;margin:0 0 3px}.finance-tax-primary{flex:1}.finance-tax-history li{grid-template-columns:1fr auto;gap:4px 10px}.finance-tax-history li time{grid-column:1/-1;justify-self:start}.finance-tax-record-grid{grid-template-columns:1fr}.finance-tax-notice{font-size:10px}}
