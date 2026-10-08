@@ -29,3 +29,24 @@
 .home-main .home-category-row .scroll-rail-view-all{right:0}
 @media(max-width:900px){.home-main{padding-right:24px;padding-left:24px}.home-main>.home-hero{margin-right:-24px;margin-left:-24px}.home-main .home-category-anchor>.section-title h2,.home-main .home-store-section>.section-title h2,.home-main #deals>.section-title h2{font-size:22px}}
 @media(max-width:650px){.home-main{padding:0 16px 44px}.home-main section{margin-top:22px}.home-main>.home-hero{margin:0 -16px}.home-category-anchor{margin-top:17px}.home-main .home-category-anchor>.section-title h2,.home-main .home-store-section>.section-title h2,.home-main #deals>.section-title h2{font-size:20px}.home-category-row .scroll-rail-track{gap:14px;padding-right:2px;padding-left:2px}.home-main .home-store-rail .scroll-rail-track{margin-right:-16px;padding-right:16px}.home-main .home-store-card{width:164px;min-width:164px;flex-basis:164px}.home-main .home-category-row .rail-control{display:none}.home-main .home-category-row .scroll-rail-view-all{right:2px}}
+
+
+/* Mobile and narrow-screen storefront layout, including browsers using desktop-site mode. */
+@media (max-width: 1100px) {
+  .home-main { max-width: none; padding: 0 20px 52px; }
+  .home-main > .home-hero { margin-right: -20px; margin-left: -20px; }
+  .home-category-row .scroll-rail-track { gap: 14px; padding: 8px 2px 12px; overflow-x: auto; }
+  .home-category-row .home-category,
+  .home-category-row .categoryCard { width: clamp(84px, 16vw, 150px); min-width: clamp(84px, 16vw, 150px); flex-basis: clamp(84px, 16vw, 150px); }
+  .home-main .home-store-rail .home-store-card { width: clamp(190px, 34vw, 300px); min-width: clamp(190px, 34vw, 300px); flex-basis: clamp(190px, 34vw, 300px); }
+  .home-main .home-offer-rail .railProductCard { width: min(78vw, 420px); min-width: min(78vw, 420px); flex-basis: min(78vw, 420px); height: auto; min-height: 360px; }
+  .home-main .home-offer-rail .railProductCard > a > :first-child { aspect-ratio: 4 / 3; }
+  .home-main .home-offer-rail .scroll-rail-track { overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; touch-action: pan-x; }
+}
+@media (max-width: 650px) {
+  .home-main { padding: 0 16px 44px; }
+  .home-main > .home-hero { margin-right: -16px; margin-left: -16px; }
+  .home-main .home-offer-rail .railProductCard { width: min(82vw, 340px); min-width: min(82vw, 340px); flex-basis: min(82vw, 340px); min-height: 0; }
+  .home-category-row .home-category,
+  .home-category-row .categoryCard { width: 84px; min-width: 84px; flex-basis: 84px; }
+}
