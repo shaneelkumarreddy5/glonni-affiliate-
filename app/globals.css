@@ -474,3 +474,15 @@ nav.deals-pagination{height:auto;min-height:52px;border:0;padding:0;margin-top:2
   .search svg{width:20px;height:20px;padding:0;background:transparent;color:#1b2a4e}
   .top-actions .profile-trigger svg{display:block}
 }
+
+
+/* Responsive customer shell. The 1100px cutoff also covers phone browsers in desktop-site mode. */
+@media (max-width: 1100px) {
+  .top { height: 65px; padding: 0 16px; gap: 0; justify-content: space-between; }
+  .top .top-actions,
+  .top .search,
+  .top > nav { display: none !important; }
+  .top .mobile-menu { display: block; border: 0; background: transparent; color: var(--ink); }
+  .mobile-search { display: flex; align-items: center; margin: 11px 16px 0; border: 1px solid var(--line); border-radius: 8px; height: 42px; padding: 0 12px; color: #70809d; background: #fafbfc; }
+  .mobile-search input { font-size: 12px; }
+}
