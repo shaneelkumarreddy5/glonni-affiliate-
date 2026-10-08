@@ -1200,7 +1200,6 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       storeName={product.storeName}
       storeLogoUrl={stores.find((store) => store.slug === product.storeSlug)?.logoUrl}
       imageUrl={product.imageUrl}
-      subtitle={product.brand || product.categoryName}
       price={money(product.price)}
       originalPrice={product.listPrice == null ? null : money(product.listPrice)}
       rewardText={product.cashback ? `₹${Math.round(product.cashback).toLocaleString('en-IN')} cashback` : null}
