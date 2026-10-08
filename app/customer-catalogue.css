@@ -330,7 +330,7 @@ main.deals-page .deals-toolbar > div b {
 .stores-category-shortcuts .rail-control:hover { color: var(--glonni-navy); background: color-mix(in srgb,var(--glonni-yellow) 22%,white); }
 .stores-category-shortcuts .rail-prev { left: 0; }
 .stores-category-shortcuts .rail-next { right: 0; }
-.stores-directory-layout { display: grid; grid-template-columns: minmax(220px, 258px) minmax(0,1fr); align-items: start; gap: 22px; }
+.stores-directory-layout { display: block; min-width: 0; }
 .stores-filter-panel { min-width: 0; padding: 17px; border: 1px solid var(--glonni-sky-tint); border-radius: var(--glonni-radius-card); background: color-mix(in srgb,var(--glonni-sky-tint) 72%,white); }
 .stores-filter-panel form>header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .stores-filter-panel form>header h2 { margin: 0; color: var(--glonni-navy); font: 700 20px/1.2 var(--glonni-font-sans); }
@@ -347,6 +347,7 @@ main.deals-page .deals-toolbar > div b {
 .stores-results-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 2px 0 13px; }
 .stores-results-heading>div .eyebrow { margin: 0 0 3px; color: color-mix(in srgb,var(--glonni-navy) 62%,white); font-size: 9px; font-weight: 800; letter-spacing: .1em; }
 .stores-results-heading h2 { margin: 0; color: var(--glonni-navy); font: 700 clamp(21px,2.3vw,28px)/1.2 var(--glonni-font-sans); letter-spacing: -.03em; }
+.stores-results-heading>div>p:last-child { margin: 4px 0 0; color: color-mix(in srgb,var(--glonni-navy) 62%,white); font: 400 11px/1.35 var(--glonni-font-sans); }
 .stores-results-heading .store-directory-search { width: min(100%,320px); height: 42px; flex: 0 1 320px; margin: 0; padding: 0 12px; background: #fff; }
 .stores-results-heading .store-directory-search>svg { margin-left: 0; color: color-mix(in srgb,var(--glonni-navy) 60%,white); }
 .stores-results-heading .store-directory-search input { padding: 0 9px; font-size: 12px; }
