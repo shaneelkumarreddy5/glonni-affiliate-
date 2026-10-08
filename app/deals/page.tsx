@@ -184,7 +184,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
         <div className="deals-toolbar"><div><h2 id="deals-results-title">{isTrending ? 'Popular right now' : title}</h2><small>{products.length.toLocaleString('en-IN')} {products.length === 1 ? 'product' : 'products'} with available offers</small></div></div>
         <div className="customer-filter-controls">
           <MobileFilterPanelBehavior/>
-          <details className="deals-filter-panel" open data-filter-panel>
+          <details className="deals-filter-panel" data-filter-panel>
         <summary><span className="customer-filter-title"><SlidersHorizontal size={19} aria-hidden="true"/>Filters{activeFilters.length > 0 && <b className="customer-filter-count">{activeFilters.length}</b>}</span><ChevronDown size={18} className="deals-filter-chevron" aria-hidden="true"/></summary>
         <form action="/deals" method="get" className="deals-filter-form"><input type="hidden" name="sort" value={sort}/>
           <label className="deals-filter-search"><span>Search products</span><span className="deals-filter-search-box"><Search size={16}/><input type="search" name="q" defaultValue={filters.q} placeholder="Search deals"/></span></label>

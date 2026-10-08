@@ -14,7 +14,7 @@ export function MobileFilterPanelBehavior() {
     const sync = () => {
       const mobile = media.matches;
       if (wasMobile !== mobile) {
-        panels.forEach((panel) => { panel.open = !mobile; });
+        panels.forEach((panel) => { panel.open = false; });
         wasMobile = mobile;
       }
       document.documentElement.classList.toggle('mobile-filter-sheet-open', mobile && panels.some((panel) => panel.open));

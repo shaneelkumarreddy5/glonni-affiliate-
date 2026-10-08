@@ -797,7 +797,6 @@ main.deals-page .browse-nav { margin-bottom: 8px; }
   .customer-filter-controls .deals-filter-panel[open] > .deals-filter-form { max-height: min(72vh, 620px); }
 }
 @media (max-width: 760px) {
-  html.mobile-filter-sheet-open .customer-filter-controls { z-index: 1200; }
   .customer-filter-controls { gap: 8px; margin: 13px 0 8px; }
   .customer-filter-controls .category-filter-panel,
   .customer-filter-controls .deals-filter-panel { z-index: auto; }
@@ -873,4 +872,10 @@ main.deals-page .browse-nav { margin-bottom: 8px; }
   .customer-filter-controls .deals-filter-panel[open] .deals-filter-options label { min-height: 38px; font-size: 13px; }
   .customer-filter-controls .category-filter-panel[open] .category-filter-submit,
   .customer-filter-controls .deals-filter-panel[open] .deals-filter-form > button { min-height: 48px; margin-top: 12px; font-size: 14px; }
+}
+
+@media (min-width: 761px) {
+  .customer-filter-controls .deals-filter-panel > summary > .customer-filter-title > svg {
+    display: inline-block;
+  }
 }

@@ -245,7 +245,7 @@ export default async function StorePage({ params, searchParams }: { params: Prom
             <header className="category-deal-heading"><div><h2 id="store-catalog-title">{renderWebsiteRichText(productContent.title || `Deals on ${store.name}`)}</h2><p>{productContent.body ? renderWebsiteRichText(productContent.body) : `${filteredStoreOffers.length.toLocaleString('en-IN')} products with active offers from this store.`}</p></div><span>{displayedStoreOffers.length} shown</span></header>
             <div className="customer-filter-controls">
               <MobileFilterPanelBehavior/>
-              <details className="category-filter-panel" open data-filter-panel>
+              <details className="category-filter-panel" data-filter-panel>
             <summary><span className="customer-filter-title"><SlidersHorizontal size={19} aria-hidden="true"/>Filters{activeStoreFilterCount > 0 && <b className="customer-filter-count">{activeStoreFilterCount}</b>}</span><ChevronDown size={18} className="category-filter-summary-mark" aria-hidden="true"/></summary>
             <form action={`/store/${encodeURIComponent(store.slug)}`} method="get">
               <input type="hidden" name="from" value={returnPath}/>

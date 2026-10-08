@@ -175,7 +175,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
       <div className="category-deal-results">
         <header className="category-deal-heading"><div><h2 id="category-deals-title">Top deals in {category.name}</h2><p>{productOffers.length.toLocaleString('en-IN')} products with available offers</p></div><span>{displayedOffers.length} shown</span></header>
         <div className="customer-filter-controls">
-          <details className="category-filter-panel" open data-filter-panel>
+          <details className="category-filter-panel" data-filter-panel>
         <summary><span className="customer-filter-title"><SlidersHorizontal size={19} aria-hidden="true"/>Filters{activeFilterCount > 0 && <b className="customer-filter-count">{activeFilterCount}</b>}</span><ChevronDown size={18} className="category-filter-summary-mark" aria-hidden="true"/></summary>
         <form action={`/category/${category.slug}`} method="get">
           <input type="hidden" name="collection" value={collection}/><input type="hidden" name="sort" value={filters.sort ?? "relevance"}/>
