@@ -23,17 +23,16 @@
 .merchantBadge { position: absolute; top: 0; left: 0; display: inline-flex; max-width: min(74%, 160px); min-height: 28px; align-items: center; gap: 6px; padding: 5px 9px 5px 7px; overflow: hidden; border-radius: 0 0 8px 0; color: var(--glonni-navy); background: rgb(255 255 255 / 94%); box-shadow: 0 2px 8px rgb(27 42 78 / 10%); backdrop-filter: blur(4px); }
 .merchantLogo { width: 16px; height: 16px; flex: 0 0 auto; object-fit: contain; }
 .merchantName { overflow: hidden; font: 700 10px/1.2 var(--glonni-font-sans); text-overflow: ellipsis; white-space: nowrap; }
-.productBadge { position: absolute; top: 7px; right: 7px; }
-.productBadgeWithAction { right: 44px; }
-.saveSlot { position: absolute; z-index: 2; top: 7px; right: 7px; }
-.saveSlot :global(.save-offer) { min-width: 32px; min-height: 32px; justify-content: center; padding: 7px; border-color: var(--glonni-sky-tint); border-radius: 50%; color: var(--glonni-navy); background: #fff; box-shadow: 0 2px 8px rgb(27 42 78 / 12%); }
-.saveSlot :global(.save-offer svg) { width: 16px; height: 16px; }
+.saveSlot { position: absolute; z-index: 3; top: 8px; right: 8px; }
+.saveSlot :global(.save-offer) { display: grid; width: 34px; min-width: 34px; height: 34px; min-height: 34px; place-items: center; justify-content: center; padding: 0; border: 1px solid #e3e8f0; border-radius: 50%; color: var(--glonni-navy); background: #fff; box-shadow: 0 2px 8px rgb(27 42 78 / 16%); }
+.saveSlot :global(.save-offer svg) { width: 17px; height: 17px; }
 .productBody { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 7px; padding: 10px; }
 .productTitle { display: -webkit-box; min-height: 32px; margin: 0; overflow: hidden; color: var(--glonni-ink); font: 600 12px/1.35 var(--glonni-font-sans); -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.productSubtitle { overflow: hidden; margin: -2px 0 0; color: color-mix(in srgb, var(--glonni-navy) 58%, #fff); font: 400 11px/1.35 var(--glonni-font-sans); text-overflow: ellipsis; white-space: nowrap; }
 .productMeta { color: color-mix(in srgb, var(--glonni-navy) 62%, #fff); font: 500 10px/1.35 var(--glonni-font-sans); }
-.rating { display: flex; min-width: 0; align-items: center; gap: 5px; color: color-mix(in srgb, var(--glonni-navy) 62%, #fff); font: 400 10px/1.25 var(--glonni-font-sans); }
-.ratingStars { display: inline-flex; align-items: center; gap: 1px; color: var(--glonni-yellow); }
+.productInfoRow { display: flex; width: 100%; min-width: 0; min-height: 24px; align-items: center; gap: 7px; }
+.rating { display: inline-flex; min-width: 0; align-items: center; gap: 4px; color: color-mix(in srgb, var(--glonni-navy) 72%, #fff); font: 600 10px/1.25 var(--glonni-font-sans); white-space: nowrap; }
+.ratingStar { flex: 0 0 auto; color: #f4aa00; }
+.discountBadge { flex: 0 0 auto; min-height: 22px; margin-left: auto; padding: 3px 9px; border-radius: 999px; font-size: 10px; }
 .priceRow { display: flex; min-width: 0; flex-wrap: wrap; align-items: baseline; gap: 6px; }
 .price { color: var(--glonni-navy); font: 700 14px/1.3 var(--glonni-font-sans); }
 .originalPrice { color: color-mix(in srgb, var(--glonni-navy) 46%, #fff); font: 400 10px/1.3 var(--glonni-font-sans); }
