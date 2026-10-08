@@ -16,6 +16,7 @@ import {
   Tag,
   X,
 } from 'lucide-react';
+import { MobileFilterPanelBehavior } from '@/components/mobile-filter-panel-behavior';
 import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
 import { OfferGrid } from '@/components/offer-grid';
@@ -176,6 +177,7 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
 
     <CmsManagedSections pageKey="deals" slot="before_results"/>
     <div className="deals-layout">
+      <MobileFilterPanelBehavior/>
       <details className="deals-filter-panel" open>
         <summary><span><SlidersHorizontal size={17}/>Filters</span><ChevronDown size={18} className="deals-filter-chevron" aria-hidden="true"/></summary>
         {activeFilters.length > 0 && <Link className="deals-filter-clear" href="/deals">Clear all filters</Link>}

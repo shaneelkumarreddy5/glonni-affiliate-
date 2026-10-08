@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ArrowRight, ChevronRight, RotateCcw, Search, Store } from 'lucide-react';
 import { notFound } from 'next/navigation';
+import { MobileFilterPanelBehavior } from '@/components/mobile-filter-panel-behavior';
 import { Header } from '@/components/header';
 import { OfferGrid } from '@/components/offer-grid';
 import { ScrollRail } from '@/components/scroll-rail';
@@ -156,6 +157,7 @@ export default async function CategoryPage({ params, searchParams }: { params: P
     <CmsManagedSections pageKey="category" slot="before_results"/>
 
     <section className="category-deals" id="category-deals" aria-labelledby="category-deals-title">
+      <MobileFilterPanelBehavior/>
       <details className="category-filter-panel" open>
         <summary><span>Filters</span><span className="category-filter-summary-mark" aria-hidden="true">⌄</span></summary>
         {hasFilters && <Link className="category-filter-clear" href={`/category/${category.slug}`}><RotateCcw size={13}/>Clear</Link>}

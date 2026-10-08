@@ -2,6 +2,7 @@ import { Fragment, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, Clock3, ExternalLink, RotateCcw, Search, ShoppingBag, Store, WalletCards } from 'lucide-react';
 import { notFound } from 'next/navigation';
+import { MobileFilterPanelBehavior } from '@/components/mobile-filter-panel-behavior';
 import { Header } from '@/components/header';
 import { BrowseNav } from '@/components/browse-nav';
 import { OfferGrid } from '@/components/offer-grid';
@@ -229,6 +230,7 @@ export default async function StorePage({ params, searchParams }: { params: Prom
       </section>}
       <section className={styles.catalogSection} id="store-catalog" aria-labelledby="store-catalog-title">
         <div className="category-deals">
+          <MobileFilterPanelBehavior/>
           <details className="category-filter-panel" open>
             <summary><span>Filters</span><span className="category-filter-summary-mark" aria-hidden="true">⌄</span></summary>
             {hasStoreFilters && <Link className="category-filter-clear" href={clearStoreFiltersPath}><RotateCcw size={13}/>Clear</Link>}
