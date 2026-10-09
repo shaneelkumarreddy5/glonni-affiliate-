@@ -154,7 +154,7 @@ export function CuelinksConnectionPanel() {
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
         <button type="button" style={primaryButtonStyle} onClick={checkConnection} disabled={!!busy}><RefreshCw size={15}/>{busy === 'health' ? 'Checking…' : 'Check connection'}</button>
         <button type="button" style={buttonStyle} onClick={loadCampaigns} disabled={!!busy}><Search size={15}/>{busy === 'campaigns' ? 'Loading…' : 'Load India campaigns'}</button>
-        {busy && <span role="status" style={{ ...smallText, display: 'inline-flex', alignItems: 'center', gap: 6 }}><LoaderCircle size={15}/>Working…</span>}
+        {busy && <span role="status" style={{ ...smallText, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Loader2 size={15}/>Working…</span>}
       </div>
 
       {notice && <p role="status" aria-live="polite" style={{ margin: '13px 0 0', color: connection === 'failed' || connection === 'not_configured' ? statusColor : '#38546e', fontSize: 13 }}>{notice}</p>}
