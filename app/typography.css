@@ -1,0 +1,30 @@
+/* Shared Inter typography for every customer and admin screen. */
+html,
+body,
+body * {
+  font-family: "Inter", Arial, sans-serif !important;
+}
+
+/* Keep the Glonni wordmark's established display type. */
+.logo,
+.logo * {
+  font-family: var(--font-gurajada), "Gurajada", serif !important;
+}
+
+.admin-brand b {
+  font-family: "Plus Jakarta Sans", sans-serif !important;
+}
+
+/* Preserve code and technical identifiers in a readable monospace face. */
+code,
+pre,
+kbd,
+samp {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+}
+
+/* Keep the support card label clearly separated after changing the typeface. */
+.contact-grid h2 {
+  letter-spacing: normal !important;
+  word-spacing: 0.08em;
+}
