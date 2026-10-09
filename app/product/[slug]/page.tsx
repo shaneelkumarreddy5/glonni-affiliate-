@@ -43,7 +43,6 @@ import { renderWebsiteRichText } from '@/lib/website-rich-text';
 export const dynamic = "force-dynamic";
 const money = (value: number | null | undefined) =>
   `₹${Math.round(value ?? 0).toLocaleString("en-IN")}`;
-const updatedLabel = (value: string | null) => value ? new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Update time unavailable';
 type Presentation = {
   kind: "electronics" | "fashion" | "beauty" | "general";
   variants: { label: string; values: string[] }[];
@@ -282,6 +281,11 @@ function presentationFor(category: string, title: string): Presentation {
       "Review the selected variant, complete description, what is included and merchant return conditions.",
   };
 }
+function isKnownUnavailable(offer: CatalogOffer) {
+  const stockStatus = (offer.stock_status ?? "").trim().toLowerCase().replace(/[_-]+/g, " ");
+  return /\b(out of stock|sold out|unavailable|discontinued|not available)\b/.test(stockStatus);
+}
+
 function cashbackValue(offer: CatalogOffer) {
   if (offer.reward_type === "fixed_cashback") return offer.cashback_amount ?? 0;
   if (offer.reward_type === "percentage_cashback") {
@@ -299,7 +303,7 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ from?: string }>;
 }) {
-  const offers = await getProductOffers((await params).slug),
+  const offers = (await getProductOffers((await params).slug)).filter((offer) => !isKnownUnavailable(offer)),
     product = offers[0]?.products;
   if (!product) notFound();
   const category = product.categories?.name ?? "Product",
@@ -343,9 +347,9 @@ export default async function ProductPage({
         .eq("is_active", true)
         .order("display_order")
     : Promise.resolve({ data: [] }),supabase.from('product_price_history').select('price,recorded_at').eq('product_id',product.id).order('recorded_at',{ascending:true}).limit(120)]);
-  const allOffers = await getCatalogOffers({
+  const allOffers = (await getCatalogOffers({
       category: product.categories?.slug,
-    }),
+    })).filter((offer) => !isKnownUnavailable(offer)),
     related = allOffers
       .filter((o) => o.products?.slug !== product.slug)
       .filter(
@@ -382,15 +386,15 @@ export default async function ProductPage({
   return (
     <>
       <Header />
-      <main className={`pdp pdp-${view.kind}`} style={{ display: 'flex', flexDirection: 'column' }}>
-        <div style={{ order: 0 }}><BrowseNav
+      <main className={`pdp pdp-${view.kind}`}>
+        <div className="pdp-section pdp-section-nav" style={{ order: 0 }}><BrowseNav
           items={[
             { label: parentLabel, href: parent },
             { label: product.title },
           ]}
           fallback={parent}
         /></div>
-        <div style={sectionStyle('product_summary', 1)}>
+        <div className="pdp-section pdp-section-summary" style={sectionStyle('product_summary', 1)}>
         <section className="pdp-hero">
           <ProductGallery images={gallery} title={product.title}/>
           <div className="pdp-summary">
@@ -465,7 +469,7 @@ export default async function ProductPage({
           </div>
         </section>
         </div>
-        <div style={sectionStyle('offer_comparison', 2)}>
+        <div className="pdp-section pdp-section-comparison" style={sectionStyle('offer_comparison', 2)}>
         <section id="offers" className="pdp-card pdp-comparison">
           <header>
             <div>
@@ -486,7 +490,6 @@ export default async function ProductPage({
               <b>Glonni cashback</b>
               <b>Effective price</b>
               <b>Customer rating</b>
-              <b>Stock & updated</b>
               <b>Action</b>
             </div>
             {sortedOffers.map((offer, index) => {
@@ -502,7 +505,7 @@ export default async function ProductPage({
                     </small>
                     {index === 0 && <em>Best effective price</em>}
                   </div>
-                  <strong>{offer.current_price == null ? '—' : money(offer.current_price)}</strong>
+                  <strong className="pdp-price">{offer.current_price == null ? '—' : money(offer.current_price)}</strong>
                   <span className="pdp-promotions">{offer.bank_offer ? <b>{offer.bank_offer}</b> : null}{offer.coupon_code ? <small>Coupon: {offer.coupon_code}</small> : null}{!offer.bank_offer && !offer.coupon_code ? 'No promotion reported' : null}</span>
                   <span className="pdp-cashback">
                     {cb ? money(cb) : "Not available"}
@@ -523,16 +526,12 @@ export default async function ProductPage({
                       on {offer.merchants?.name}
                     </small>
                   </span>
-                  <span className={`pdp-stock ${(offer.stock_status??'').toLowerCase().includes('out')?'unavailable':''}`}>
-                    <b>● {(offer.stock_status||'unknown').replaceAll('_',' ')}</b>
-                    <small>Updated {updatedLabel(offer.updated_at)}</small>
-                  </span>
-                  <div>
+                  <div className="pdp-action">
                     <a className="pdp-view" href={`/out/${offer.id}?source=product&medium=store-comparison&placement=product-comparison`}>
                       View deal
                     </a>
                   </div>
-                  <details>
+                  <details className="pdp-offer-terms">
                     <summary>
                       Terms & conditions <ChevronDown />
                     </summary>
@@ -547,7 +546,7 @@ export default async function ProductPage({
           </div>
         </section>
         </div>
-        <div style={sectionStyle('price_history', 3)}>
+        <div className="pdp-section pdp-section-history" style={sectionStyle('price_history', 3)}>
         <section className="pdp-card pdp-history">
           <header>
             <div>
@@ -604,7 +603,7 @@ export default async function ProductPage({
           </> : <div className="pdp-history-empty"><b>Price history is not available yet</b><span>Glonni will show a chart after verified price records have been collected.</span></div>}
         </section>
         </div>
-        <div style={sectionStyle('specifications', 4)}>
+        <div className="pdp-section pdp-section-specifications" style={sectionStyle('specifications', 4)}>
         <section className="pdp-card pdp-specifications">
           <header>
             <div>
@@ -626,7 +625,7 @@ export default async function ProductPage({
           </div> : <div className="pdp-section-empty"><b>Specifications have not been added</b><span>Confirm technical details on the selected store before purchasing.</span></div>}
         </section>
         </div>
-        <div style={sectionStyle('product_information', 5)}>
+        <div className="pdp-section pdp-section-information" style={sectionStyle('product_information', 5)}>
         <section id="category-guide" className="pdp-information-grid">
           <article className="pdp-card">
             <h2>{renderWebsiteRichText(coreContent.product_information?.title || view.guideTitle)}</h2>
@@ -668,10 +667,10 @@ export default async function ProductPage({
           </article>
         </section>
         </div>
-        <div style={sectionStyle('store_policies', 6)}>
+        <div className="pdp-section pdp-section-policies" style={sectionStyle('store_policies', 6)}>
         {merchantPolicies.length > 0 && <section className="pdp-merchant-policies"><header><p className="eyebrow">PURCHASE TERMS</p><h2>{renderWebsiteRichText(coreContent.store_policies?.title || 'Terms for stores selling this product')}</h2><p>{coreContent.store_policies?.body ? renderWebsiteRichText(coreContent.store_policies.body) : 'Select the store you plan to buy from and review the applicable Glonni, store and cashback terms.'}</p></header>{merchantPolicies.map(({merchant,policy})=><CustomerPolicyAccordions key={merchant.slug} storeName={merchant.name} policy={policy}/>)}</section>}
         </div>
-        <div style={sectionStyle('product_faqs', 7)}>
+        <div className="pdp-section pdp-section-faqs" style={sectionStyle('product_faqs', 7)}>
         <ContextualFaqs
           title={coreContent.product_faqs?.title || 'Cashback & offer details'}
           faqs={
@@ -684,7 +683,7 @@ export default async function ProductPage({
           }
         />
         </div>
-        <div style={sectionStyle('related_products', 8)}>
+        <div className="pdp-section pdp-section-related" style={sectionStyle('related_products', 8)}>
         {related.length > 0 && (
           <section className="pdp-related">
             <header>
@@ -706,7 +705,7 @@ export default async function ProductPage({
           </section>
         )}
         </div>
-        <div style={sectionStyle('disclosure', 9)}>
+        <div className="pdp-section pdp-section-disclosure" style={sectionStyle('disclosure', 9)}>
         <p className="pdp-disclosure">
           {coreContent.disclosure?.body ? renderWebsiteRichText(coreContent.disclosure.body) : <>
           Prices, ratings, history, availability and delivery notes may be
@@ -717,7 +716,7 @@ export default async function ProductPage({
           </>}
         </p>
         </div>
-        {sectionOrder.filter((token) => token.startsWith('block:')).map((token) => <div key={token} style={{ order: sectionPositions.get(token) }}><CmsManagedSections pageKey="product" blockIds={[token.slice(6)]} offers={allOffers}/></div>)}
+        {sectionOrder.filter((token) => token.startsWith('block:')).map((token) => <div className="pdp-section pdp-section-cms" key={token} style={{ order: sectionPositions.get(token) }}><CmsManagedSections pageKey="product" blockIds={[token.slice(6)]} offers={allOffers}/></div>)}
       </main>
     </>
   );
