@@ -32,6 +32,7 @@ import './admin-categories-figma.css';
 import './admin-shell-overrides.css';
 import './finance-tax.css';
 import './admin-table-scroll.css';
+import './typography.css';
 import { createClient } from '@/lib/supabase/server';
 
 export const metadata: Metadata = {
