@@ -14,7 +14,7 @@ export function WebsiteSlideItemCards({ items, compact = false }: { items: Resol
         <span className={styles.itemImage}>{item.imageUrl ? <img src={item.imageUrl} alt=""/> : item.name.slice(0, 1)}</span>
         <span><small>{item.type === 'store' ? 'Store' : item.type === 'category' ? 'Category / subcategory' : 'Product'}</small><strong>{item.name}</strong><em>{item.type === 'product' ? 'View product' : 'View all'} →</em></span>
       </a>
-      {item.type === 'product' ? <span className={styles.price}>{price(item.products[0]?.price ?? null)}</span> : <div className={styles.products} aria-label={`Products from ${item.name}`}>
+      {item.type === 'product' ? <span className={styles.price} data-currency-symbol={item.products[0]?.price != null ? 'inr' : undefined}>{price(item.products[0]?.price ?? null)}</span> : <div className={styles.products} aria-label={`Products from ${item.name}`}>
         {item.products.length ? item.products.map((product) => <a key={product.id} className={styles.product} href={websiteItemHref('product', product.slug)} title={product.title} {...previewLink}>
           {product.imageUrl ? <img src={product.imageUrl} alt=""/> : <span className={styles.productFallback}>{product.title.slice(0, 1)}</span>}
           <span><b>{product.title}</b><small>{price(product.price)}</small></span>

@@ -29,7 +29,7 @@ const compact=(id:string,prefix:string)=>`${prefix}-${id.replaceAll('-','').slic
 const badge=(value:string)=>/paid|active|verified|approved|completed|low/i.test(value)?'wallet-badge good':/disputed|failed|restricted|high|reversed/i.test(value)?'wallet-badge bad':'wallet-badge pending';
 
 function Metric({icon:Icon,label,value,note,tone='blue'}:{icon:typeof WalletCards;label:string;value:string;note:string;tone?:string}){
-  return <article className={`wallet-metric ${tone}`}><div><Icon/><i>i</i></div><span>{label}</span><b>{value}</b><small>{note}</small></article>;
+  return <article className={`wallet-metric ${tone}`}><div><Icon/><i>i</i></div><span>{label}</span><b data-currency-symbol={value.startsWith('₹') ? 'inr' : undefined}>{value}</b><small>{note}</small></article>;
 }
 function Filters({kind}:{kind:'provider'|'user'|'transaction'}){
   const placeholder=kind==='provider'?'Search provider…':kind==='user'?'Search user or ID…':'Search transaction, user or order…';

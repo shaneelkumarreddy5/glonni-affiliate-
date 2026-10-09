@@ -449,16 +449,16 @@ export default async function ProductPage({
             <div className="pdp-best">
               <span>
                 <small>Lowest price</small>
-                <b>{money(low)}</b>
+                <b data-currency-symbol="inr">{money(low)}</b>
                 <em>on {lowest.merchants?.name}</em>
               </span>
               <span>
                 <small>Glonni cashback</small>
-                <b>{bestCashback ? money(bestCashback) : "Check offers"}</b>
+                <b data-currency-symbol={bestCashback ? "inr" : undefined}>{bestCashback ? money(bestCashback) : "Check offers"}</b>
               </span>
               <span>
                 <small>Effective price</small>
-                <b>{money(effective)}</b>
+                <b data-currency-symbol="inr">{money(effective)}</b>
                 <em>on {bestEffectiveOffer.merchants?.name}</em>
               </span>
             </div>
@@ -505,15 +505,15 @@ export default async function ProductPage({
                     </small>
                     {index === 0 && <em>Best effective price</em>}
                   </div>
-                  <strong className="pdp-price">{offer.current_price == null ? '—' : money(offer.current_price)}</strong>
+                  <strong className="pdp-price" data-currency-symbol={offer.current_price == null ? undefined : "inr"}>{offer.current_price == null ? '—' : money(offer.current_price)}</strong>
                   <span className="pdp-promotions">{offer.bank_offer ? <b>{offer.bank_offer}</b> : null}{offer.coupon_code ? <small>Coupon: {offer.coupon_code}</small> : null}{!offer.bank_offer && !offer.coupon_code ? 'No promotion reported' : null}</span>
-                  <span className="pdp-cashback">
+                  <span className="pdp-cashback" data-currency-symbol={cb ? "inr" : undefined}>
                     {cb ? money(cb) : "Not available"}
                     <small>
                       {cb ? `Cashback within ${offer.cashback_confirmation_days??45} days` : "No Glonni Cashback"}
                     </small>
                   </span>
-                  <strong className="pdp-effective">
+                  <strong className="pdp-effective" data-currency-symbol={offer.current_price == null ? undefined : "inr"}>
                     {offer.current_price == null ? '—' : money(Math.max(0, offer.current_price - cb))}
                   </strong>
                   <span className="pdp-merchant-rating">
@@ -582,19 +582,19 @@ export default async function ProductPage({
           <dl>
             <div>
               <dt>Current price</dt>
-              <dd>{money(storedPrices.at(-1))}</dd>
+              <dd data-currency-symbol="inr">{money(storedPrices.at(-1))}</dd>
             </div>
             <div>
               <dt>Lowest recorded price</dt>
-              <dd>{money(historyLow)}</dd>
+              <dd data-currency-symbol="inr">{money(historyLow)}</dd>
             </div>
             <div>
               <dt>Highest price</dt>
-              <dd>{money(high)}</dd>
+              <dd data-currency-symbol="inr">{money(high)}</dd>
             </div>
             <div>
               <dt>Average price</dt>
-              <dd>{money(avg)}</dd>
+              <dd data-currency-symbol="inr">{money(avg)}</dd>
             </div>
           </dl>
           <small>

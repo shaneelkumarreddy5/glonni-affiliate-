@@ -1,35 +1,22 @@
-/* One typographic treatment for rupee amounts across customer and admin surfaces. */
-:where(span, strong, b, em):is(
-  [class*="price"],
-  [class*="money"],
-  [class*="amount"],
-  [class*="currency"],
-  [class*="balance"],
-  [class*="cashback"],
-  [class*="payout"],
-  [class*="revenue"],
-  [class*="commission"],
-  [class*="budget"],
-  [class*="cost"]
-) {
+/* Clear rupee treatment shared across customer and admin monetary displays. */
+[data-currency-symbol="inr"] {
   display: inline-block;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-:where(span, strong, b, em):is(
-  [class*="price"],
-  [class*="money"],
-  [class*="amount"],
-  [class*="currency"],
-  [class*="balance"],
-  [class*="cashback"],
-  [class*="payout"],
-  [class*="revenue"],
-  [class*="commission"],
-  [class*="budget"],
-  [class*="cost"]
-)::first-letter {
-  font-size: 0.88em;
-  font-weight: 500;
-  letter-spacing: -0.035em;
+[data-currency-symbol="inr"]::first-letter,
+td[class*="money-"]::first-letter {
+  color: #111a3d;
+  background: #ffd221;
+  border-radius: 0.24em;
+  padding: 0 0.15em;
+  margin-right: 0.12em;
+  font-size: 0.78em;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+td[class*="money-"] {
+  font-variant-numeric: tabular-nums;
 }

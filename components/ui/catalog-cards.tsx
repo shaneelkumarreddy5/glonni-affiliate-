@@ -68,8 +68,8 @@ export function ProductCard({
           {badgeText && <Badge className={styles.discountBadge} variant={badgeVariant}>{badgeText}</Badge>}
         </div>
         <div className={styles.priceRow}>
-          <span className={styles.price}>{price}</span>
-          {originalPrice && originalPrice !== price && <del className={styles.originalPrice}>{originalPrice}</del>}
+          <span className={styles.price} data-currency-symbol={price.startsWith('₹') ? 'inr' : undefined}>{price}</span>
+          {originalPrice && originalPrice !== price && <del className={styles.originalPrice} data-currency-symbol={originalPrice.startsWith('₹') ? 'inr' : undefined}>{originalPrice}</del>}
         </div>
         {meta && <span className={styles.productMeta}>{meta}</span>}
         {rewardText && <span className={[styles.reward, styles[`reward_${rewardTone}`]].join(' ')}>{rewardText}</span>}
