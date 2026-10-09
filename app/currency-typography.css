@@ -1,22 +1,30 @@
-/* Clear rupee treatment shared across customer and admin monetary displays. */
-[data-currency-symbol="inr"] {
+/* Use a clear plain rupee glyph consistently across user and admin monetary values. */
+[data-currency-symbol="inr"],
+td[class*="money-"] {
   display: inline-block;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-[data-currency-symbol="inr"]::first-letter,
-td[class*="money-"]::first-letter {
-  color: #111a3d;
-  background: #ffd221;
-  border-radius: 0.24em;
-  padding: 0 0.15em;
-  margin-right: 0.12em;
-  font-size: 0.78em;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-td[class*="money-"] {
-  font-variant-numeric: tabular-nums;
+:where(span, strong, b, em, td, dd, output):is(
+  [class*="price"],
+  [class*="money"],
+  [class*="amount"],
+  [class*="currency"],
+  [class*="balance"],
+  [class*="cashback"],
+  [class*="payout"],
+  [class*="revenue"],
+  [class*="commission"],
+  [class*="budget"],
+  [class*="cost"]
+)::first-letter,
+[data-currency-symbol="inr"]::first-letter {
+  font-family: "Noto Sans", "DM Sans", Arial, sans-serif;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
