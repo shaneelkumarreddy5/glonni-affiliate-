@@ -76,6 +76,7 @@
 /* Responsive full-page account navigation */
 .account-hub-layout { display: block; margin-top: 0; }
 .account-tabs {
+  display: block !important;
   width: 100%;
   margin: 20px 0 16px;
   padding: 0 0 8px;
