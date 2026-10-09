@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type CSSProperties } from 'react';
-import { Copy, ExternalLink, LoaderCircle, RefreshCw, Search } from 'lucide-react';
+import { Copy, ExternalLink, Loader2, RefreshCw, Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 type Campaign = {
@@ -122,9 +122,9 @@ export function CuelinksConnectionPanel() {
     setTrackingUrl('');
     const data = await invoke('convert', { url: linkInput });
     if (!data) return;
-    const result = data.data && typeof data.data === 'object' ? data.data as { tracking_url?: string } : {};
+    const result = data.data && typeof data.data === 'object' ? data.data as { tracking_url?: string; affiliated?: boolean } : {};
     setTrackingUrl(result.tracking_url || '');
-    setNotice(result.tracking_url ? 'Affiliate link generated as a preview. It has not been saved or published.' : 'Cuelinks returned no tracking link.');
+    setNotice(!result.tracking_url ? 'Cuelinks returned no tracking link.' : result.affiliated === false ? 'Link generated, but Cuelinks says this URL is not currently commission-eligible.' : 'Affiliate link generated as a preview. It has not been saved or published.');
   }
 
   async function copyLink() {
