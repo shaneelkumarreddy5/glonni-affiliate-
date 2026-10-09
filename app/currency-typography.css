@@ -1,0 +1,34 @@
+/* One typographic treatment for rupee amounts across customer and admin surfaces. */
+:where(span, strong, b, em):is(
+  [class*="price"],
+  [class*="money"],
+  [class*="amount"],
+  [class*="currency"],
+  [class*="balance"],
+  [class*="cashback"],
+  [class*="payout"],
+  [class*="revenue"],
+  [class*="commission"],
+  [class*="budget"],
+  [class*="cost"]
+) {
+  font-variant-numeric: tabular-nums;
+}
+
+:where(span, strong, b, em):is(
+  [class*="price"],
+  [class*="money"],
+  [class*="amount"],
+  [class*="currency"],
+  [class*="balance"],
+  [class*="cashback"],
+  [class*="payout"],
+  [class*="revenue"],
+  [class*="commission"],
+  [class*="budget"],
+  [class*="cost"]
+)::first-letter {
+  font-size: 0.88em;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}

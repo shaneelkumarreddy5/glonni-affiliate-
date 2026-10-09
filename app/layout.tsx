@@ -4,6 +4,7 @@ import { AdminMockMode } from '@/components/admin-mock-mode';
 import { ActivityTracker } from '@/components/activity-tracker';
 import { AdminTableScrollEnhancer } from '@/components/admin-table-scroll-enhancer';
 import './globals.css';
+import './currency-typography.css';
 import './glonni-design-tokens.css';
 import './admin-sidebar.css';
 import './admin-theme.css';
