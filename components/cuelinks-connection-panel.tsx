@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { CheckCircle2, Copy, ExternalLink, LoaderCircle, RefreshCw, Search } from 'lucide-react';
+import { useState, type CSSProperties } from 'react';
+import { Copy, ExternalLink, LoaderCircle, RefreshCw, Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 type Campaign = {
@@ -33,7 +33,7 @@ type CuelinksReply = {
   note?: string;
 };
 
-const cardStyle: React.CSSProperties = {
+const cardStyle: CSSProperties = {
   background: '#fff',
   border: '1px solid #e5eaf0',
   borderRadius: 14,
@@ -41,7 +41,7 @@ const cardStyle: React.CSSProperties = {
   margin: '0 0 24px',
   boxShadow: '0 4px 18px rgba(18, 34, 54, .045)',
 };
-const buttonStyle: React.CSSProperties = {
+const buttonStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 8,
@@ -53,13 +53,13 @@ const buttonStyle: React.CSSProperties = {
   fontWeight: 650,
   cursor: 'pointer',
 };
-const primaryButtonStyle: React.CSSProperties = {
+const primaryButtonStyle: CSSProperties = {
   ...buttonStyle,
   borderColor: '#1767a7',
   background: '#1767a7',
   color: '#fff',
 };
-const smallText: React.CSSProperties = { color: '#637487', fontSize: 13, lineHeight: 1.55 };
+const smallText: CSSProperties = { color: '#637487', fontSize: 13, lineHeight: 1.55 };
 
 export function CuelinksConnectionPanel() {
   const [connection, setConnection] = useState<'unknown' | 'connected' | 'not_configured' | 'failed'>('unknown');
