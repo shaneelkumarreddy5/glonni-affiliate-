@@ -1,7 +1,11 @@
 /* Use a clear plain rupee glyph consistently across user and admin monetary values. */
-[data-currency-symbol="inr"],
-td[class*="money-"] {
+[data-currency-symbol="inr"] {
   display: inline-block;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+td[class*="money-"] {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
