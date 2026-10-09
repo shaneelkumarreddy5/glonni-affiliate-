@@ -119,7 +119,7 @@ export default {
       if (query) params.set("q", query);
     } else if (action === "offers") {
       path = "/offers";
-      params.set("valid_on", new Date().toISOString().slice(0, 10));
+      params.set("valid_on", new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date()));
       params.set("sort", "updated_at");
       params.set("order", "desc");
       params.set("page", String(boundedInteger(input.page, 1, 1, 10000)));
