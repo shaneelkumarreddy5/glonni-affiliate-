@@ -65,7 +65,7 @@ export default {
   fetch: withSupabase({ auth: ["publishable"] }, async (request, ctx) => {
     if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-    const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\\s+/i, "").trim();
+    const token = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
     const { data: auth } = await ctx.supabaseAdmin.auth.getUser(token);
     if (!auth.user) return json({ error: "A signed-in administrator is required." }, 401);
 
@@ -123,7 +123,7 @@ export default {
 
         const page = pageNumber(body.page, 1);
         const perPage = pageSize(body.per_page, 50);
-        const validOn = typeof body.valid_on === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(body.valid_on) ? body.valid_on : indiaDate();
+        const validOn = typeof body.valid_on === "string" && /^\d{4}-\\d{2}-\\d{2}$/.test(body.valid_on) ? body.valid_on : indiaDate();
         const params = new URLSearchParams({
           campaign_id: String(campaignId),
           valid_on: validOn,
