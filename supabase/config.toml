@@ -32,3 +32,9 @@ entrypoint = "./functions/ai-job-runner/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/ai-product-enrichment/*.html" ]
+
+[functions.cuelinks]
+enabled = true
+verify_jwt = true
+import_map = "./functions/cuelinks/deno.json"
+entrypoint = "./functions/cuelinks/index.ts"
