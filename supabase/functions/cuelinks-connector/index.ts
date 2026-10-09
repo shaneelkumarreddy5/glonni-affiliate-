@@ -38,7 +38,6 @@ async function cuelinksRequest(path: string, apiKey: string, init: RequestInit =
         Accept: "application/json",
         Authorization: `Token ${apiKey}`,
         ...(init.body ? { "Content-Type": "application/json" } : {}),
-        ...init.headers,
       },
     });
     let payload: unknown = {};
@@ -58,7 +57,14 @@ function upstreamFailure(status: number) {
 }
 
 function indiaDate() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
 }
 
 export default {
