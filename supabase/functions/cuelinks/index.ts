@@ -25,7 +25,7 @@ function validMerchantUrl(value: unknown): string | null {
     if (url.protocol !== "https:" || url.username || url.password) return null;
     const host = url.hostname.toLowerCase();
     if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local")) return null;
-    if (/^(\\d{1,3}\\.){3}\\d{1,3}$/.test(host) || host.includes(":")) return null;
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(host) || host.includes(":")) return null;
     return url.toString();
   } catch {
     return null;
@@ -68,7 +68,7 @@ async function cuelinks(path: string, params: URLSearchParams, method = "GET", p
 export default {
   fetch: withSupabase({ auth: ["publishable"] }, async (req, ctx) => {
     if (req.method !== "POST") return respond({ error: "Method not allowed." }, 405);
-    const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\\s+/i, "");
+    const token = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
     if (!token) return respond({ error: "A signed-in administrator is required." }, 401);
 
     const { data: auth } = await ctx.supabaseAdmin.auth.getUser(token);
@@ -125,7 +125,7 @@ export default {
       params.set("page", String(boundedInteger(input.page, 1, 1, 10000)));
       params.set("per_page", String(boundedInteger(input.per_page, 50, 1, 100)));
       const campaignId = safeText(input.campaign_id, 24);
-      if (campaignId && /^\\d+$/.test(campaignId)) params.set("campaign_id", campaignId);
+      if (campaignId && /^\d+$/.test(campaignId)) params.set("campaign_id", campaignId);
       const offerType = safeText(input.offer_type, 16);
       if (offerType === "coupon" || offerType === "deal") params.set("offer_type", offerType);
     } else if (action === "transactions") {
