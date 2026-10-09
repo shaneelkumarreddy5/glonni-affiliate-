@@ -12,6 +12,7 @@
   [class*="budget"],
   [class*="cost"]
 ) {
+  display: inline-block;
   font-variant-numeric: tabular-nums;
 }
 
