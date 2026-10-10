@@ -115,6 +115,18 @@ jobs:
             pg_dump --format=custom --no-owner --no-privileges \
               --file=/backup/database.dump
 
+          docker run --rm --network host \
+            -e PGHOST="$SUPABASE_DB_HOST" -e PGPORT="$SUPABASE_DB_PORT" \
+            -e PGUSER="$SUPABASE_DB_USER" -e PGDATABASE="$SUPABASE_DB_NAME" \
+            -e PGPASSWORD="$SUPABASE_DB_PASSWORD" -e PGSSLMODE=require \
+            "$pg_image" psql --no-psqlrc --no-align --tuples-only --csv \
+              --command="SELECT rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin, rolreplication, rolbypassrls, rolconnlimit, rolvaliduntil, rolconfig FROM pg_roles ORDER BY rolname" \
+              > "$work_dir/roles.csv"
+          if [[ ! -s "$work_dir/roles.csv" ]]; then
+            echo "::error::Role metadata export was empty; refusing to continue."
+            exit 1
+          fi
+
           bucket_count=0
           rclone lsf --dirs-only --format p --log-level ERROR "supabase:" > "$work_dir/buckets.txt"
           while IFS= read -r bucket_path; do
@@ -140,6 +152,10 @@ jobs:
             --cipher-algo AES256 --s2k-digest-algo SHA256 \
             --passphrase-file "$key_file" --output "$work_dir/upload/storage.tar.gz.gpg" \
             "$work_dir/storage.tar.gz"
+          gpg --batch --yes --pinentry-mode loopback --symmetric \
+            --cipher-algo AES256 --s2k-digest-algo SHA256 \
+            --passphrase-file "$key_file" --output "$work_dir/upload/roles.csv.gpg" \
+            "$work_dir/roles.csv"
 
           gpg --batch --quiet --pinentry-mode loopback --decrypt \
             --passphrase-file "$key_file" --output "$work_dir/database-verify.dump" \
@@ -150,6 +166,10 @@ jobs:
             --passphrase-file "$key_file" --output "$work_dir/storage-verify.tar.gz" \
             "$work_dir/upload/storage.tar.gz.gpg"
           tar -tzf "$work_dir/storage-verify.tar.gz" >/dev/null
+          gpg --batch --quiet --pinentry-mode loopback --decrypt \
+            --passphrase-file "$key_file" --output "$work_dir/roles-verify.csv" \
+            "$work_dir/upload/roles.csv.gpg"
+          test -s "$work_dir/roles-verify.csv"
 
           {
             printf 'created_utc=%s\n' "$stamp"
@@ -157,10 +177,10 @@ jobs:
             printf 'database_server_major=%s\n' "$server_major"
             printf 'storage_bucket_count=%s\n' "$bucket_count"
             printf 'storage_object_count=%s\n' "$object_count"
-            (cd "$work_dir/upload" && sha256sum database.dump.gpg storage.tar.gz.gpg)
+            (cd "$work_dir/upload" && sha256sum database.dump.gpg storage.tar.gz.gpg roles.csv.gpg)
           } > "$work_dir/upload/manifest.txt"
 
           rclone copy --log-level ERROR "$work_dir/upload" "$remote_dir"
           rclone check --log-level ERROR --download --one-way "$work_dir/upload" "$remote_dir"
-          echo "Encrypted database and Storage archives uploaded and checksum-verified."
+          echo "Encrypted database, Storage, and role-metadata archives uploaded and checksum-verified."
           echo "No production records or Storage objects were modified."
