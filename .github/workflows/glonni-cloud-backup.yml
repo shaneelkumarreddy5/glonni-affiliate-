@@ -1,4 +1,4 @@
-name: Glonni encrypted cloud backup
+name: Glonni cloud backup
 
 on:
   workflow_dispatch:
@@ -7,8 +7,12 @@ on:
         description: Type BACKUP to start a read-only export
         required: true
         type: string
+  schedule:
+    - cron: "30 0 * * *"
+      timezone: Asia/Kolkata
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
   group: glonni-cloud-backup
@@ -16,13 +20,31 @@ concurrency:
 
 jobs:
   backup:
-    if: ${{ inputs.confirm == 'BACKUP' }}
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.confirm == 'BACKUP') ||
+      (github.event_name == 'schedule' && vars.GLONNI_BACKUPS_ENABLED == 'true')
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
     steps:
-      - name: Check required credentials without printing values
+      - name: Check out backup configuration
+        uses: actions/checkout@v4
+
+      - name: Set up the Supabase CLI
+        uses: supabase/setup-cli@v3
+        with:
+          version: latest
+
+      - name: Install Google Drive transfer tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends rclone
+
+      - name: Check required secrets without printing values
         shell: bash
         env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
           SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
           SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
@@ -36,28 +58,13 @@ jobs:
           GOOGLE_DRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
           GOOGLE_DRIVE_TOKEN_JSON: ${{ secrets.GOOGLE_DRIVE_TOKEN_JSON }}
           GOOGLE_DRIVE_ROOT_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_ROOT_FOLDER_ID }}
-          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
-          RCLONE_CONFIG_GDRIVE_TYPE: drive
-          RCLONE_CONFIG_GDRIVE_SCOPE: drive
-          RCLONE_CONFIG_GDRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
-          RCLONE_CONFIG_GDRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
-          RCLONE_CONFIG_GDRIVE_TOKEN: ${{ secrets.GOOGLE_DRIVE_TOKEN_JSON }}
-          RCLONE_CONFIG_GDRIVE_ROOT_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_ROOT_FOLDER_ID }}
-          RCLONE_CONFIG_SUPABASE_TYPE: s3
-          RCLONE_CONFIG_SUPABASE_PROVIDER: Other
-          RCLONE_CONFIG_SUPABASE_ACCESS_KEY_ID: ${{ secrets.SUPABASE_S3_ACCESS_KEY_ID }}
-          RCLONE_CONFIG_SUPABASE_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_S3_SECRET_ACCESS_KEY }}
-          RCLONE_CONFIG_SUPABASE_ENDPOINT: ${{ secrets.SUPABASE_S3_ENDPOINT }}
-          RCLONE_CONFIG_SUPABASE_REGION: ${{ secrets.SUPABASE_S3_REGION }}
-          RCLONE_CONFIG_SUPABASE_FORCE_PATH_STYLE: "true"
         run: |
           set -euo pipefail
           required=(
-            SUPABASE_DB_HOST SUPABASE_DB_PORT SUPABASE_DB_NAME SUPABASE_DB_USER
-            SUPABASE_DB_PASSWORD SUPABASE_S3_ENDPOINT SUPABASE_S3_REGION
-            SUPABASE_S3_ACCESS_KEY_ID SUPABASE_S3_SECRET_ACCESS_KEY
-            GOOGLE_DRIVE_CLIENT_ID GOOGLE_DRIVE_CLIENT_SECRET GOOGLE_DRIVE_TOKEN_JSON
-            GOOGLE_DRIVE_ROOT_FOLDER_ID BACKUP_ENCRYPTION_KEY
+            SUPABASE_PROJECT_REF SUPABASE_DB_HOST SUPABASE_DB_PORT SUPABASE_DB_NAME
+            SUPABASE_DB_USER SUPABASE_DB_PASSWORD SUPABASE_S3_ENDPOINT SUPABASE_S3_REGION
+            SUPABASE_S3_ACCESS_KEY_ID SUPABASE_S3_SECRET_ACCESS_KEY GOOGLE_DRIVE_CLIENT_ID
+            GOOGLE_DRIVE_CLIENT_SECRET GOOGLE_DRIVE_TOKEN_JSON GOOGLE_DRIVE_ROOT_FOLDER_ID
           )
           for name in "${required[@]}"; do
             if [[ -z "${!name:-}" ]]; then
@@ -65,19 +72,14 @@ jobs:
               exit 1
             fi
           done
-          command -v docker >/dev/null
+          docker --version >/dev/null
           echo "Required secret names are present; values were not displayed."
 
-      - name: Install transfer and encryption tools
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends rclone gnupg ca-certificates
-
-      - name: Export, encrypt, verify, and upload
+      - name: Export Supabase database and Storage files
+        id: export
         shell: bash
         env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SUPABASE_DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
           SUPABASE_DB_PORT: ${{ secrets.SUPABASE_DB_PORT }}
           SUPABASE_DB_NAME: ${{ secrets.SUPABASE_DB_NAME }}
@@ -91,7 +93,6 @@ jobs:
           GOOGLE_DRIVE_CLIENT_SECRET: ${{ secrets.GOOGLE_DRIVE_CLIENT_SECRET }}
           GOOGLE_DRIVE_TOKEN_JSON: ${{ secrets.GOOGLE_DRIVE_TOKEN_JSON }}
           GOOGLE_DRIVE_ROOT_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_ROOT_FOLDER_ID }}
-          BACKUP_ENCRYPTION_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
           RCLONE_CONFIG_GDRIVE_TYPE: drive
           RCLONE_CONFIG_GDRIVE_SCOPE: drive
           RCLONE_CONFIG_GDRIVE_CLIENT_ID: ${{ secrets.GOOGLE_DRIVE_CLIENT_ID }}
@@ -110,53 +111,47 @@ jobs:
           umask 077
           work_dir="$(mktemp -d "${RUNNER_TEMP}/glonni-backup.XXXXXX")"
           trap 'rm -rf -- "$work_dir"' EXIT
-          mkdir -m 700 -p "$work_dir/storage" "$work_dir/upload"
-          key_file="$work_dir/.encryption-key"
-          printf '%s' "$BACKUP_ENCRYPTION_KEY" > "$key_file"
-          unset BACKUP_ENCRYPTION_KEY
-          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-          remote_dir="gdrive:Glonni-backups/${stamp}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -m 700 -p "$work_dir/database" "$work_dir/storage" "$work_dir/upload"
 
-          pg_base_image="postgres:18-alpine"
-          server_version_num="$(docker run --rm --network host \
-            -e PGHOST -e PGPORT -e PGUSER -e PGDATABASE -e PGPASSWORD -e PGSSLMODE=require \
-            -e PGHOST="$SUPABASE_DB_HOST" -e PGPORT="$SUPABASE_DB_PORT" \
-            -e PGUSER="$SUPABASE_DB_USER" -e PGDATABASE="$SUPABASE_DB_NAME" \
-            -e PGPASSWORD="$SUPABASE_DB_PASSWORD" \
-            "$pg_base_image" psql --no-psqlrc --tuples-only --no-align \
-            --command='SHOW server_version_num')"
-          server_version_num="$(printf '%s' "$server_version_num" | tr -d '[:space:]')"
-          if [[ ! "$server_version_num" =~ ^[0-9]{5,6}$ ]]; then
-            echo "::error::Could not safely determine the PostgreSQL server major version."
-            exit 1
-          fi
-          server_major=$((server_version_num / 10000))
-          client_major=18
-          if (( server_major > client_major )); then client_major="$server_major"; fi
-          pg_image="postgres:${client_major}-alpine"
-
-          docker run --rm --network host \
-            -e PGHOST="$SUPABASE_DB_HOST" -e PGPORT="$SUPABASE_DB_PORT" \
-            -e PGUSER="$SUPABASE_DB_USER" -e PGDATABASE="$SUPABASE_DB_NAME" \
-            -e PGPASSWORD="$SUPABASE_DB_PASSWORD" -e PGSSLMODE=require \
-            -v "$work_dir:/backup" "$pg_image" \
-            pg_dump --format=custom --no-owner --no-privileges \
-              --file=/backup/database.dump
-
-          docker run --rm --network host \
-            -e PGHOST="$SUPABASE_DB_HOST" -e PGPORT="$SUPABASE_DB_PORT" \
-            -e PGUSER="$SUPABASE_DB_USER" -e PGDATABASE="$SUPABASE_DB_NAME" \
-            -e PGPASSWORD="$SUPABASE_DB_PASSWORD" -e PGSSLMODE=require \
-            "$pg_image" psql --no-psqlrc --csv \
-              --command="SELECT rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin, rolreplication, rolbypassrls, rolconnlimit, rolvaliduntil, rolconfig FROM pg_roles ORDER BY rolname" \
-              > "$work_dir/roles.csv"
-          if [[ ! -s "$work_dir/roles.csv" ]]; then
-            echo "::error::Role metadata export was empty; refusing to continue."
+          if [[ ! "$SUPABASE_PROJECT_REF" =~ ^[a-z0-9]{20}$ ]]; then
+            echo "::error::SUPABASE_PROJECT_REF must be the 20-character project reference."
             exit 1
           fi
 
+          database_url="$(
+            python3 - <<'PY'
+          import os
+          from urllib.parse import quote
+          user = quote(os.environ["SUPABASE_DB_USER"], safe="")
+          password = quote(os.environ["SUPABASE_DB_PASSWORD"], safe="")
+          host = os.environ["SUPABASE_DB_HOST"]
+          port = os.environ["SUPABASE_DB_PORT"]
+          database = quote(os.environ["SUPABASE_DB_NAME"], safe="")
+          print(f"postgresql://{user}:{password}@{host}:{port}/{database}?sslmode=require")
+          PY
+          )"
+          echo "::add-mask::$database_url"
+
+          supabase db dump --db-url "$database_url" -f "$work_dir/database/roles.sql" --role-only
+          supabase db dump --db-url "$database_url" -f "$work_dir/database/schema.sql"
+          supabase db dump --db-url "$database_url" -f "$work_dir/database/data.sql" \
+            --use-copy --data-only \
+            -x "storage.buckets_vectors" -x "storage.vector_indexes"
+          supabase db dump --db-url "$database_url" -f "$work_dir/database/migrations-schema.sql" \
+            --schema supabase_migrations
+          supabase db dump --db-url "$database_url" -f "$work_dir/database/migrations-data.sql" \
+            --use-copy --data-only --schema supabase_migrations
+          unset database_url SUPABASE_DB_PASSWORD
+
+          for file in roles.sql schema.sql data.sql migrations-schema.sql migrations-data.sql; do
+            if [[ ! -s "$work_dir/database/$file" ]]; then
+              echo "::error::Database export is incomplete: $file is missing or empty."
+              exit 1
+            fi
+          done
+
+          rclone lsf --dirs-only --format p supabase: > "$work_dir/buckets.txt"
           bucket_count=0
-          rclone lsf --dirs-only --format p --log-level ERROR "supabase:" > "$work_dir/buckets.txt"
           while IFS= read -r bucket_path; do
             bucket="${bucket_path%/}"
             [[ -n "$bucket" ]] || continue
@@ -164,51 +159,84 @@ jobs:
             mkdir -p "$work_dir/storage/$bucket"
             rclone copy --log-level ERROR --transfers 4 --checkers 8 \
               "supabase:$bucket" "$work_dir/storage/$bucket"
+            rclone check --log-level ERROR --download --one-way \
+              "supabase:$bucket" "$work_dir/storage/$bucket"
           done < "$work_dir/buckets.txt"
           if (( bucket_count == 0 )); then
-            echo "::error::No Supabase Storage buckets were listed; refusing to create an incomplete backup."
+            echo "::error::No Storage buckets were listed; refusing an incomplete backup."
             exit 1
           fi
-          tar -czf "$work_dir/storage.tar.gz" -C "$work_dir/storage" .
+
           object_count="$(find "$work_dir/storage" -type f | wc -l | tr -d '[:space:]')"
+          tar -czf "$work_dir/upload/database.tar.gz" -C "$work_dir/database" .
+          tar -czf "$work_dir/upload/storage.tar.gz" -C "$work_dir/storage" .
+          tar -tzf "$work_dir/upload/database.tar.gz" >/dev/null
+          tar -tzf "$work_dir/upload/storage.tar.gz" >/dev/null
 
-          gpg --batch --yes --pinentry-mode loopback --symmetric \
-            --cipher-algo AES256 --s2k-digest-algo SHA256 \
-            --passphrase-file "$key_file" --output "$work_dir/upload/database.dump.gpg" \
-            "$work_dir/database.dump"
-          gpg --batch --yes --pinentry-mode loopback --symmetric \
-            --cipher-algo AES256 --s2k-digest-algo SHA256 \
-            --passphrase-file "$key_file" --output "$work_dir/upload/storage.tar.gz.gpg" \
-            "$work_dir/storage.tar.gz"
-          gpg --batch --yes --pinentry-mode loopback --symmetric \
-            --cipher-algo AES256 --s2k-digest-algo SHA256 \
-            --passphrase-file "$key_file" --output "$work_dir/upload/roles.csv.gpg" \
-            "$work_dir/roles.csv"
-
-          gpg --batch --quiet --pinentry-mode loopback --decrypt \
-            --passphrase-file "$key_file" --output "$work_dir/database-verify.dump" \
-            "$work_dir/upload/database.dump.gpg"
-          docker run --rm -v "$work_dir:/backup" "$pg_image" \
-            pg_restore --list /backup/database-verify.dump >/dev/null
-          gpg --batch --quiet --pinentry-mode loopback --decrypt \
-            --passphrase-file "$key_file" --output "$work_dir/storage-verify.tar.gz" \
-            "$work_dir/upload/storage.tar.gz.gpg"
-          tar -tzf "$work_dir/storage-verify.tar.gz" >/dev/null
-          gpg --batch --quiet --pinentry-mode loopback --decrypt \
-            --passphrase-file "$key_file" --output "$work_dir/roles-verify.csv" \
-            "$work_dir/upload/roles.csv.gpg"
-          test -s "$work_dir/roles-verify.csv"
+          (
+            cd "$work_dir/upload"
+            sha256sum database.tar.gz storage.tar.gz > SHA256SUMS
+          )
+          stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+          backup_folder="${stamp}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          backup_root="gdrive:Glonni-backups"
+          remote_dir="$backup_root/$backup_folder"
 
           {
             printf 'created_utc=%s\n' "$stamp"
-            printf 'github_run_id=%s\n' "$GITHUB_RUN_ID"
-            printf 'database_server_major=%s\n' "$server_major"
+            printf 'source_project_ref=%s\n' "$SUPABASE_PROJECT_REF"
+            printf 'database_dump_format=Supabase_CLI_roles_schema_data\n'
             printf 'storage_bucket_count=%s\n' "$bucket_count"
             printf 'storage_object_count=%s\n' "$object_count"
-            (cd "$work_dir/upload" && sha256sum database.dump.gpg storage.tar.gz.gpg roles.csv.gpg)
+            printf 'encryption=none\n'
           } > "$work_dir/upload/manifest.txt"
 
-          rclone copy --log-level ERROR "$work_dir/upload" "$remote_dir"
+          rclone copy --log-level ERROR --transfers 4 --checkers 8 "$work_dir/upload" "$remote_dir"
           rclone check --log-level ERROR --download --one-way "$work_dir/upload" "$remote_dir"
-          echo "Encrypted database, Storage, and role-metadata archives uploaded and checksum-verified."
-          echo "No production records or Storage objects were modified."
+
+          {
+            printf 'verified_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            printf 'github_run_id=%s\n' "$GITHUB_RUN_ID"
+            printf 'github_run_attempt=%s\n' "$GITHUB_RUN_ATTEMPT"
+            printf 'database_archive=database.tar.gz\n'
+            printf 'storage_archive=storage.tar.gz\n'
+          } > "$work_dir/upload/VERIFIED.txt"
+          rclone copyto --log-level ERROR "$work_dir/upload/VERIFIED.txt" "$remote_dir/VERIFIED.txt"
+          rclone check --log-level ERROR --download --one-way "$work_dir/upload" "$remote_dir"
+          rclone cat "$remote_dir/VERIFIED.txt" >/dev/null
+
+          mapfile -t verified_folders < <(
+            while IFS= read -r folder_path; do
+              folder="${folder_path%/}"
+              [[ "$folder" =~ ^[0-9]{8}T[0-9]{6}Z-[0-9]+-[0-9]+$ ]] || continue
+              if rclone lsf --files-only "$backup_root/$folder" | grep -Fxq "VERIFIED.txt"; then
+                printf '%s\n' "$folder"
+              fi
+            done < <(rclone lsf --dirs-only --format p "$backup_root")
+          )
+          if (( ${#verified_folders[@]} > 30 )); then
+            mapfile -t ordered_folders < <(printf '%s\n' "${verified_folders[@]}" | LC_ALL=C sort -r)
+            for old_folder in "${ordered_folders[@]:30}"; do
+              rclone purge --drive-use-trash --log-level ERROR "$backup_root/$old_folder"
+            done
+          fi
+
+          {
+            printf 'Backup folder: %s\n' "$backup_folder"
+            printf 'Storage buckets: %s\n' "$bucket_count"
+            printf 'Storage files: %s\n' "$object_count"
+            printf 'Database and file archives uploaded without encryption.\n'
+            printf 'Drive checksum verification: passed.\n'
+            printf 'Retention: up to 30 verified backup folders.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Unencrypted backup uploaded and verified; temporary runner files will be removed."
+
+      - name: Report failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo "### Glonni backup failed"
+            echo "The run did not report a verified Drive upload. Review this run's failed step and correct the named configuration issue."
+            echo "GitHub Actions notifications must be enabled for the repository owner to receive failure alerts."
+          } >> "$GITHUB_STEP_SUMMARY"
