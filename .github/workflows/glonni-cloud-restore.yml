@@ -106,8 +106,7 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          work_dir="$(mktemp -d "${RUNNER_TEMP}/glonni-restore.XXXXXX")"
-          trap 'rm -rf -- "$work_dir"' EXIT
+          work_dir="${RUNNER_TEMP}/glonni-restore-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -m 700 -p "$work_dir/archive" "$work_dir/database" "$work_dir/storage"
           rclone copy --log-level ERROR "gdrive:Glonni-backups/$BACKUP_FOLDER" "$work_dir/archive"
           for file in database.tar.gz storage.tar.gz SHA256SUMS manifest.txt VERIFIED.txt; do
@@ -213,3 +212,13 @@ jobs:
             echo "The run may have partially written to the isolated target. Do not use that target until reviewed."
             echo "GitHub Actions notifications must be enabled for the repository owner to receive failure alerts."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up temporary restore files
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          work_dir="${RUNNER_TEMP}/glonni-restore-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if [[ -d "$work_dir" ]]; then
+            rm -rf -- "$work_dir"
+          fi
