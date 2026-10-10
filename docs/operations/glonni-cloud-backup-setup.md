@@ -8,6 +8,8 @@ The two older encrypted files already in Drive are left untouched. The new workf
 
 The backup workflow includes a daily 12:30 a.m. `Asia/Kolkata` schedule, but scheduled runs are gated by the GitHub repository variable `GLONNI_BACKUPS_ENABLED=true`. It must remain unset until the first backup and isolated restore are verified and the owner approves activation. GitHub may delay scheduled runs during busy periods.
 
+> **Do not run this draft yet.** Supabase CLI `db dump` excludes managed `auth` and `storage` schemas by default. The live project currently has 2 Auth users, 7 Storage buckets, and 6 Storage objects. This draft therefore does not yet prove a complete user/Auth and Storage-metadata backup or restore. It must be corrected and restore-tested before any manual run or scheduled activation.
+
 ## What the backup workflow does
 
 1. Uses the Supabase CLI to export role definitions, schema, database rows, and Supabase migration history from the source project.
