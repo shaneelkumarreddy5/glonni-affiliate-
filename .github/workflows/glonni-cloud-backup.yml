@@ -119,7 +119,7 @@ jobs:
             -e PGHOST="$SUPABASE_DB_HOST" -e PGPORT="$SUPABASE_DB_PORT" \
             -e PGUSER="$SUPABASE_DB_USER" -e PGDATABASE="$SUPABASE_DB_NAME" \
             -e PGPASSWORD="$SUPABASE_DB_PASSWORD" -e PGSSLMODE=require \
-            "$pg_image" psql --no-psqlrc --no-align --tuples-only --csv \
+            "$pg_image" psql --no-psqlrc --csv \
               --command="SELECT rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin, rolreplication, rolbypassrls, rolconnlimit, rolvaliduntil, rolconfig FROM pg_roles ORDER BY rolname" \
               > "$work_dir/roles.csv"
           if [[ ! -s "$work_dir/roles.csv" ]]; then
