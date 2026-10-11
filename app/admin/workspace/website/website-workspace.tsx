@@ -341,7 +341,7 @@ function ProductSelectionComposer({ stores, products, categories, selectedIds, i
 }
 
 function newBlock(type: WebsiteBlockType, page: WebsitePageKey, storeSlug?: string): WebsiteDraftBlock {
-  const slot = page === 'home' ? 'after_price_drops' : page === 'stores' ? 'store_before_products' : 'after_summary';
+  const slot: WebsiteSlot = page === 'home' ? 'after_price_drops' : page === 'stores' ? 'store_before_products' : page === 'product' ? 'after_summary' : page === 'category' ? 'before_category_results' : page === 'deals' ? 'before_deals_results' : 'before_coupons_content';
   const title = type === 'hero' ? 'Your featured campaign' : type === 'banner' ? '' : type === 'store_rail' ? 'Top deals at this store' : type === 'category_rail' ? 'Browse categories' : type === 'store_directory' ? 'Shop by store' : type === 'service_rail' ? 'Vouchers & bill payments' : 'Featured products';
   const config: WebsiteDraftBlock['config'] = { slot: slot as WebsiteSlot, count: 10, slide_count: type === 'hero' || type === 'banner' ? 1 : undefined, slide_targets: type === 'hero' || type === 'banner' ? [{ type: 'manual' }] : undefined, slide_items: type === 'hero' || type === 'banner' ? [[]] : undefined, sort: 'best_deal', source_mode: type === 'product_rail' || type === 'store_rail' ? 'curated' : 'all', product_ids: [], service_types: type === 'service_rail' ? websiteServiceTypeOptions.map((option) => option.key) : undefined, banner_size: type === 'hero' || type === 'banner' ? (type === 'banner' ? 'strip' : 'wide') : undefined, slide_shapes: type === 'banner' ? ['strip'] : type === 'hero' ? ['wide'] : undefined, visual_shape: 'standard', accent: '#1554d1', background: '#f2f6ff' };
   if (type === 'store_rail') config.store_slug = storeSlug;
@@ -611,7 +611,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       const stored = localStorage.getItem(LOCAL_DRAFT_BACKUP_KEY);
       if (stored) backups = JSON.parse(stored) as LocalDraftBackups;
     } catch { backups = {}; }
-    const validKeys: WebsitePageKey[] = ['home', 'stores', 'product'];
+    const validKeys: WebsitePageKey[] = websitePageOptions.map((page) => page.key);
     for (const key of validKeys) {
       const backup = backups[key];
       if (!backup || !Array.isArray(backup.payload?.blocks) || !Array.isArray(backup.payload?.section_order) || !backup.payload?.core_content || typeof backup.signature !== 'string') {
@@ -1062,6 +1062,19 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     setSelectedCoreKey(null);
   }
 
+  function restoreCoreSection(key: string) {
+    if (!canEdit || !coreSections.some((section) => section.key === key)) return;
+    const token = `core:${key}`;
+    if (sectionOrder.includes(token)) return;
+    const at = Math.max(0, Math.min(insertAtIndex, sectionOrder.length));
+    setOrders((current) => ({ ...current, [pageKey]: insertWebsiteSection(current[pageKey], token, at) }));
+    setInsertAtIndex(at + 1);
+    setSelectedId(null);
+    setSelectedCoreKey(key);
+    setAddOpen(false);
+    setNotice(null);
+  }
+
   async function save(publish = false) {
     if (!canEdit) {
       setNotice({ kind: 'error', text: 'Complete two-step verification with an active Owner, Admin, or Editor account before saving.' });
@@ -1332,6 +1345,23 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
       }
       return <section className={styles.coreTextPreview}><b>{renderRichPreview(currentCoreContent[key]?.title || (key === 'store_policies' ? 'Store policies' : 'Store FAQs'))}</b><span>{currentCoreContent[key]?.body ? renderRichPreview(currentCoreContent[key].body!) : 'Connected terms and active store-specific support answers.'}</span></section>;
     }
+    if (pageKey === 'category') {
+      if (key === 'category_stores') return cataloguePreview(key, 'Stores with offers', 'Live stores with eligible offers in this category.', 'stores');
+      if (key === 'category_subcategories') return cataloguePreview(key, 'Browse subcategories', 'Live category cards open their matching category pages.', 'categories');
+      if (key === 'category_results') return cataloguePreview(key, 'Top deals in this category', 'Live catalogue results, filters and selected collection tabs.', 'products');
+      return <section className={styles.coreTextPreview}><small>CATEGORY TEMPLATE · DYNAMIC FOR EVERY CATEGORY</small><b>{renderRichPreview(currentCoreContent[key]?.title || categories[0]?.name || 'Category name')}</b><span>{currentCoreContent[key]?.body ? renderRichPreview(currentCoreContent[key].body!) : 'The selected category image, description and breadcrumb come from Admin → Categories.'}</span></section>;
+    }
+    if (pageKey === 'deals') {
+      if (key === 'deals_categories') return cataloguePreview(key, 'Shop deals by category', 'Live category cards filter the deal catalogue.', 'categories');
+      if (key === 'deals_tabs') return <section className={styles.coreTextPreview}><b>{renderRichPreview(currentCoreContent[key]?.title || 'Browse deal collections')}</b><span>Trending · Biggest discounts · Top cashback · Top 25 · Top 50</span></section>;
+      if (key === 'deals_results') return cataloguePreview(key, 'Live deals and filters', 'Search, category/store filters and product cards use the current catalogue.', 'products');
+      return <section className={styles.coreTextPreview}><b>{renderRichPreview(currentCoreContent[key]?.title || 'Compare the best deals')}</b><span>{currentCoreContent[key]?.body ? renderRichPreview(currentCoreContent[key].body!) : 'Deals are built from active catalogue offers and update with live filters.'}</span></section>;
+    }
+    if (pageKey === 'coupons') {
+      if (key === 'coupons_tabs') return <section className={styles.coreTextPreview}><b>{renderRichPreview(currentCoreContent[key]?.title || 'Coupons and services')}</b><span>Coupons · Buy Coupons · Bill Payments — only when enabled by Commerce settings.</span></section>;
+      if (key === 'coupons_content') return <section className={styles.coreTextPreview}><b>{renderRichPreview(currentCoreContent[key]?.title || 'Live coupons and services')}</b><span>Approved merchant coupons and provider-controlled voucher or bill services. No sample items are shown.</span></section>;
+      return <section className={styles.coreTextPreview}><small>COUPONS &amp; VOUCHERS TEMPLATE</small><b>{renderRichPreview(currentCoreContent[key]?.title || 'Coupons & Bill Payments')}</b><span>{currentCoreContent[key]?.body ? renderRichPreview(currentCoreContent[key].body!) : 'Page introduction shown above the live coupons and services.'}</span></section>;
+    }
     if (key === 'product_summary') return <section className={styles.productIntro}>{activeProduct?.imageUrl && <img src={activeProduct.imageUrl} alt=""/>}<div><small>{activeProduct?.brand ?? 'GLONNI'} · {activeProduct?.categoryName ?? 'PRODUCT'}</small><b>{renderRichPreview(activeProduct?.title ?? 'Choose a product')}</b><span>{currentCoreContent.product_summary?.body ? renderRichPreview(currentCoreContent.product_summary.body) : 'Canonical product details and selected offers.'}</span><em>{money(activeProduct?.price ?? null)} · compare connected stores</em></div></section>;
     if (key === 'offer_comparison') return cataloguePreview('offer_comparison', 'Compare prices across stores', 'Live prices, cashback and merchant offers.', 'products');
     return <section className={styles.coreTextPreview}><b>{renderRichPreview(currentCoreContent[key]?.title || coreSections.find((section) => section.key === key)?.title || key)}</b><span>{currentCoreContent[key]?.body ? renderRichPreview(currentCoreContent[key].body!) : coreSections.find((section) => section.key === key)?.note}</span></section>;
@@ -1349,7 +1379,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
     return { token, core: null, block: blocks.find((block) => `block:${block.id}` === token) ?? null };
   }).filter((item) => item.core || item.block);
   const widthClass = device === 'desktop' ? styles.desktop : device === 'tablet' ? styles.tablet : styles.mobile;
-  const customerHref = pageKey === 'home' ? '/' : pageKey === 'stores' ? `/store/${activeStore?.slug ?? ''}` : `/product/${activeProduct?.slug ?? ''}`;
+  const customerHref = pageKey === 'home' ? '/' : pageKey === 'stores' ? `/store/${activeStore?.slug ?? ''}` : pageKey === 'product' ? `/product/${activeProduct?.slug ?? ''}` : pageKey === 'category' ? `/category/${categories[0]?.slug ?? ''}` : pageKey === 'deals' ? '/deals' : '/vouchers-bills';
   const composerItem = heroComposer && heroComposer.itemIndex !== undefined ? blocks.find((block) => block.id === heroComposer.blockId)?.config.slide_items?.[heroComposer.slideIndex]?.[heroComposer.itemIndex] : undefined;
   const productComposerBlock = productComposerBlockId ? blocks.find((block) => block.id === productComposerBlockId) ?? null : null;
 
@@ -1359,7 +1389,7 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
         <button type="button" role="tab" aria-selected={editorMode === 'edit'} className={editorMode === 'edit' ? styles.modeActive : ''} onClick={() => setEditorMode('edit')}>Edit</button>
         <button type="button" role="tab" aria-selected={editorMode === 'preview'} className={editorMode === 'preview' ? styles.modeActive : ''} onClick={() => setEditorMode('preview')}>Preview</button>
       </div>
-      <label className={styles.pagePicker}><LayoutTemplate/><span>Editing page</span><select value={pageKey} onChange={(event) => { const nextPage = event.target.value as WebsitePageKey; setPageKey(nextPage); setSelectedId(null); setSelectedCoreKey(null); setActiveBannerSlide(null); setInsertAtIndex(orders[nextPage]?.length ?? 0); setAddOpen(false); setNotice(null); }}><option value="home">Home page</option><option value="stores">Store page</option><option value="product">Product page</option></select><ChevronDown size={15}/></label>
+      <label className={styles.pagePicker}><LayoutTemplate/><span>Editing page</span><select value={pageKey} onChange={(event) => { const nextPage = event.target.value as WebsitePageKey; setPageKey(nextPage); setSelectedId(null); setSelectedCoreKey(null); setActiveBannerSlide(null); setInsertAtIndex(orders[nextPage]?.length ?? 0); setAddOpen(false); setNotice(null); }}>{websitePageOptions.map((page) => <option value={page.key} key={page.key}>{page.label}</option>)}</select><ChevronDown size={15}/></label>
       <div className={styles.devicePicker} role="group" aria-label="Preview size">
         <button className={device === 'desktop' ? styles.deviceActive : ''} onClick={() => setDevice('desktop')} title="Desktop preview" aria-pressed={device === 'desktop'}><Monitor/> <span>Desktop</span></button>
         <button className={device === 'tablet' ? styles.deviceActive : ''} onClick={() => setDevice('tablet')} title="Tablet preview" aria-pressed={device === 'tablet'}><Tablet/> <span>Tablet</span></button>
@@ -1388,7 +1418,9 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
           <button className={`${styles.dropMarker} ${draggedId ? styles.dropReady : ''}`} type="button" disabled={!canEdit} onClick={() => addAt(orderedItems.length)} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); const token = draggedId ?? event.dataTransfer.getData('text/plain'); if (token) moveItem(token, orderedItems.length); setDraggedId(null); }} aria-label="Add a section at the end of the page"><i/><span>＋ Add here</span><small>Insert at the end of the page</small></button>
         </div>
         <div className={styles.addSectionWrap}>
-          {addOpen && <div className={styles.addMenu} role="menu"><button type="button" onClick={() => addSection('hero')} disabled={pageKey === 'product'}><span>▣</span><b>Hero banner section</b><small>{pageKey === 'stores' ? `Add a store-specific campaign for ${activeStore?.name ?? 'this store'}` : 'Add here · choose slide count and shape'}</small></button><button type="button" onClick={() => addSection('banner')}><span>▱</span><b>Promotion strips</b><small>Add here · compact curved full-width strips</small></button><button type="button" onClick={() => addSection('product_rail')}><span>▤</span><b>Product cards</b><small>Choose exact products from the catalogue</small></button><button type="button" onClick={() => addSection('category_rail')}><span>⌑</span><b>Category cards</b><small>Choose any categories or subcategories</small></button><button type="button" onClick={() => addSection('store_directory')}><span>▥</span><b>Store cards</b><small>Choose connected stores</small></button><button type="button" onClick={() => addSection('store_rail')}><span>↗</span><b>Deals from one store</b><small>Choose a store and number of products</small></button><button type="button" onClick={() => addSection('service_rail')} disabled={pageKey !== 'home'}><span>♧</span><b>Vouchers &amp; Bills</b><small>{pageKey === 'home' ? 'Choose gift cards, recharge, bills—or any combination' : 'Available on the home page'}</small></button></div>}
+          {addOpen && <div className={styles.addMenu} role="menu">
+            {coreSections.filter((section) => !sectionOrder.includes(`core:${section.key}`)).map((section) => <button type="button" role="menuitem" key={section.key} onClick={() => restoreCoreSection(section.key)}><span>↺</span><b>Restore {section.title}</b><small>Add this built-in page section back here; its existing page data remains connected.</small></button>)}
+            <button type="button" onClick={() => addSection('hero')} disabled={pageKey === 'product'}><span>▣</span><b>Hero banner section</b><small>{pageKey === 'stores' ? `Add a store-specific campaign for ${activeStore?.name ?? 'this store'}` : 'Add here · choose slide count and shape'}</small></button><button type="button" onClick={() => addSection('banner')}><span>▱</span><b>Promotion strips</b><small>Add here · compact curved full-width strips</small></button><button type="button" onClick={() => addSection('product_rail')}><span>▤</span><b>Product cards</b><small>Choose exact products from the catalogue</small></button><button type="button" onClick={() => addSection('category_rail')}><span>⌑</span><b>Category cards</b><small>Choose any categories or subcategories</small></button><button type="button" onClick={() => addSection('store_directory')}><span>▥</span><b>Store cards</b><small>Choose connected stores</small></button><button type="button" onClick={() => addSection('store_rail')}><span>↗</span><b>Deals from one store</b><small>Choose a store and number of products</small></button><button type="button" onClick={() => addSection('service_rail')} disabled={pageKey !== 'home'}><span>♧</span><b>Vouchers &amp; Bills</b><small>{pageKey === 'home' ? 'Choose gift cards, recharge, bills—or any combination' : 'Available on the home page'}</small></button></div>}
           <button className={styles.addSectionButton} type="button" disabled={!canEdit} onClick={() => setAddOpen((open) => !open)}><Plus/> Add section <ChevronDown size={15}/></button>
           <p>Choose “Add here” for exact placement. Drag any section by its grip to move it intactly.</p>
         </div>
@@ -1424,6 +1456,36 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
             </>}
             <div className={styles.richFieldLabel}><span>Heading</span><RichTextField value={currentCoreContent[selectedCore.key]?.title ?? (pageKey === 'home' && selectedCore.key === 'hero' ? '' : selectedCore.title)} maxLength={120} singleLine placeholder={pageKey === 'home' && selectedCore.key === 'hero' ? 'Discover great deals' : 'Add a section heading'} onChange={(title) => updateCoreContent(selectedCore.key, { title })}/></div>
             <div className={styles.richFieldLabel}><span>Supporting text</span><RichTextField value={currentCoreContent[selectedCore.key]?.body ?? ''} onChange={(body) => updateCoreContent(selectedCore.key, { body })} placeholder="Optional description"/></div>
+            {['category_stores', 'category_subcategories', 'category_results', 'deals_categories'].includes(selectedCore.key) && <label>{selectedCore.key === 'category_results' ? 'Maximum products to show' : 'Number to show'}<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? (selectedCore.key === 'category_results' ? 50 : 10)} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>}
+            {['category_intro', 'deals_intro'].includes(selectedCore.key) && <>
+              <div className={styles.twoFields}><label>Button label<input maxLength={60} value={currentCoreContent[selectedCore.key]?.cta_label ?? ''} onChange={(event) => updateCoreContent(selectedCore.key, { cta_label: event.target.value })} placeholder="Explore deals"/></label><label>Button destination<input maxLength={500} value={currentCoreContent[selectedCore.key]?.cta_href ?? ''} onChange={(event) => updateCoreContent(selectedCore.key, { cta_href: event.target.value })} placeholder="/deals or #category-deals"/></label></div>
+              <small className={styles.sourceNote}>Leave destination blank to use the page’s built-in deal results anchor.</small>
+            </>}
+            {selectedCore.key === 'category_intro' && <label>Optional banner image URL<input maxLength={1000} value={currentCoreContent.category_intro?.image_url ?? ''} onChange={(event) => updateCoreContent('category_intro', { image_url: event.target.value })} placeholder="Leave blank to use each category’s admin image"/></label>}
+            {selectedCore.key === 'category_results' && <fieldset className={styles.serviceTypeSettings}>
+              <legend>Visible category collections</legend>
+              <small>Choose which product collections customers can switch between.</small>
+              <div className={styles.serviceTypeChoices}>{[['top50', 'Top 50'], ['top25', 'Top 25'], ['top-cashback', 'Top cashback']].map(([key, label]) => {
+                const selectedTabs = currentCoreContent.category_results?.tab_keys ?? ['top50', 'top25', 'top-cashback'];
+                return <label key={key} className={selectedTabs.includes(key) ? styles.serviceTypeChoiceSelected : ''}><input type="checkbox" checked={selectedTabs.includes(key)} onChange={() => updateCoreContent('category_results', { tab_keys: selectedTabs.includes(key) ? selectedTabs.filter((item) => item !== key) : [...selectedTabs, key] })}/><span><b>{label}</b></span></label>;
+              })}</div>
+            </fieldset>}
+            {selectedCore.key === 'deals_tabs' && <fieldset className={styles.serviceTypeSettings}>
+              <legend>Visible deals tabs</legend>
+              <small>Choose which live collections appear; the product results remain connected to the catalogue.</small>
+              <div className={styles.serviceTypeChoices}>{[['trending', 'Trending'], ['discount', 'Biggest discounts'], ['cashback', 'Top cashback'], ['top25', 'Top 25'], ['top50', 'Top 50']].map(([key, label]) => {
+                const selectedTabs = currentCoreContent.deals_tabs?.tab_keys ?? ['trending', 'discount', 'cashback', 'top25', 'top50'];
+                return <label key={key} className={selectedTabs.includes(key) ? styles.serviceTypeChoiceSelected : ''}><input type="checkbox" checked={selectedTabs.includes(key)} onChange={() => updateCoreContent('deals_tabs', { tab_keys: selectedTabs.includes(key) ? selectedTabs.filter((item) => item !== key) : [...selectedTabs, key] })}/><span><b>{label}</b></span></label>;
+              })}</div>
+            </fieldset>}
+            {selectedCore.key === 'coupons_tabs' && <fieldset className={styles.serviceTypeSettings}>
+              <legend>Visible service tabs</legend>
+              <small>This only limits builder visibility. Commerce settings still control whether each service is actually available.</small>
+              <div className={styles.serviceTypeChoices}>{[['coupons', 'Coupons'], ['buy', 'Buy Coupons'], ['bills', 'Bill Payments']].map(([key, label]) => {
+                const selectedTabs = currentCoreContent.coupons_tabs?.tab_keys ?? ['coupons', 'buy', 'bills'];
+                return <label key={key} className={selectedTabs.includes(key) ? styles.serviceTypeChoiceSelected : ''}><input type="checkbox" checked={selectedTabs.includes(key)} onChange={() => updateCoreContent('coupons_tabs', { tab_keys: selectedTabs.includes(key) ? selectedTabs.filter((item) => item !== key) : [...selectedTabs, key] })}/><span><b>{label}</b></span></label>;
+              })}</div>
+            </fieldset>}
             {pageKey === 'stores' && selectedCore.key === 'store_intro' && <>
               <label className={styles.uploadField}>Store hero image<span className={styles.uploadRow}><input value={currentCoreContent.store_intro?.image_url ?? ''} onChange={(event) => updateCoreContent('store_intro', { image_url: event.target.value })} placeholder="Paste an HTTPS image address"/><label className={styles.uploadButton}><Upload/>{uploading === 'store-intro-image' ? 'Uploading…' : 'Upload'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={(event) => void uploadStoreHeroImage(event.currentTarget.files?.[0])} disabled={Boolean(uploading)}/></label></span></label>
               <div className={styles.twoFields}><label>Shop button label<input maxLength={60} value={currentCoreContent.store_intro?.cta_label ?? ''} onChange={(event) => updateCoreContent('store_intro', { cta_label: event.target.value })} placeholder="Shop Now"/></label><label>Affiliate destination<input maxLength={500} value={currentCoreContent.store_intro?.cta_href ?? ''} onChange={(event) => updateCoreContent('store_intro', { cta_href: event.target.value })} placeholder="Paste the approved HTTPS affiliate URL"/></label></div>
@@ -1434,12 +1496,21 @@ export function WebsiteWorkspace({ initialPage, initialLayouts, initialOrders, i
             </>}
             {pageKey === 'stores' && selectedCore.key === 'store_products' && <>
               <label>Number of products in Top Deals<input type="number" min={1} max={50} value={currentCoreContent.store_products?.count ?? 10} onChange={(event) => updateCoreContent('store_products', { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>
+              <label>Number of categories<input type="number" min={1} max={50} value={currentCoreContent.store_products?.category_count ?? 12} onChange={(event) => updateCoreContent('store_products', { category_count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>
               <div className={styles.sharedCategoryCardNote}><b>Top Deals source</b>Choose products to curate the rail. If none are selected, it uses the best active approved offers for the store you are previewing.</div>
               <CataloguePicker title={`Choose ${activeStore?.name ?? 'store'} products for Top Deals`} items={matchingStoreProductChoices} selectedIds={currentCoreContent.store_products?.product_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick('store_products', 'product_ids', id)}/>
               <SelectedOrderList items={allStoreProductChoices} selectedIds={currentCoreContent.store_products?.product_ids ?? []} entityName="product" onMove={(id, direction) => updateCoreContent('store_products', { product_ids: moveSelectedId(currentCoreContent.store_products?.product_ids ?? [], id, direction) })}/>
               <div className={styles.sharedCategoryCardNote}><b>Category rail source</b>Select categories connected to active offers from this store. If none are selected, the page shows all relevant live categories.</div>
               <CataloguePicker title="Choose store categories and subcategories" items={matchingStoreCategoryChoices} selectedIds={currentCoreContent.store_products?.category_ids ?? []} search={catalogueSearch} onSearch={setCatalogueSearch} onToggle={(id) => toggleCorePick('store_products', 'category_ids', id)}/>
               <SelectedOrderList items={allStoreCategoryChoices} selectedIds={currentCoreContent.store_products?.category_ids ?? []} entityName="category" onMove={(id, direction) => moveCoreCategory('store_products', id, direction)}/>
+              <fieldset className={styles.serviceTypeSettings}>
+                <legend>Visible store deal collections</legend>
+                <small>Choose which product collections appear on each store page.</small>
+                <div className={styles.serviceTypeChoices}>{[['top50', 'Top 50'], ['top25', 'Top 25'], ['top-cashback', 'Top cashback']].map(([key, label]) => {
+                  const selectedTabs = currentCoreContent.store_products?.tab_keys ?? ['top50', 'top25', 'top-cashback'];
+                  return <label key={key} className={selectedTabs.includes(key) ? styles.serviceTypeChoiceSelected : ''}><input type="checkbox" checked={selectedTabs.includes(key)} onChange={() => updateCoreContent('store_products', { tab_keys: selectedTabs.includes(key) ? selectedTabs.filter((item) => item !== key) : [...selectedTabs, key] })}/><span><b>{label}</b></span></label>;
+                })}</div>
+              </fieldset>
             </>}
             {pageKey === 'home' && ['categories', 'stores', 'best_deals', 'trending', 'price_drops'].includes(selectedCore.key) && <>
               {['best_deals', 'trending', 'price_drops'].includes(selectedCore.key) ? <label>Number of products<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? 10} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label> : <label>{selectedCore.key === 'categories' ? 'Number of categories' : 'Number of stores'}<input type="number" min={1} max={50} value={currentCoreContent[selectedCore.key]?.count ?? 10} onChange={(event) => updateCoreContent(selectedCore.key, { count: Math.max(1, Math.min(50, Number(event.target.value) || 1)) })}/></label>}

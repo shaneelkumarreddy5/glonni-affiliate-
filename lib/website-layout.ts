@@ -1,4 +1,4 @@
-export type WebsitePageKey = 'home' | 'stores' | 'product';
+export type WebsitePageKey = 'home' | 'stores' | 'product' | 'category' | 'deals' | 'coupons';
 export type WebsiteBlockType = 'hero' | 'banner' | 'product_rail' | 'store_rail' | 'category_rail' | 'store_directory' | 'service_rail';
 export const websiteServiceTypeOptions = [
   { key: 'gift_cards', label: 'Gift cards', href: '/vouchers-bills?tab=buy', description: 'Digital gift cards from supported brands' },
@@ -17,7 +17,11 @@ export type WebsiteSlot =
   | 'hero' | 'after_hero' | 'after_categories' | 'after_stores'
   | 'after_best_deals' | 'after_trending' | 'after_price_drops' | 'before_footer'
   | 'store_after_intro' | 'store_before_products' | 'page_end'
-  | 'after_summary' | 'before_comparison';
+  | 'after_summary' | 'before_comparison'
+  | 'after_heading' | 'before_results'
+  | 'after_category_intro' | 'before_category_results'
+  | 'after_deals_intro' | 'before_deals_results'
+  | 'after_coupons_intro' | 'before_coupons_content';
 
 export type WebsiteCoreSection = {
   key: string;
@@ -163,6 +167,7 @@ export type WebsiteCoreContent = {
   title?: string;
   body?: string;
   count?: number;
+  category_count?: number;
   visual_shape?: WebsiteVisualShape;
   product_ids?: string[];
   category_ids?: string[];
@@ -173,6 +178,7 @@ export type WebsiteCoreContent = {
   tracking_note?: string;
   confirmation_note?: string;
   credit_note?: string;
+  tab_keys?: string[];
 };
 export type WebsiteLayoutSnapshot = { blocks: WebsiteDraftBlock[]; section_order?: string[]; core_content?: Record<string, WebsiteCoreContent>; store_content?: Record<string, Record<string, WebsiteCoreContent>> };
 
@@ -222,6 +228,23 @@ export const coreSectionsByPage: Record<WebsitePageKey, WebsiteCoreSection[]> = 
     { key: 'related_products', title: 'Related products', note: 'Related active catalogue products' },
     { key: 'disclosure', title: 'Price and cashback disclosure', note: 'Customer-facing information' },
   ],
+  category: [
+    { key: 'category_intro', title: 'Category introduction', note: 'Live category name, image and description' },
+    { key: 'category_stores', title: 'Category stores', note: 'Stores with active offers in this category' },
+    { key: 'category_subcategories', title: 'Subcategories', note: 'Child categories and their live offer counts' },
+    { key: 'category_results', title: 'Category deals and filters', note: 'Search, filters, collections and live product results' },
+  ],
+  deals: [
+    { key: 'deals_intro', title: 'Deals introduction', note: 'Live deals page heading and discovery summary' },
+    { key: 'deals_categories', title: 'Deal categories', note: 'Live catalogue category links' },
+    { key: 'deals_tabs', title: 'Deals tabs', note: 'Choose which live deal collections appear' },
+    { key: 'deals_results', title: 'Deals results and filters', note: 'Search, filters, sorting and live product results' },
+  ],
+  coupons: [
+    { key: 'coupons_intro', title: 'Coupons introduction', note: 'Coupons & Bills page heading and description' },
+    { key: 'coupons_tabs', title: 'Coupons and services tabs', note: 'Choose which admin-enabled service tabs appear' },
+    { key: 'coupons_content', title: 'Coupons and services content', note: 'Published coupons and provider-controlled services' },
+  ],
 };
 
 const legacyPlacementByPage: Record<WebsitePageKey, Partial<Record<WebsiteSlot, { after?: string; before?: string }>>> = {
@@ -235,6 +258,15 @@ const legacyPlacementByPage: Record<WebsitePageKey, Partial<Record<WebsiteSlot, 
   },
   product: {
     after_summary: { after: 'product_summary' }, before_comparison: { before: 'offer_comparison' }, page_end: { after: 'disclosure' },
+  },
+  category: {
+    after_heading: { after: 'category_intro' }, before_results: { before: 'category_results' }, after_category_intro: { after: 'category_intro' }, before_category_results: { before: 'category_results' }, page_end: { after: 'category_results' },
+  },
+  deals: {
+    after_heading: { after: 'deals_intro' }, before_results: { before: 'deals_results' }, after_deals_intro: { after: 'deals_intro' }, before_deals_results: { before: 'deals_results' }, page_end: { after: 'deals_results' },
+  },
+  coupons: {
+    after_heading: { after: 'coupons_intro' }, before_results: { before: 'coupons_content' }, after_coupons_intro: { after: 'coupons_intro' }, before_coupons_content: { before: 'coupons_content' }, page_end: { after: 'coupons_content' },
   },
 };
 
@@ -307,6 +339,9 @@ export const websitePageOptions: { key: WebsitePageKey; label: string; slug: str
   { key: 'home', label: 'Home page', slug: 'system-home', route: '/' },
   { key: 'stores', label: 'Store page', slug: 'system-stores', route: '/store' },
   { key: 'product', label: 'Product page', slug: 'system-product', route: '/product' },
+  { key: 'category', label: 'Category page', slug: 'system-category', route: '/category' },
+  { key: 'deals', label: 'Deals page', slug: 'system-deals', route: '/deals' },
+  { key: 'coupons', label: 'Coupons & Vouchers page', slug: 'system-coupons', route: '/vouchers-bills' },
 ];
 
 export const slotsByPage: Record<WebsitePageKey, { key: WebsiteSlot; label: string }[]> = {
@@ -329,6 +364,21 @@ export const slotsByPage: Record<WebsitePageKey, { key: WebsiteSlot; label: stri
     { key: 'after_summary', label: 'After product summary' },
     { key: 'before_comparison', label: 'Before store comparison' },
     { key: 'page_end', label: 'After product details' },
+  ],
+  category: [
+    { key: 'after_category_intro', label: 'After category introduction' },
+    { key: 'before_category_results', label: 'Before category deals' },
+    { key: 'page_end', label: 'After category deals' },
+  ],
+  deals: [
+    { key: 'after_deals_intro', label: 'After deals introduction' },
+    { key: 'before_deals_results', label: 'Before deals results' },
+    { key: 'page_end', label: 'After deals results' },
+  ],
+  coupons: [
+    { key: 'after_coupons_intro', label: 'After coupons introduction' },
+    { key: 'before_coupons_content', label: 'Before coupons and services' },
+    { key: 'page_end', label: 'After coupons and services' },
   ],
 };
 

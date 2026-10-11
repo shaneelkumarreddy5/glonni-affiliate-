@@ -34,12 +34,12 @@ export default async function WebsiteWorkspacePage() {
   const latestVersion = new Map<string, DraftVersion>();
   for (const version of (versions ?? []) as DraftVersion[]) if (!latestVersion.has(version.page_id)) latestVersion.set(version.page_id, version);
 
-  const layouts: Record<WebsitePageKey, WebsiteDraftBlock[]> = { home: [], stores: [], product: [] };
-  const publishedLayouts: Record<WebsitePageKey, WebsiteDraftBlock[]> = { home: [], stores: [], product: [] };
-  const orders: Record<WebsitePageKey, string[]> = { home: resolveWebsiteSectionOrder('home', []), stores: resolveWebsiteSectionOrder('stores', []), product: resolveWebsiteSectionOrder('product', []) };
-  const publishedOrders: Record<WebsitePageKey, string[]> = { home: resolveWebsiteSectionOrder('home', []), stores: resolveWebsiteSectionOrder('stores', []), product: resolveWebsiteSectionOrder('product', []) };
-  const coreContent: Record<WebsitePageKey, NonNullable<WebsiteLayoutSnapshot['core_content']>> = { home: {}, stores: {}, product: {} };
-  const publishedCoreContent: Record<WebsitePageKey, NonNullable<WebsiteLayoutSnapshot['core_content']>> = { home: {}, stores: {}, product: {} };
+  const layouts = Object.fromEntries(websitePageOptions.map(({ key }) => [key, []])) as unknown as Record<WebsitePageKey, WebsiteDraftBlock[]>;
+  const publishedLayouts = Object.fromEntries(websitePageOptions.map(({ key }) => [key, []])) as unknown as Record<WebsitePageKey, WebsiteDraftBlock[]>;
+  const orders = Object.fromEntries(websitePageOptions.map(({ key }) => [key, resolveWebsiteSectionOrder(key, [])])) as unknown as Record<WebsitePageKey, string[]>;
+  const publishedOrders = Object.fromEntries(websitePageOptions.map(({ key }) => [key, resolveWebsiteSectionOrder(key, [])])) as unknown as Record<WebsitePageKey, string[]>;
+  const coreContent = Object.fromEntries(websitePageOptions.map(({ key }) => [key, {}])) as unknown as Record<WebsitePageKey, NonNullable<WebsiteLayoutSnapshot['core_content']>>;
+  const publishedCoreContent = Object.fromEntries(websitePageOptions.map(({ key }) => [key, {}])) as unknown as Record<WebsitePageKey, NonNullable<WebsiteLayoutSnapshot['core_content']>>;
   let storeContent: NonNullable<WebsiteLayoutSnapshot['store_content']> = {};
   let publishedStoreContent: NonNullable<WebsiteLayoutSnapshot['store_content']> = {};
   const statuses: Partial<Record<WebsitePageKey, string>> = {};

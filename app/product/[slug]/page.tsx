@@ -673,6 +673,7 @@ export default async function ProductPage({
         <div className="pdp-section pdp-section-faqs" style={sectionStyle('product_faqs', 7)}>
         <ContextualFaqs
           title={coreContent.product_faqs?.title || 'Cashback & offer details'}
+          intro={coreContent.product_faqs?.body}
           faqs={
             (offerFaqs ?? []) as {
               id: string;
@@ -706,6 +707,7 @@ export default async function ProductPage({
         )}
         </div>
         <div className="pdp-section pdp-section-disclosure" style={sectionStyle('disclosure', 9)}>
+        {coreContent.disclosure?.title && <h2>{renderWebsiteRichText(coreContent.disclosure.title)}</h2>}
         <p className="pdp-disclosure">
           {coreContent.disclosure?.body ? renderWebsiteRichText(coreContent.disclosure.body) : <>
           Prices, ratings, history, availability and delivery notes may be

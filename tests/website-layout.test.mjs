@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, defaultWebsiteSectionOrder, ensureStorePolicyBeforeFaq, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, normalizeWebsiteServiceTypes, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, resolveWebsiteSlideItems, websiteItemHref, websiteServiceTypeOptions } from '../lib/website-layout.ts';
+import { coreSectionsByPage, DEFAULT_WEBSITE_BANNER_BUTTON_LAYOUT, defaultWebsiteSectionOrder, ensureStorePolicyBeforeFaq, hasVisibleWebsiteBannerSlideContent, insertWebsiteSection, moveWebsiteSection, normalizeWebsiteBannerButtonLayout, normalizeWebsiteServiceTypes, removeWebsiteBannerSlide, resolveWebsiteSectionOrder, resolveWebsiteSlideItems, websiteItemHref, websitePageOptions, websiteServiceTypeOptions } from '../lib/website-layout.ts';
 
 const block = (id, slot) => ({
   id,
@@ -20,6 +20,18 @@ test('legacy website slots map custom sections beside their previous anchors', (
   assert.deepEqual(order.slice(0, 5), [
     'core:hero', 'block:two', 'core:categories', 'block:one', 'core:stores',
   ]);
+});
+
+test('category, deals and coupons builder templates expose their live sections without changing existing templates', () => {
+  assert.deepEqual(coreSectionsByPage.home.map((section) => section.key), ['hero', 'categories', 'stores', 'best_deals', 'trending', 'price_drops', 'benefits']);
+  assert.deepEqual(coreSectionsByPage.stores.map((section) => section.key), ['store_intro', 'store_products', 'store_policies', 'store_faqs']);
+  assert.deepEqual(coreSectionsByPage.product.map((section) => section.key), ['product_summary', 'offer_comparison', 'price_history', 'specifications', 'product_information', 'store_policies', 'product_faqs', 'related_products', 'disclosure']);
+  assert.deepEqual(coreSectionsByPage.category.map((section) => section.key), ['category_intro', 'category_stores', 'category_subcategories', 'category_results']);
+  assert.deepEqual(coreSectionsByPage.deals.map((section) => section.key), ['deals_intro', 'deals_categories', 'deals_tabs', 'deals_results']);
+  assert.deepEqual(coreSectionsByPage.coupons.map((section) => section.key), ['coupons_intro', 'coupons_tabs', 'coupons_content']);
+  assert.deepEqual(websitePageOptions.slice(-3).map((page) => page.route), ['/category', '/deals', '/vouchers-bills']);
+  assert.deepEqual(defaultWebsiteSectionOrder('category', [block('old-category-block', 'after_heading')]).slice(0, 3), ['core:category_intro', 'block:old-category-block', 'core:category_stores']);
+  assert.deepEqual(defaultWebsiteSectionOrder('deals', [block('old-deals-block', 'before_results')]).slice(0, 4), ['core:deals_intro', 'core:deals_categories', 'core:deals_tabs', 'block:old-deals-block']);
 });
 
 test('saved page composition is preserved and only newly-added custom sections are appended', () => {
@@ -50,6 +62,10 @@ test('drop targets place the complete section before, after, or at the chosen po
   assert.deepEqual(moveWebsiteSection(initial, 'core:hero', 3), ['block:one', 'core:categories', 'core:hero']);
   assert.deepEqual(moveWebsiteSection(initial, 'core:categories', 1), ['core:hero', 'core:categories', 'block:one']);
   assert.deepEqual(insertWebsiteSection(initial, 'block:two', 1), ['core:hero', 'block:two', 'block:one', 'core:categories']);
+});
+
+test('a missing built-in page section can be restored at the chosen insertion point', () => {
+  assert.deepEqual(insertWebsiteSection(['core:categories', 'core:stores'], 'core:hero', 0), ['core:hero', 'core:categories', 'core:stores']);
 });
 
 test('catalogue slide destinations open the selected product, subcategory or store', () => {

@@ -164,7 +164,6 @@ export default async function StorePage({ params, searchParams }: { params: Prom
     return true;
   });
   const filteredStoreOffers = sortOffers(matchingStoreOffers, filters.sort ?? 'relevance');
-  const collection = ['top25', 'top-cashback'].includes(filters.collection ?? '') ? filters.collection! : 'top50';
   const hasStoreFilters = Boolean(query || selectedCategorySlugs.length || filters.cashback === 'yes' || filters.price);
   const activeStoreFilterCount = selectedCategorySlugs.length + (filters.q?.trim() ? 1 : 0) + (filters.cashback === 'yes' ? 1 : 0) + (filters.price ? 1 : 0);
   const storePriceLabels: Record<string, string> = { 'under-1000': 'Under ₹1,000', '1000-5000': '₹1,000 – ₹5,000', '5000-10000': '₹5,000 – ₹10,000', 'over-10000': 'Above ₹10,000' };
@@ -181,6 +180,10 @@ export default async function StorePage({ params, searchParams }: { params: Prom
   const coreContent = { ...(layout.core_content ?? {}), ...(layout.store_content?.[slug] ?? {}) } as Record<string, WebsiteCoreContent>;
   const heroContent = coreContent.store_intro ?? {};
   const productContent = coreContent.store_products ?? {};
+  const storeCollections = [{ key: 'top50', label: 'Top 50' }, { key: 'top25', label: 'Top 25' }, { key: 'top-cashback', label: 'Top cashback' }];
+  const visibleStoreCollections = productContent.tab_keys ?? storeCollections.map((item) => item.key);
+  const defaultStoreCollection = visibleStoreCollections.includes('top50') ? 'top50' : visibleStoreCollections[0] ?? 'top50';
+  const collection = visibleStoreCollections.includes(filters.collection ?? '') ? filters.collection! : defaultStoreCollection;
   const cashbackOffers = allOffers.filter(hasCashback);
   const confirmationDays = [...new Set(cashbackOffers.map((offer) => offer.cashback_confirmation_days).filter((days): days is number => days != null && days >= 0))];
   const offerConfirmation = confirmationDays.length === 1
@@ -203,7 +206,7 @@ export default async function StorePage({ params, searchParams }: { params: Prom
   const configuredHref = heroContent.cta_href?.trim() || trackedOfferHref;
   const configuredCtaLabel = heroContent.cta_label?.trim() || 'Shop Now';
   const selectedCategoryIds = productContent.category_ids ?? [];
-  const storeCategories = (selectedCategoryIds.length ? allStoreCategories.filter((category) => selectedCategoryIds.includes(category.id)) : allStoreCategories).slice(0, 12);
+  const storeCategories = (selectedCategoryIds.length ? allStoreCategories.filter((category) => selectedCategoryIds.includes(category.id)) : allStoreCategories).slice(0, productContent.category_count ?? 12);
   const selectedProductIds = productContent.product_ids ?? [];
   const rankedStoreOffers = selectedProductIds.length
     ? [...filteredStoreOffers].sort((a, b) => {
@@ -264,11 +267,7 @@ export default async function StorePage({ params, searchParams }: { params: Prom
             <CustomerFilterChips chips={activeStoreFilterChips}/>
 
             <nav className="category-collections" aria-label={`${store.name} deal collections`}>
-              {[
-                ['top50', 'Top 50'],
-                ['top25', 'Top 25'],
-                ['top-cashback', 'Top cashback'],
-              ].map(([key, label]) => <Link key={key} href={storeFilterPath(slug, { ...filters, from: returnPath, collection: key })} aria-current={collection === key ? 'page' : undefined} className={collection === key ? 'active' : ''}>{label}</Link>)}
+              {storeCollections.filter((item) => visibleStoreCollections.includes(item.key)).map(({ key, label }) => <Link key={key} href={storeFilterPath(slug, { ...filters, from: returnPath, collection: key })} aria-current={collection === key ? 'page' : undefined} className={collection === key ? 'active' : ''}>{label}</Link>)}
             </nav>
             {displayedStoreOffers.length ? <OfferGrid offers={displayedStoreOffers} contextHref={storeBrowsePath}/> : <div className="empty-state category-empty"><Store size={30}/><h2>{hasStoreFilters ? 'No products match these filters' : `No products from ${store.name} yet`}</h2><p>{hasStoreFilters ? 'Clear a filter or try a broader search.' : `Approved products with active offers from ${store.name} will appear here.`}</p>{hasStoreFilters && <Link href={clearStoreFiltersPath} className="primary">Clear all filters</Link>}</div>}
           </div>
@@ -276,7 +275,7 @@ export default async function StorePage({ params, searchParams }: { params: Prom
       </section>
     </section>,
     'core:store_policies': <CustomerPolicyAccordions className={styles.storePolicy} variant="store-page" storeName={store.name} policy={policyData} heading={coreContent.store_policies?.title || 'Terms & Conditions'} intro={coreContent.store_policies?.body || `Cashback rules and conditions specific to ${store.name}.`} openFirst={false}/>,
-    'core:store_faqs': <ContextualFaqs variant="store-page" title={coreContent.store_faqs?.title || 'Frequently Asked Questions'} intro={`Common questions about shopping with ${store.name} through Glonni.`} faqs={faqs} maxItems={8}/>,
+    'core:store_faqs': <ContextualFaqs variant="store-page" title={coreContent.store_faqs?.title || 'Frequently Asked Questions'} intro={coreContent.store_faqs?.body || `Common questions about shopping with ${store.name} through Glonni.`} faqs={faqs} maxItems={8}/>,
   };
 
   return <><Header/><main className={`store-detail-page ${styles.page}`}>

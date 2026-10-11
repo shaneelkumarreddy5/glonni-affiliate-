@@ -48,7 +48,7 @@ function normalizeBlocks(pageKey: WebsitePageKey, value: unknown): WebsiteDraftB
     const item = raw as Record<string, unknown>;
     const type = item.block_type;
     if (!['hero', 'banner', 'product_rail', 'store_rail', 'category_rail', 'store_directory', 'service_rail'].includes(String(type))) return 'Choose a supported banner or catalogue section.';
-    if (type === 'hero' && pageKey === 'product') return 'Hero banners can be added to the home page or a store page.';
+    if (type === 'hero' && pageKey === 'product') return 'Hero banners can be added to customer pages other than the product template.';
     if (type === 'service_rail' && pageKey !== 'home') return 'Vouchers & Bills sections can only be added to the home page.';
     const id = String(item.id ?? '');
     if (!/^[0-9a-f-]{36}$/i.test(id)) return 'A section identifier is invalid. Remove it and add the section again.';
@@ -218,8 +218,11 @@ function normalizeCoreContent(pageKey: WebsitePageKey, value: unknown): Record<s
     if ([trackingNote, confirmationNote, creditNote].some((note) => note.length > 500)) return 'A cashback timeline note is too long.';
     const ids = (candidate: unknown) => Array.isArray(candidate) ? candidate.filter((id): id is string => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id)).slice(0, 50) : [];
     const count = Math.max(1, Math.min(50, Number(content.count ?? 10) || 10));
+    const categoryCount = Math.max(1, Math.min(50, Number(content.category_count ?? 12) || 12));
     const visualShape = ['standard', 'wide', 'strip', 'square', 'rectangle_horizontal', 'rectangle_vertical'].includes(String(content.visual_shape)) ? content.visual_shape as WebsiteCoreContent['visual_shape'] : undefined;
-    output[key] = { title, body, count, visual_shape: visualShape, product_ids: ids(content.product_ids), category_ids: ids(content.category_ids), store_ids: ids(content.store_ids), image_url: imageUrl, cta_label: ctaLabel, cta_href: ctaHref, tracking_note: trackingNote, confirmation_note: confirmationNote, credit_note: creditNote };
+    const allowedTabs = key === 'category_results' || key === 'store_products' ? ['top25', 'top50', 'top-cashback'] : key === 'deals_tabs' ? ['trending', 'discount', 'cashback', 'top25', 'top50'] : key === 'coupons_tabs' ? ['coupons', 'buy', 'bills'] : [];
+    const tabKeys = Array.isArray(content.tab_keys) ? [...new Set(content.tab_keys.filter((tab): tab is string => typeof tab === 'string' && allowedTabs.includes(tab)))] : undefined;
+    output[key] = { title, body, count, category_count: categoryCount, visual_shape: visualShape, product_ids: ids(content.product_ids), category_ids: ids(content.category_ids), store_ids: ids(content.store_ids), image_url: imageUrl, cta_label: ctaLabel, cta_href: ctaHref, tracking_note: trackingNote, confirmation_note: confirmationNote, credit_note: creditNote, tab_keys: tabKeys };
   }
   return output;
 }
@@ -245,8 +248,20 @@ async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[],
   const { supabase, user } = context;
   const pageOption = websitePageOptions.find((item) => item.key === pageKey);
   if (!pageOption) return { ok: false, error: 'Choose a supported website page.' } as const;
-  const { data: page, error: pageError } = await supabase.from('site_pages').select('id').eq('slug', pageOption.slug).maybeSingle();
-  if (pageError || !page) return { ok: false, error: 'The website page is not ready. Refresh the workspace and try again.' } as const;
+  let { data: page, error: pageError } = await supabase.from('site_pages').select('id').eq('slug', pageOption.slug).maybeSingle();
+  if (pageError) return { ok: false, error: 'Could not load this website page. Refresh the workspace and try again.' } as const;
+  if (!page) {
+    const { data: createdPage, error: createPageError } = await supabase.from('site_pages').insert({
+      title: pageOption.label,
+      slug: pageOption.slug,
+      description: `Managed layout for ${pageOption.label.toLowerCase()}`,
+      status: 'draft',
+      created_by: user.id,
+    }).select('id').maybeSingle();
+    page = createdPage;
+    pageError = createPageError;
+  }
+  if (pageError || !page) return { ok: false, error: 'This page could not be initialized. Check your connection and try again.' } as const;
   const { data: versions, error: versionsError } = await supabase.from('site_page_versions').select('id,version_number').eq('page_id', page.id).eq('change_note', 'workspace_draft').order('version_number', { ascending: false }).limit(1);
   if (versionsError) return { ok: false, error: 'Could not load the current draft version. Try again.' } as const;
   const snapshot: WebsiteLayoutSnapshot = { blocks, section_order: sectionOrder, core_content: coreContent, store_content: storeContent };
@@ -265,7 +280,7 @@ async function saveVersion(pageKey: WebsitePageKey, blocks: WebsiteDraftBlock[],
 }
 
 export async function autosaveWebsiteDraft(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {
-  if (!['home', 'stores', 'product'].includes(pageKey)) return { ok: false, error: 'Choose a supported website page.' };
+  if (!websitePageOptions.some((page) => page.key === pageKey)) return { ok: false, error: 'Choose a supported website page.' };
   const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined, store_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown; store_content?: unknown } : {};
   const blocks = normalizeBlocks(pageKey, request.blocks);
   if (typeof blocks === 'string') return { ok: false, error: blocks };
@@ -282,7 +297,7 @@ export async function autosaveWebsiteDraft(pageKey: WebsitePageKey, payload: unk
 }
 
 export async function saveWebsiteDraft(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {
-  if (!['home', 'stores', 'product'].includes(pageKey)) return { ok: false, error: 'Choose a supported website page.' };
+  if (!websitePageOptions.some((page) => page.key === pageKey)) return { ok: false, error: 'Choose a supported website page.' };
   const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined, store_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown; store_content?: unknown } : {};
   const blocks = normalizeBlocks(pageKey, request.blocks);
   if (typeof blocks === 'string') return { ok: false, error: blocks };
@@ -300,7 +315,7 @@ export async function saveWebsiteDraft(pageKey: WebsitePageKey, payload: unknown
 }
 
 export async function publishWebsiteLayout(pageKey: WebsitePageKey, payload: unknown): Promise<WebsiteActionResult> {
-  if (!['home', 'stores', 'product'].includes(pageKey)) return { ok: false, error: 'Choose a supported website page.' };
+  if (!websitePageOptions.some((page) => page.key === pageKey)) return { ok: false, error: 'Choose a supported website page.' };
   const request = Array.isArray(payload) ? { blocks: payload, section_order: undefined, core_content: undefined, store_content: undefined } : payload && typeof payload === 'object' ? payload as { blocks?: unknown; section_order?: unknown; core_content?: unknown; store_content?: unknown } : {};
   const blocks = normalizeBlocks(pageKey, request.blocks);
   if (typeof blocks === 'string') return { ok: false, error: blocks };
@@ -327,6 +342,9 @@ export async function publishWebsiteLayout(pageKey: WebsitePageKey, payload: unk
   revalidatePath('/');
   revalidatePath('/store/[slug]', 'page');
   revalidatePath('/product/[slug]', 'page');
+  revalidatePath('/category/[slug]', 'page');
+  revalidatePath('/deals');
+  revalidatePath('/vouchers-bills');
   revalidatePath('/admin/workspace/website');
   return { ok: true, message: 'Published. The customer page now shows this layout.' };
 }
