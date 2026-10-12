@@ -3,16 +3,15 @@ import { AdminSidebar } from '@/components/admin-sidebar';
 import { CuelinksConnection } from '@/components/cuelinks-connection';
 import { registerCuelinksProvider } from '@/app/admin/provider-actions';
 import { createClient } from '@/lib/supabase/server';
-import { Cable, Clock3, CreditCard, Bot } from 'lucide-react';
+import { Cable, CreditCard, Bot } from 'lucide-react';
 import './integrations.css';
 
 export const dynamic = 'force-dynamic';
 export default async function IntegrationsPage() {
   const supabase = await createClient();
-  const [ai, providers, feeds, payments, { data: { user } }, { data: assurance }] = await Promise.all([
+  const [ai, providers, payments, { data: { user } }, { data: assurance }] = await Promise.all([
     supabase.from('ai_provider_connections').select('provider_key,display_name,connection_status').order('display_name'),
     supabase.from('affiliate_providers').select('id,name,adapter_key,is_active').order('name'),
-    supabase.from('product_feeds').select('id,name,status,next_run_at').order('name'),
     supabase.from('payment_provider_configs').select('id,name,enabled,adapter_status,credential_status,last_health_check_status,last_health_check_at').order('name'),
     supabase.auth.getUser(), supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
   ]);
@@ -24,16 +23,14 @@ export default async function IntegrationsPage() {
   const rows = [
     ...(ai.data ?? []).map(row => ({ id: 'ai:' + row.provider_key, name: row.display_name, type: 'AI', status: row.connection_status.replaceAll('_', ' '), detail: 'Stored connection state; not a live test', href: '/admin/ai-providers' })),
     ...(providers.data ?? []).map(row => ({ id: row.id, name: row.name, type: 'Affiliate network', status: row.is_active ? 'Active registry record' : 'Inactive', detail: row.adapter_key || 'Adapter not selected', href: '/admin/providers' })),
-    ...(feeds.data ?? []).map(row => ({ id: row.id, name: row.name, type: 'Product feed', status: row.status.replaceAll('_', ' '), detail: row.next_run_at ? 'Next run: ' + new Date(row.next_run_at).toLocaleString('en-IN') : 'No next run scheduled', href: '/admin/products?view=feeds' })),
     ...(payments.data ?? []).map(row => ({ id: row.id, name: row.name, type: 'Payment provider', status: row.enabled ? 'Enabled configuration' : 'Disabled', detail: 'Adapter: ' + row.adapter_status + ' · Credentials: ' + row.credential_status + ' · Last check: ' + (row.last_health_check_status || 'Not tested'), href: '/admin/payment-providers' })),
   ];
   const stats = [
     { title: 'AI connections', value: ai.error ? '—' : (ai.data ?? []).filter(row => row.connection_status === 'connected').length, note: 'Recorded connected status', icon: Bot },
     { title: 'Affiliate providers', value: providers.error ? '—' : (providers.data ?? []).length, note: 'Configured registry records', icon: Cable },
-    { title: 'Scheduled feeds', value: feeds.error ? '—' : (feeds.data ?? []).filter(row => row.status === 'active' && row.next_run_at).length, note: 'Active with a next-run date', icon: Clock3 },
     { title: 'Payment configurations', value: payments.error ? '—' : (payments.data ?? []).length, note: 'Not proof of live payment access', icon: CreditCard },
   ];
-  const failed = ai.error || providers.error || feeds.error || payments.error;
+  const failed = ai.error || providers.error || payments.error;
   return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content">
     <div className="admin-title"><div><p>INTEGRATION WORKBENCH</p><h1>API Integrations</h1><span>Saved configurations and explicit connection checks. Nothing is automatically imported or published.</span></div></div>
     {failed && <p className="preview-note" role="alert">Some connection records could not be loaded. Unavailable counts are shown as a dash; refresh to retry.</p>}

@@ -129,7 +129,7 @@ export default async function Dashboard() {
           {topStores.map((store) => <Link href={`/admin/stores/${encodeURIComponent(store.slug)}`} className="dashboard-store-row" key={store.slug}>
             <b>{store.name}</b><span>{number(store.clicks)} clicks</span><strong>{money(store.cashback)}</strong>
           </Link>)}
-        </div> : <div className="dashboard-empty">{merchants === null || clicks === null || conversions === null ? 'Store activity is temporarily unavailable.' : 'Tracked store activity will appear here.'}</div>}
+        </div> : <div className="dashboard-empty">{merchants === null || clicks === null || conversions === null ? 'Store activity is temporarily unavailable.' : 'No tracked store activity yet.'}</div>}
       </article>
 
       <article className="dashboard-panel dashboard-recent-panel">
@@ -143,7 +143,7 @@ export default async function Dashboard() {
             <span><b>{event.event_type.replaceAll('_', ' ')}</b><small>{event.surface || 'Activity recorded'}</small></span>
             <time dateTime={event.occurred_at}>{timeAgo(event.occurred_at)}</time>
           </Link>)}
-        </div> : <div className="dashboard-empty">{eventError ? 'Activity data is temporarily unavailable.' : 'New activity will appear here as the workspace is used.'}</div>}
+        </div> : <div className="dashboard-empty">{eventError ? 'Activity data is temporarily unavailable.' : 'No recent activity.'}</div>}
       </article>
     </section>
   </main></section></main>;

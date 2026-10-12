@@ -7,8 +7,8 @@ import { createStore } from './actions';
 export const dynamic = 'force-dynamic';
 type SearchState = { q?: string; status?: string };
 const money=(n:number)=>`₹${Math.round(n).toLocaleString('en-IN')}`;
-const state=(active:boolean,approval:string|null)=>approval==='pending'?'Needs attention':active?'Active':approval==='paused'?'Paused':approval||'Draft';
-const tone=(value:string)=>['Active','Connected','Compliant','approved'].includes(value)?'good':['Needs attention','pending','draft'].includes(value)?'warn':['Paused','rejected','Restricted'].includes(value)?'bad':'neutral';
+const state=(active:boolean,approval:string|null)=>approval==='pending'?'Needs attention':active?'Active':approval==='paused'?'Paused':approval==='approved'?'Inactive':approval||'Draft';
+const tone=(value:string)=>{const normalized=value.toLowerCase();return ['active','connected','compliant'].includes(normalized)?'good':['needs attention','pending','draft'].includes(normalized)?'warn':['paused','rejected','restricted','inactive'].includes(normalized)?'bad':'neutral';};
 
 export default async function Admin({searchParams}:{searchParams:Promise<SearchState>}) {
   const query=await searchParams;

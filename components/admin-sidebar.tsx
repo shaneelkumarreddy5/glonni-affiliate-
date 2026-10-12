@@ -59,7 +59,6 @@ const sections = [
     { label: 'Content Manager', href: '/admin/content-manager', icon: PenTool },
     { label: 'Support Centre', href: '/admin/support', icon: Headphones },
     { label: 'Affiliate Control Centre', href: '/admin/analytics', icon: BarChart3 },
-    { label: 'System Testing', href: '/admin/testing', icon: FlaskConical },
     { label: 'Activity & Audit Log', href: '/admin/activity', icon: FileClock },
     { label: 'Notifications', href: '/admin/notifications', icon: Bell },
     { label: 'Settings', href: '/admin/settings', icon: Settings },

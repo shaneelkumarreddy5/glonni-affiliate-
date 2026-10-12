@@ -6,7 +6,6 @@ import {
   Boxes,
   CheckCircle2,
   ChevronRight,
-  Clock3,
   CopyCheck,
   FileClock,
   FileSpreadsheet,
@@ -29,13 +28,9 @@ import { createClient } from "@/lib/supabase/server";
 import { ManualEntryWizard, type ManualStep } from "./manual-entry-wizard";
 import { AiDiscoveryWorkspace } from "@/components/ai-discovery-workspace";
 import {
-  createProductFeed,
   importProductSpreadsheet,
   reviewProductCandidate,
   reviewDuplicateProducts,
-  reviewProductFeed,
-  reviewProductFeedRun,
-  toggleProductFeed,
 } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -44,7 +39,6 @@ type View =
   | "manual"
   | "ai"
   | "bulk"
-  | "feeds"
   | "approval"
   | "history"
   | "duplicates";
@@ -88,7 +82,6 @@ const tabs: [View, string, typeof Boxes][] = [
   ["manual", "Manual Entry", PackagePlus],
   ["ai", "AI Discovery", Sparkles],
   ["bulk", "Bulk Uploads", UploadCloud],
-  ["feeds", "Scheduled Feeds", Clock3],
   ["approval", "Approval Queue", CopyCheck],
   ["history", "Import History", FileClock],
   ["duplicates", "Duplicate Review", CopyCheck],
@@ -597,11 +590,6 @@ function Workflow({
       "Upload product files",
       "Validate CSV or XLSX records before sending accepted products to the catalogue.",
     ],
-    feeds: [
-      "SCHEDULED FEEDS",
-      "Manage scheduled feeds",
-      "Control recurring product imports independently.",
-    ],
     approval: [
       "APPROVAL QUEUE",
       "Review product candidates",
@@ -623,12 +611,10 @@ function Workflow({
       ? Bot
       : view === "bulk"
         ? FileSpreadsheet
-        : view === "feeds"
-          ? Clock3
-          : view === "history"
+        : view === "history"
             ? FileClock
             : CopyCheck;
-  const setup = ["ai", "bulk", "feeds"].includes(view);
+  const setup = ["ai", "bulk"].includes(view);
   return (
     <FocusedHeader icon={Icon} eyebrow={data[0]} title={data[1]} text={data[2]}>
       {setup ? (
@@ -637,9 +623,7 @@ function Workflow({
             <h3>
               {view === "ai"
                 ? "Start discovery"
-                : view === "bulk"
-                  ? "Upload a file"
-                  : "Add a provider feed"}
+                : "Upload a file"}
             </h3>
             <p>
               This workflow creates a reviewable batch. It never publishes
@@ -675,25 +659,6 @@ function Workflow({
                 <small>Validate before import</small>
                 <input type="file" accept=".csv,.xlsx" />
               </label>
-            )}
-            {view === "feeds" && (
-              <>
-                <label>
-                  Feed URL
-                  <input
-                    type="url"
-                    placeholder="https://provider.example/feed"
-                  />
-                </label>
-                <label>
-                  Frequency
-                  <select>
-                    <option>Every 6 hours</option>
-                    <option>Daily</option>
-                    <option>Weekly</option>
-                  </select>
-                </label>
-              </>
             )}
             <button type="button">Save as draft</button>
           </div>
@@ -863,89 +828,6 @@ function BulkUploadWorkspace({
   );
 }
 
-type ProductFeed = {
-  id: string;
-  name: string;
-  feed_url: string;
-  file_format: string;
-  frequency: string;
-  status: string;
-  last_run_at: string | null;
-  next_run_at: string | null;
-  review_note: string | null;
-  affiliate_providers: { name: string } | null;
-};
-type ProductFeedRun = {
-  id: string;
-  feed_id: string;
-  import_batch_id: string | null;
-  status: string;
-  total_rows: number;
-  valid_rows: number;
-  invalid_rows: number;
-  review_note: string | null;
-  started_at: string;
-  product_feeds: { name: string; provider_id: string | null } | null;
-};
-type FeedPreviewRow = Pick<ImportRow, "id" | "row_number" | "status" | "normalized_data" | "validation_errors" | "product_id">;
-type FeedCurrentOffer = { product_id: string; merchant_id: string; provider_id: string | null; current_price: number | null };
-function ScheduledFeedsWorkspace({ feeds, runs, providers, products, categories, merchants, selectedRunId, previewRows, previewRowCount, currentOffers, success, error }: { feeds: ProductFeed[]; runs: ProductFeedRun[]; providers: { id: string; name: string; is_active: boolean }[]; products: Product[]; categories: ProductCategory[]; merchants: Merchant[]; selectedRunId?: string; previewRows: FeedPreviewRow[]; previewRowCount: number | null; currentOffers: FeedCurrentOffer[]; success?: string; error?: string }) {
-  const selectedRun = runs.find((run) => run.id === selectedRunId);
-  const completePreview = Boolean(selectedRun && selectedRun.total_rows > 0 && previewRowCount === selectedRun.total_rows && previewRows.length === selectedRun.total_rows);
-  return <FocusedHeader icon={Clock3} eyebrow="SCHEDULED FEEDS" title="Manage recurring product feeds" text="Register an approved provider feed here. Automatic HTTPS fetching still needs a provider-specific connector; use Bulk Import for real catalogue files now.">
-    {success && <p className="product-queue-message success"><CheckCircle2 />{success}</p>}
-    {error && <p className="product-queue-message error"><AlertTriangle />{error}</p>}
-    <section className="feed-management-grid">
-      <article className="feed-create-card">
-        <header><Clock3/><div><h3>Add scheduled feed</h3><p>The feed remains inactive until an administrator approves it.</p></div></header>
-        <form action={createProductFeed}>
-          <label>Feed name<input name="name" required placeholder="Provider catalogue feed" /></label>
-          <label>Affiliate provider<select name="providerId" defaultValue=""><option value="" disabled>Select provider</option>{providers.filter((provider) => provider.is_active).map((provider) => <option value={provider.id} key={provider.id}>{provider.name}</option>)}</select></label>
-          <label className="feed-url-field">Feed source<input name="feedUrl" type="url" placeholder="https://provider.example/catalogue.csv" required /><small>Use the approved provider feed URL. Saving it does not enable automatic fetching.</small></label>
-          <label>File format<select name="fileFormat" defaultValue="csv"><option value="csv">CSV</option><option value="xlsx">XLSX</option><option value="json">JSON</option><option value="xml">XML</option></select></label>
-          <label>Frequency<select name="frequency" defaultValue="daily"><option value="manual">Manual only</option><option value="6_hours">Every 6 hours</option><option value="12_hours">Every 12 hours</option><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
-          <button type="submit">Submit for approval <ArrowRight /></button>
-        </form>
-      </article>
-      <article className="feed-list-card">
-        <header><div><h3>Configured feeds</h3><p>Approval, schedule and feed health are controlled here.</p></div><b>{feeds.length} feeds</b></header>
-        <div className="feed-list">
-          {feeds.length ? feeds.map((feed) => <section key={feed.id}>
-            <div className="feed-list-main"><FileSpreadsheet/><span><strong>{feed.name}</strong><small>{feed.affiliate_providers?.name || "Provider unavailable"} · {feed.file_format.toUpperCase()} · {feed.frequency.replaceAll("_", " ")}</small></span><em className={feed.status}>{feed.status.replaceAll("_", " ")}</em></div>
-            <div className="feed-list-meta"><span><b>Last run</b>{feed.last_run_at ? new Date(feed.last_run_at).toLocaleString("en-IN") : "Not run yet"}</span><span><b>Next run</b>{feed.next_run_at ? new Date(feed.next_run_at).toLocaleString("en-IN") : "Not scheduled"}</span><span><b>Source</b>{feed.feed_url.startsWith("https://") ? new URL(feed.feed_url).hostname : "Invalid feed URL"}</span></div>
-            {feed.review_note && <p className="feed-review-note">Review note: {feed.review_note}</p>}
-            <div className="feed-actions">
-              {feed.status === "pending_approval" ? <details><summary>Review feed</summary><form action={reviewProductFeed}><input type="hidden" name="feedId" value={feed.id}/><textarea name="note" placeholder="Reason required when rejecting"/><div><button name="decision" value="approve" className="approve">Approve & activate</button><button name="decision" value="reject" className="reject">Reject</button></div></form></details> : feed.status === "active" ? <><form action={toggleProductFeed}><input type="hidden" name="feedId" value={feed.id}/><input type="hidden" name="status" value="paused"/><button>Pause</button></form></> : feed.status === "paused" ? <form action={toggleProductFeed}><input type="hidden" name="feedId" value={feed.id}/><input type="hidden" name="status" value="active"/><button>Resume</button></form> : null}
-            </div>
-          </section>) : <div className="workflow-empty"><Clock3/><span><b>No scheduled feeds</b><small>Add the first provider feed using the form.</small></span></div>}
-        </div>
-      </article>
-    </section>
-    <article className="feed-run-card">
-      <header><div><h3>Feed run approval</h3><p>Approve or reject each completed run. Rejected runs never update the catalogue.</p></div><b>{runs.filter((run) => run.status === "pending_review").length} waiting</b></header>
-      {runs.length ? <div className="feed-run-table"><table><thead><tr><th>FEED / STARTED</th><th>ROWS</th><th>RESULT</th><th>REVIEW</th></tr></thead><tbody>{runs.map((run) => <tr key={run.id}><td><b>{run.product_feeds?.name || "Deleted feed"}</b><small>{new Date(run.started_at).toLocaleString("en-IN")}</small></td><td><b>{run.valid_rows}/{run.total_rows} valid</b><small>{run.invalid_rows} rejected</small></td><td><span className={`feed-run-status ${run.status}`}>{run.status.replaceAll("_", " ")}</span>{run.review_note && <small>{run.review_note}</small>}</td><td><Link className="feed-review-link" href={`/admin/products?view=feeds&run=${run.id}`}>{run.status === "pending_review" ? "Review changes" : "View changes"} <ArrowRight size={14}/></Link></td></tr>)}</tbody></table></div> : <div className="workflow-empty"><CheckCircle2/><span><b>No feed runs yet</b><small>Approved feeds can be run and reviewed here.</small></span></div>}
-    </article>
-    {selectedRun && <article className="feed-preview-card" id="feed-run-preview">
-      <header><div><p>REVIEW FEED CHANGES</p><h3>{selectedRun.product_feeds?.name || "Feed run"}</h3><span>{new Date(selectedRun.started_at).toLocaleString("en-IN")} · {selectedRun.total_rows} proposed rows</span></div><Link href="/admin/products?view=feeds">Close preview</Link></header>
-      {!completePreview && <p className="feed-preview-warning"><AlertTriangle size={17}/>The complete set of rows could not be loaded. Approval is unavailable; please retry before deciding.</p>}
-      <div className="feed-preview-list">{previewRows.map((row) => {
-        const data = row.normalized_data || {};
-        const productId = String(data.match_product_id || row.product_id || "");
-        const merchantId = String(data.merchant_id || "");
-        const categoryId = String(data.category_id || "");
-        const proposedPrice = Number(data.current_price);
-        const oldOffer = currentOffers.find((offer) => offer.product_id === productId && offer.merchant_id === merchantId && offer.provider_id === selectedRun.product_feeds?.provider_id);
-        const oldProduct = products.find((product) => product.id === productId);
-        const store = merchants.find((merchant) => merchant.id === merchantId);
-        const category = categories.find((item) => item.id === categoryId);
-        return <section key={row.id} className="feed-preview-row"><div className="feed-preview-row-heading"><span className={productId ? "feed-change-type update" : "feed-change-type new"}>{productId ? "UPDATE PRODUCT" : "NEW PRODUCT"}</span><strong>{String(data.title || "Untitled product")}</strong><small>Row {row.row_number} · {row.status}</small></div><div className="feed-preview-fields"><div><span>Store</span><b>{store?.name || "Unknown store"}</b></div><div><span>Category</span><b>{category ? categoryOptionLabel(category) : "Not assigned"}</b></div><div><span>Current price</span><b>{oldOffer?.current_price != null ? money(Number(oldOffer.current_price)) : "No current offer"}</b></div><div><span>Proposed price</span><b>{Number.isFinite(proposedPrice) ? money(proposedPrice) : "Unavailable"}</b></div></div>{oldProduct && oldProduct.title !== data.title && <p className="feed-preview-name-change">Current product name: {oldProduct.title}</p>}{Boolean(row.validation_errors?.length) && <p className="feed-preview-warning">{row.validation_errors?.join(" · ")}</p>}</section>;
-      })}</div>
-      {selectedRun.status === "pending_review" && completePreview && <form action={reviewProductFeedRun} className="feed-preview-decision"><input type="hidden" name="runId" value={selectedRun.id}/><label>Review note <textarea name="note" placeholder="Required when rejecting"/></label><div><button name="decision" value="reject" className="reject">Reject run</button><button name="decision" value="approve" className="approve">Approve {selectedRun.valid_rows} changes</button></div></form>}
-      {selectedRun.status !== "pending_review" && <p className="feed-preview-reviewed">This run was {selectedRun.status.replaceAll("_", " ")}. It cannot be reviewed again.</p>}
-    </article>}
-  </FocusedHeader>;
-}
-
 type HistoryAiJob = { id: string; job_type: string; status: string; review_status: string; input: Record<string, unknown> | null; created_at: string; completed_at: string | null; latest_error: string | null; reviewed_by: string | null; review_note: string | null };
 function ImportHistoryWorkspace({ batches, rows, aiJobs, activeBatchId, people, success, error }: { batches: ImportBatch[]; rows: ImportRow[]; aiJobs: HistoryAiJob[]; activeBatchId?: string; people: Map<string, string>; success?: string; error?: string }) {
   const activeBatch = batches.find((batch) => batch.id === activeBatchId);
@@ -1009,7 +891,7 @@ function DuplicateReviewWorkspace({ pairs, resolved, success, error }: { pairs: 
         </div>
         <form action={reviewDuplicateProducts} className="duplicate-decision-form"><input type="hidden" name="productAId" value={pair.a.id}/><input type="hidden" name="productBId" value={pair.b.id}/><input type="hidden" name="confidence" value={pair.confidence}/><input type="hidden" name="matchReasons" value={pair.reasons.join("|")}/><label>Canonical product<select name="canonicalId" defaultValue={pair.a.id}><option value={pair.a.id}>Product A · {pair.a.title}</option><option value={pair.b.id}>Product B · {pair.b.title}</option></select></label><label>Review note<textarea name="note" placeholder="Required when keeping separate or rejecting a duplicate"/></label><div><button name="decision" value="merge" className="merge">Merge into canonical</button><button name="decision" value="keep_separate">Keep separate</button><button name="decision" value="reject_duplicate" className="reject">Reject duplicate</button></div></form>
       </article>)}
-      {!pairs.length && <div className="duplicate-empty"><CheckCircle2/><h3>No unresolved duplicates</h3><p>New matching products from AI, bulk uploads, and feeds will appear here automatically.</p></div>}
+      {!pairs.length && <div className="duplicate-empty"><CheckCircle2/><h3>No unresolved duplicates</h3></div>}
     </section>
   </FocusedHeader>;
 }
@@ -1110,18 +992,6 @@ export default async function ProductsPage({
   const { data: batchRows } = ["bulk", "history"].includes(view) && query.batch
     ? await s.from("import_batch_rows").select("id,row_number,status,raw_data,normalized_data,validation_errors,product_id").eq("batch_id", query.batch).order("row_number")
     : { data: [] };
-  const [{ data: productFeeds }, { data: productFeedRuns }] = view === "feeds" ? await Promise.all([
-    s.from("product_feeds").select("id,name,feed_url,file_format,frequency,status,last_run_at,next_run_at,review_note,affiliate_providers(name)").not("feed_url", "like", "mock://%").order("created_at", { ascending: false }),
-    s.from("product_feed_runs").select("id,feed_id,import_batch_id,status,total_rows,valid_rows,invalid_rows,review_note,started_at,product_feeds!inner(name,provider_id,feed_url)").not("product_feeds.feed_url", "like", "mock://%").order("started_at", { ascending: false }).limit(50),
-  ]) : [{ data: [] }, { data: [] }];
-  const selectedFeedRun = (productFeedRuns ?? []).find((run) => run.id === query.run);
-  const { data: feedPreviewRows, count: feedPreviewRowCount } = selectedFeedRun?.import_batch_id
-    ? await s.from("import_batch_rows").select("id,row_number,status,normalized_data,validation_errors,product_id", { count: "exact" }).eq("batch_id", selectedFeedRun.import_batch_id).order("row_number").range(0, 999)
-    : { data: [], count: null };
-  const matchedProductIds = [...new Set((feedPreviewRows ?? []).map((row) => String((row.normalized_data as Record<string, unknown> | null)?.match_product_id || row.product_id || "")).filter(Boolean))];
-  const { data: feedCurrentOffers } = matchedProductIds.length
-    ? await s.from("offers").select("product_id,merchant_id,provider_id,current_price").in("product_id", matchedProductIds)
-    : { data: [] };
   const { data: historyAiJobs } = view === "history" ? await s.from("ai_jobs").select("id,job_type,status,review_status,input,created_at,completed_at,latest_error,reviewed_by,review_note").in("job_type", ["product_discovery", "product_enrichment"]).order("created_at", { ascending: false }).limit(100) : { data: [] };
   const actorIds = view === "history" ? [...new Set([...(batches ?? []).flatMap((batch) => [batch.submitted_by, batch.approved_by]), ...(historyAiJobs ?? []).map((job) => job.reviewed_by)].filter((id): id is string => Boolean(id)))] : [];
   const { data: actorProfiles } = actorIds.length ? await s.from("profiles").select("id,display_name").in("id", actorIds) : { data: [] };
@@ -1150,7 +1020,7 @@ export default async function ProductsPage({
       "review",
     ],
     manualStep = (
-      manualSteps.includes(query.step as ManualStep) ? query.step : "basic"
+      draft && manualSteps.includes(query.step as ManualStep) ? query.step : "basic"
     ) as ManualStep,
     approvalProducts = products.filter((product) => !product.is_active && product.manual_metadata?.review_status !== "rejected"),
     badge = approvalProducts.length;
@@ -1213,8 +1083,6 @@ export default async function ProductsPage({
             <AiDiscoveryWorkspace merchants={(merchants??[]).filter(merchant=>merchant.is_active)} categories={categoryTree} jobs={discoveryJobs??[]} candidates={discoveryCandidates??[]} activeJobId={query.job} success={query.success} error={query.error}/>
           ) : view === "bulk" ? (
             <BulkUploadWorkspace batches={(batches ?? []) as unknown as ImportBatch[]} providers={providers ?? []} activeBatchId={query.batch} rows={(batchRows ?? []) as ImportRow[]} success={query.success} error={query.error}/>
-          ) : view === "feeds" ? (
-            <ScheduledFeedsWorkspace feeds={(productFeeds ?? []) as unknown as ProductFeed[]} runs={(productFeedRuns ?? []) as unknown as ProductFeedRun[]} providers={providers ?? []} products={products} categories={categoryTree} merchants={merchants ?? []} selectedRunId={query.run} previewRows={(feedPreviewRows ?? []) as FeedPreviewRow[]} previewRowCount={feedPreviewRowCount} currentOffers={(feedCurrentOffers ?? []) as FeedCurrentOffer[]} success={query.success} error={query.error}/>
           ) : view === "history" ? (
             <ImportHistoryWorkspace batches={(batches ?? []) as unknown as ImportBatch[]} rows={(batchRows ?? []) as ImportRow[]} aiJobs={(historyAiJobs ?? []) as HistoryAiJob[]} activeBatchId={query.batch} people={people} success={query.success} error={query.error}/>
           ) : view === "duplicates" ? (

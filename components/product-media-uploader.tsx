@@ -196,7 +196,7 @@ export function ProductMediaUploader({
             <textarea
               rows={4}
               value={textValue}
-              placeholder="https://example.com/front.jpg"
+              placeholder="Paste image URL"
               onChange={(event) =>
                 setUrls(cleanUrls(event.target.value, limit))
               }
@@ -206,7 +206,7 @@ export function ProductMediaUploader({
               type="url"
               value={urls[0] ?? ""}
               required={required && urls.length === 0}
-              placeholder="https://example.com/product.jpg"
+              placeholder="Paste image URL"
               onChange={(event) =>
                 setUrls(event.target.value.trim() ? [event.target.value] : [])
               }

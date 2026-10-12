@@ -204,7 +204,7 @@
 .previewBannerTrack .previewBanner.size_rectangle_horizontal{flex:0 0 min(480px,92%);width:min(480px,92%);max-width:92%;min-height:0;aspect-ratio:2/1}
 .previewBannerTrack .previewBanner.size_rectangle_vertical{flex:0 0 min(260px,80%);width:min(260px,80%);max-width:80%;min-height:0;aspect-ratio:3/4;align-items:flex-end}
 .previewPromotionTrack .previewBanner.size_strip{flex:0 0 100%;width:100%;max-width:100%;min-height:82px;aspect-ratio:auto;border-radius:12px;padding:14px 20px}
-/* The phone/tablet selector narrows the mock page without changing the browser
+/* The phone/tablet selector narrows the preview page without changing the browser
    viewport, so mirror the corresponding live mobile caps by its page class. */
 .customerPage.mobile .previewBannerTrack .previewBanner.size_square{flex-basis:min(360px,85%);width:min(360px,85%)}
 .customerPage.mobile .previewBannerTrack .previewBanner.size_rectangle_horizontal{flex-basis:min(410px,94%);width:min(410px,94%);max-width:94%}

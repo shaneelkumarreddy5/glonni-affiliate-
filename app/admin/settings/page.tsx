@@ -13,12 +13,11 @@ const defaults: GlobalSettings = {
 
 export default async function SettingsPage() {
   const supabase = await createClient();
-  const [identityResult, settingsResult, agentsResult, jobsResult, feedsResult, campaignsResult, templatesResult] = await Promise.all([
+  const [identityResult, settingsResult, agentsResult, jobsResult, campaignsResult, templatesResult] = await Promise.all([
     supabase.from('website_identity').select('site_name,logo_url,default_language').eq('id', 1).maybeSingle(),
     supabase.from('platform_settings').select('*').eq('id', 1).maybeSingle(),
     supabase.from('ai_agents').select('key,is_enabled,runtime_status,capability_status'),
     supabase.from('ai_jobs').select('id,status,created_at').order('created_at', { ascending: false }).limit(100),
-    supabase.from('product_feeds').select('id,status'),
     supabase.from('homepage_campaigns').select('id,status,starts_at,ends_at'),
     supabase.from('notification_templates').select('id,status,category,is_promotional'),
   ]);
@@ -32,7 +31,6 @@ export default async function SettingsPage() {
   };
   const agents = agentsResult.data ?? [];
   const jobs = jobsResult.data ?? [];
-  const feeds = feedsResult.data ?? [];
   const campaigns = campaignsResult.data ?? [];
   const templates = templatesResult.data ?? [];
   const health: SettingsHealth = {
@@ -40,9 +38,6 @@ export default async function SettingsPage() {
     ai_enabled: agents.filter((agent) => agent.is_enabled).length,
     ai_total: agents.length,
     ai_failed_recent: jobs.filter((job) => job.status === 'failed').length,
-    feeds_available: !feedsResult.error,
-    feeds_active: feeds.filter((feed) => feed.status === 'active').length,
-    feeds_total: feeds.length,
     campaigns_available: !campaignsResult.error,
     campaigns_live: campaigns.filter((campaign) => campaign.status === 'published').length,
     campaigns_total: campaigns.length,

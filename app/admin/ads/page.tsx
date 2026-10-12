@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { AdminSidebar } from '@/components/admin-sidebar';
 import { loadApprovedContentQueue } from '@/lib/admin-content-queue';
-import { Bell, CirclePause, Image, Megaphone, MousePointerClick, ShieldCheck, Target } from 'lucide-react';
+import { Image, Megaphone, ShieldCheck } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,13 +9,41 @@ const platformName: Record<string, string> = { google_ads: 'Google Ads', meta_ad
 
 export default async function AdsPage() {
   const { queue, error } = await loadApprovedContentQueue('paid_ads');
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><header className="admin-top"><Megaphone size={21}/><b>Ads Manager</b><span className="dashboard-date">Paid campaign setup and delivery queue</span><Bell size={19}/><span className="avatar">SR</span></header><main className="admin-content">
-    <div className="admin-title"><div><p>PAID GROWTH</p><h1>Ads Manager</h1><span>Paid-ad creatives arrive here only after CEO review and final admin approval in the CEO workspace.</span></div><Link className="add-store" href="/admin/ad-platforms">Ad platform accounts</Link></div>
-    <p className="preview-note">This is separate from Content Manager. This queue receives approved paid-ad assets; it does not launch campaigns or spend budget. No connected ad account means delivery stays paused.</p>
-    <section className="admin-stats"><article><Megaphone/><div><small>Approved ad assets</small><b>{queue.length}</b><em>Received from Content Manager</em></div></article><article><CirclePause/><div><small>Active spend</small><b>₹0</b><em>Nothing has launched</em></div></article><article><Target/><div><small>Budget limit</small><b>Not set</b><em>Required before launch</em></div></article><article><MousePointerClick/><div><small>Ad clicks</small><b>0</b><em>No live tracking</em></div></article><article><ShieldCheck/><div><small>Account status</small><b>Not connected</b><em>Launch remains disabled</em></div></article></section>
-    <section className="admin-grid"><article className="store-table"><div className="table-head"><div><a className="current">Approved handoff queue</a><Link href="/admin/content-manager?tab=drafts">Content drafts</Link></div><b>{queue.length} items</b></div>
-      {error ? <div className="ads-queue-empty"><ShieldCheck/><b>Ad queue could not load</b><span>{error}</span></div> : queue.length ? <div className="ads-queue-list">{queue.map(asset => { const snapshot = (asset.campaign?.offer_snapshot ?? {}) as Record<string, unknown>; return <article className="ads-queue-card" key={asset.id}><div className="ads-queue-image">{asset.mediaUrl ? <img src={asset.mediaUrl} alt="Approved ad creative"/> : <Image/>}</div><div className="ads-queue-info"><div><span className="ads-queue-pill">{platformName[asset.platform_key] ?? asset.platform_key}</span><b className="ads-queue-approved">Admin approved</b></div><h2>{asset.campaign?.title}</h2><p>{String(snapshot.product ?? 'Product')} · {String(snapshot.store ?? 'Store')} · {String(snapshot.current_price ? `₹${Number(snapshot.current_price).toLocaleString('en-IN')}` : 'Price not set')}</p><strong>{asset.headline || 'No headline added'}</strong><span>{asset.description || asset.caption || 'No ad copy'}</span><div className="ads-queue-links"><a href={asset.destination_url} target="_blank" rel="noreferrer">Review tracked destination ↗</a><Link href="/admin/ad-platforms">Connect / review ad accounts</Link></div></div><aside><b>Waiting for setup</b><small>Account, audience, budget and launch checks are still required.</small><span>Spend: ₹0</span></aside></article>; })}</div> : <div className="ads-queue-empty"><Megaphone/><b>No paid-ad assets have been routed</b><span>Final-approved Google Ads and Meta Ads creatives will appear here. Draft and approval work stays in Content Manager and the CEO page.</span><Link href="/admin/content-manager">Open Content Manager</Link></div>}
-      <footer>Final admin approval is required before an asset enters this queue. Account connection, budget, audience and platform validation are separate launch requirements.</footer>
-    </article><aside className="admin-right"><article><h2>Launch safeguards</h2><p>Daily budget cap <span>Required</span></p><p>Final URL validation <span>Required</span></p><p>Creative approval <span>Complete before queue</span></p><p>Owner launch approval <span>Required</span></p></article><article><h2>Source of these assets</h2><p className="activity">Marketing recommendation<small>Deal surfaced for promotion</small></p><p className="activity">Content Manager<small>Creative draft and channel selection</small></p><p className="activity">CEO workspace<small>CEO review and final admin decision</small></p></article></aside></section>
-  </main></section></main>;
+  return (
+    <main className="admin-v2">
+      <AdminSidebar />
+      <section className="admin-main">
+        <main className="admin-content">
+          <div className="admin-title">
+            <div><p>PAID GROWTH</p><h1>Ads Manager</h1><span>{queue.length} approved assets</span></div>
+            <Link className="add-store" href="/admin/ad-platforms">Ad platform accounts</Link>
+          </div>
+          <section className="store-table">
+            <div className="table-head"><h2>Approved ad assets</h2><Link href="/admin/content-manager">Content Manager</Link></div>
+            {error ? (
+              <div className="ads-queue-empty"><ShieldCheck /><b>Could not load approved assets</b><span>{error}</span></div>
+            ) : queue.length ? (
+              <div className="ads-queue-list">{queue.map(asset => {
+                const snapshot = (asset.campaign?.offer_snapshot ?? {}) as Record<string, unknown>;
+                const context = [snapshot.product, snapshot.store].filter(Boolean).join(' · ');
+                return <article className="ads-queue-card" key={asset.id}>
+                  <div className="ads-queue-image">{asset.mediaUrl ? <img src={asset.mediaUrl} alt="Approved ad creative" /> : <Image />}</div>
+                  <div className="ads-queue-info">
+                    <div><span className="ads-queue-pill">{platformName[asset.platform_key] ?? asset.platform_key}</span><b className="ads-queue-approved">Approved</b></div>
+                    <h2>{asset.campaign?.title}</h2>
+                    {context && <p>{context}</p>}
+                    <strong>{asset.headline}</strong>
+                    <span>{asset.description || asset.caption}</span>
+                    <div className="ads-queue-links"><a href={asset.destination_url} target="_blank" rel="noreferrer">Review destination ↗</a><Link href="/admin/ad-platforms">Ad accounts</Link></div>
+                  </div>
+                </article>;
+              })}</div>
+            ) : (
+              <div className="ads-queue-empty"><Megaphone /><b>No approved ad assets</b><Link href="/admin/content-manager">Open Content Manager</Link></div>
+            )}
+          </section>
+        </main>
+      </section>
+    </main>
+  );
 }

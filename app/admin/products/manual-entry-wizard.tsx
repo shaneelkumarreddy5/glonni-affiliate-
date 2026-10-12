@@ -22,7 +22,6 @@ import { categoryOptionLabel, type OrderedCategory } from "@/lib/category-tree";
 import {
   addManualOffer,
   addManualPriceHistory,
-  createEmptyManualProductDraft,
   createManualProductDraft,
   publishManualProduct,
   saveManualBasic,
@@ -106,15 +105,14 @@ function WizardTabs({
             {body}
           </Link>
         ) : (
-          <form action={createEmptyManualProductDraft} key={key}>
-            <input type="hidden" name="step" value={key} />
-            <button
-              className={current ? "current" : ""}
-              aria-current={current ? "step" : undefined}
-            >
-              {body}
-            </button>
-          </form>
+          <Link
+            className={current ? "current" : ""}
+            aria-current={current ? "step" : undefined}
+            href={`/admin/products?view=manual&step=${key}`}
+            key={key}
+          >
+            {body}
+          </Link>
         );
       })}
     </nav>
@@ -133,7 +131,7 @@ function Header({ step, draft }: { step: Step; draft?: Draft | null }) {
         <span>
           {draft
             ? `${draft.title} · Complete sections in any order. Each section saves independently.`
-            : "Create the product record once, then complete sections in any order."}
+            : "Start with basic information to create the product."}
         </span>
       </div>
       {draft && (
