@@ -167,6 +167,89 @@
   font-weight: 700;
   text-decoration: underline;
 }
+.product-danger-zone {
+  margin-top: 14px;
+  border: 1px solid #edc8c5;
+  border-radius: 10px;
+  background: #fffafa;
+  color: #8e3029;
+}
+.product-danger-zone > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+  list-style: none;
+}
+.product-danger-zone > summary::-webkit-details-marker {
+  display: none;
+}
+.product-danger-zone > summary svg {
+  width: 15px;
+  height: 15px;
+}
+.product-danger-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+  gap: 22px;
+  align-items: end;
+  padding: 16px;
+  border-top: 1px solid #f0d8d6;
+}
+.product-danger-content h2 {
+  margin: 0 0 7px;
+  color: #6f2520;
+  font: 800 14px "Plus Jakarta Sans";
+}
+.product-danger-content p {
+  margin: 0;
+  color: #715b5a;
+  font-size: 10px;
+  line-height: 1.6;
+}
+.product-danger-content form,
+.product-danger-content label {
+  display: grid;
+  gap: 8px;
+}
+.product-danger-content label {
+  color: #594746;
+  font-size: 10px;
+}
+.product-danger-content input {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid #d9c6c4;
+  border-radius: 7px;
+  background: #fff;
+  color: #272b33;
+  font: 11px "DM Sans";
+}
+.product-danger-content button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #a93129;
+  border-radius: 7px;
+  background: #b5322b;
+  color: #fff;
+  font: 800 10px "DM Sans";
+  cursor: pointer;
+}
+.product-danger-content button:hover {
+  background: #922720;
+}
+.product-danger-content button svg {
+  width: 14px;
+  height: 14px;
+}
 .product-detail-tabs {
   display: flex;
   height: auto;
@@ -850,6 +933,9 @@
 }
 @media (max-width: 900px) {
   .product-admin-grid {
+    grid-template-columns: 1fr;
+  }
+  .product-danger-content {
     grid-template-columns: 1fr;
   }
   .content-editor-sections {

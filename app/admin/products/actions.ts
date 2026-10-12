@@ -68,6 +68,36 @@ async function requireProductAdmin() {
     );
   return { supabase, user };
 }
+async function requireProductOwner() {
+  const supabase = await createClient();
+  const [
+    {
+      data: { user },
+    },
+    { data: assurance },
+  ] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+  ]);
+  if (!user) redirect("/admin/login");
+  const [{ data: profile }, { data: employee }] = await Promise.all([
+    supabase.from("profiles").select("role").eq("id", user.id).single(),
+    supabase
+      .from("employees")
+      .select("status")
+      .eq("profile_id", user.id)
+      .single(),
+  ]);
+  if (
+    profile?.role !== "owner" ||
+    employee?.status !== "active" ||
+    assurance?.currentLevel !== "aal2"
+  )
+    throw new Error(
+      "Permanent product deletion requires an active owner 2FA session.",
+    );
+  return { supabase, user };
+}
 async function audit(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
@@ -90,6 +120,93 @@ function refresh(productId: string, slug?: string) {
   if (slug) revalidatePath(`/product/${slug}`);
   revalidatePath("/deals");
   revalidatePath("/");
+}
+
+export async function deleteProduct(form: FormData) {
+  const { supabase, user } = await requireProductOwner();
+  const id = String(form.get("productId") ?? "").trim();
+  const confirmationTitle = String(form.get("confirmationTitle") ?? "").trim();
+  const detailUrl = (message: string) =>
+    `/admin/products/${id}?error=${encodeURIComponent(message)}`;
+
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      id,
+    )
+  )
+    redirect(
+      `/admin/products?error=${encodeURIComponent("A valid product is required.")}`,
+    );
+
+  const { data: product, error: productError } = await supabase
+    .from("products")
+    .select("id,title,slug")
+    .eq("id", id)
+    .single();
+  if (productError || !product)
+    redirect(
+      `/admin/products?error=${encodeURIComponent("Product not found or unavailable.")}`,
+    );
+  if (confirmationTitle !== product.title)
+    redirect(
+      detailUrl("Type the product title exactly to confirm permanent deletion."),
+    );
+
+  const { data: offers, error: offersError } = await supabase
+    .from("offers")
+    .select("id")
+    .eq("product_id", id);
+  if (offersError)
+    redirect(
+      detailUrl(
+        "Could not verify linked store offers. Nothing was deleted; please try again.",
+      ),
+    );
+
+  const offerIds = (offers ?? []).map((offer) => offer.id);
+  if (offerIds.length) {
+    const { data: conversion, error: conversionError } = await supabase
+      .from("referral_conversions")
+      .select("id")
+      .in("offer_id", offerIds)
+      .limit(1)
+      .maybeSingle();
+    if (conversionError)
+      redirect(
+        detailUrl(
+          "Could not verify affiliate history. Nothing was deleted; please try again.",
+        ),
+      );
+    if (conversion)
+      redirect(
+        detailUrl(
+          "This product has affiliate conversion history, so it cannot be permanently deleted. Set it to Draft instead to preserve financial records.",
+        ),
+      );
+  }
+
+  const { data: deletedProduct, error: deleteError } = await supabase
+    .from("products")
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+  if (deleteError || !deletedProduct)
+    redirect(
+      detailUrl(
+        "The product could not be deleted. Existing linked records may require it to be kept as a Draft.",
+      ),
+    );
+
+  await audit(supabase, user.id, "product_permanently_deleted", id, {
+    title: product.title,
+    slug: product.slug,
+    offer_count: offerIds.length,
+  });
+  refresh(id, product.slug);
+  redirect(
+    `/admin/products?success=${encodeURIComponent(`${product.title} was permanently deleted.`)}`,
+  );
 }
 
 export async function updateProductIdentity(form: FormData) {

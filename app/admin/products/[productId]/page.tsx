@@ -17,6 +17,7 @@ import {
   Settings2,
   Star,
   Store,
+  Trash2,
 } from "lucide-react";
 import { AdminSidebar } from "@/components/admin-sidebar";
 import { ProductMediaUploader } from "@/components/product-media-uploader";
@@ -25,6 +26,7 @@ import { getProductOffers } from "@/lib/catalog";
 import { hasCompleteStoreOffer } from "@/lib/product-publication-rules";
 import { createClient } from "@/lib/supabase/server";
 import {
+  deleteProduct,
   updateProductContent,
   updateProductIdentity,
   updateProductOffer,
@@ -65,6 +67,13 @@ export default async function AdminProductDetail({
         : "overview"
     ) as Section,
     s = await createClient();
+  const {
+    data: { user: viewer },
+  } = await s.auth.getUser();
+  const { data: viewerProfile } = viewer
+    ? await s.from("profiles").select("role").eq("id", viewer.id).maybeSingle()
+    : { data: null };
+  const canPermanentlyDelete = viewerProfile?.role === "owner";
   const [{ data: product }, { data: categories }, { data: history }] =
     await Promise.all([
       s
@@ -176,6 +185,43 @@ export default async function AdminProductDetail({
               </small>
             </div>
           </header>
+          {canPermanentlyDelete && (
+            <details className="product-danger-zone">
+              <summary>
+                <Trash2 />
+                Permanent delete
+              </summary>
+              <div className="product-danger-content">
+                <div>
+                  <h2>Delete this product permanently</h2>
+                  <p>
+                    This removes the product and its connected store offers,
+                    along with dependent saved offers and price alerts. Existing
+                    click, support, and cashback records are retained. Products
+                    with affiliate conversions cannot be deleted, to protect
+                    financial history. To hide it without removing data, switch
+                    it to Draft in Product identity instead.
+                  </p>
+                </div>
+                <form action={deleteProduct}>
+                  <input type="hidden" name="productId" value={product.id} />
+                  <label>
+                    Type <b>{product.title}</b> to confirm
+                    <input
+                      name="confirmationTitle"
+                      required
+                      autoComplete="off"
+                      placeholder={product.title}
+                    />
+                  </label>
+                  <button type="submit">
+                    <Trash2 />
+                    Delete product permanently
+                  </button>
+                </form>
+              </div>
+            </details>
+          )}
           {query.success && (
             <p className="product-save-success">
               <CheckCircle2 />
