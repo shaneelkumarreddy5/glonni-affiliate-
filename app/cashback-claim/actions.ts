@@ -37,5 +37,6 @@ export async function submitCashbackClaim(formData: FormData) {
 
   revalidatePath('/account');
   revalidatePath('/admin/wallet');
+  revalidatePath('/admin/reported-orders');
   redirect('/cashback-claim?success=Your+claim+has+been+submitted+for+review.');
 }

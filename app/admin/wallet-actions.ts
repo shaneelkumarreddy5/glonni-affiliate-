@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 
 const refresh = () => {
+  revalidatePath('/admin/reported-orders');
   revalidatePath('/admin/wallet');
   revalidatePath('/account');
   revalidatePath('/cashback-claim');
@@ -14,8 +15,11 @@ export async function reviewCashbackClaim(formData: FormData) {
   const [{ data: { user } }, { data: assurance }] = await Promise.all([supabase.auth.getUser(), supabase.auth.mfa.getAuthenticatorAssuranceLevel()]);
   if (!user) throw new Error('Sign in required');
 
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-  if (!profile || !['owner', 'admin'].includes(profile.role) || assurance?.currentLevel !== 'aal2') throw new Error('A verified Owner or Admin 2FA session is required');
+  const [{ data: profile }, { data: employee }] = await Promise.all([
+    supabase.from('profiles').select('role').eq('id', user.id).single(),
+    supabase.from('employees').select('status').eq('profile_id', user.id).maybeSingle(),
+  ]);
+  if (!profile || !['owner', 'admin'].includes(profile.role) || employee?.status !== 'active' || assurance?.currentLevel !== 'aal2') throw new Error('An active Owner or Admin with a verified 2FA session is required');
 
   const id = String(formData.get('id'));
   const decision = String(formData.get('decision'));
@@ -29,7 +33,7 @@ export async function reviewCashbackClaim(formData: FormData) {
   if (error || !claim) throw new Error('Claim not found');
   if (!['submitted', 'needs_info'].includes(claim.status)) throw new Error('This claim has already been reviewed');
 
-  if (decision === 'confirm' && (!claim.conversion_id || claim.risk_score >= 60)) throw new Error('Only a low-risk claim linked to a confirmed provider conversion can be confirmed.');
+  if (decision === 'confirm' && (!claim.conversion_id || claim.risk_score === null || claim.risk_score >= 60)) throw new Error('Only a low-risk claim linked to a confirmed provider conversion can be confirmed.');
   const status = decision === 'confirm' ? 'confirmed' : decision === 'hold' ? 'needs_info' : 'rejected';
   const { error: updateError } = await supabase
     .from('cashback_claims')

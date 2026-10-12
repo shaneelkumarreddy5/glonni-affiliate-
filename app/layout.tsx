@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { SiteFooter } from '@/components/site-footer';
-import { AdminMockMode } from '@/components/admin-mock-mode';
 import { ActivityTracker } from '@/components/activity-tracker';
 import { AdminTableScrollEnhancer } from '@/components/admin-table-scroll-enhancer';
 import './globals.css';
@@ -12,6 +11,7 @@ import './admin-stores.css';
 import './admin-categories.css';
 import './ai-command.css';
 import './auth.css';
+import './phone-otp.css';
 import './product-page.css';
 import './customer-product.css';
 import './admin-products.css';
@@ -59,7 +59,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body>
         <AdminTableScrollEnhancer />
         <ActivityTracker />
-        <AdminMockMode>{children}</AdminMockMode>
+        {children}
         <SiteFooter siteName={identity?.site_name ?? 'Glonni'} logoUrl={identity?.logo_url ?? ''} />
       </body>
     </html>

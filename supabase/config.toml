@@ -38,3 +38,11 @@ enabled = true
 verify_jwt = true
 import_map = "./functions/cuelinks/deno.json"
 entrypoint = "./functions/cuelinks/index.ts"
+
+# Supabase Auth sends Standard Webhooks signatures, not a user JWT.
+# apitxt-send-sms validates that signature before any billable provider call.
+[functions.apitxt-send-sms]
+enabled = true
+verify_jwt = false
+import_map = "./functions/apitxt-send-sms/deno.json"
+entrypoint = "./functions/apitxt-send-sms/index.ts"

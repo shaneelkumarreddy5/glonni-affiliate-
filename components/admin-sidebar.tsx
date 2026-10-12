@@ -12,6 +12,7 @@ import { AdminTabRepair } from '@/components/admin-tab-repair';
 import { AdminActionRepair } from '@/components/admin-action-repair';
 import { CampaignUiRepair } from '@/components/campaign-ui-repair';
 import type { LucideIcon } from 'lucide-react';
+import { useAdminIdentity } from '@/components/admin-identity';
 
 const sections = [
   { title: 'AI COMPANY', icon: Bot, links: [
@@ -67,6 +68,8 @@ const sections = [
 ] as const;
 
 export function AdminSidebar() {
+  const identity = useAdminIdentity();
+  const initials = identity.name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
   const pathname = usePathname();
   const sidebarRef = useRef<HTMLElement>(null);
   const sidebarToggleRef = useRef<HTMLButtonElement>(null);
@@ -190,9 +193,8 @@ export function AdminSidebar() {
     <h1 className="topbar-page-title">{currentPageLabel}</h1>
     <form action="/admin/search" role="search"><Search size={18}/><input name="q" placeholder="Search users, offers, partners, or activity…" aria-label="Search admin workspace"/></form>
     <div className="topbar-period-wrap"><button className="topbar-period" type="button" aria-label="Dashboard reporting period" aria-expanded={periodOpen} onClick={() => setPeriodOpen(value => !value)}><Clock3 size={17}/>{period}<ChevronDown size={14}/></button>{periodOpen&&<div className="topbar-period-menu" role="menu"><button type="button" onClick={() => choosePeriod('Today')}>Today</button><button type="button" onClick={() => choosePeriod('Last 7 days')}>Last 7 days</button><button type="button" onClick={() => choosePeriod('This month')}>This month</button><button type="button" onClick={() => choosePeriod('This quarter')}>This quarter</button></div>}</div>
-    <span className="topbar-mode">MOCK MODE · TEST DATA</span>
-    <a className="topbar-bell" href="/admin/notifications" aria-label="Open notifications"><Bell size={23}/><i/></a>
-    <span className="topbar-avatar">SR</span>
-    <span className="topbar-owner"><b>Shaneel</b><small>Owner</small></span>
+    <a className="topbar-bell" href="/admin/notifications" aria-label="Open notifications"><Bell size={23}/></a>
+    <span className="topbar-avatar">{initials}</span>
+    <span className="topbar-owner"><b>{identity.name}</b><small>{identity.role ? identity.role[0].toUpperCase() + identity.role.slice(1) : 'Signed out'}</small></span>
   </header></>;
 }

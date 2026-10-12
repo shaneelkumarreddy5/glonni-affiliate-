@@ -1,13 +1,44 @@
-import { AdminSidebar } from "@/components/admin-sidebar";
-import { Bell, CheckSquare, FileSpreadsheet, Link2, PlugZap, ShieldCheck, Store, UploadCloud } from 'lucide-react';
+import Link from 'next/link';
+import { AdminSidebar } from '@/components/admin-sidebar';
+import { CuelinksConnection } from '@/components/cuelinks-connection';
+import { createClient } from '@/lib/supabase/server';
+import { Cable, Clock3, CreditCard, Bot } from 'lucide-react';
+import './integrations.css';
 
-const methods = [
-  ['Manual affiliate links', 'Direct approved destination URLs', 'Available now', 'No provider credentials'],
-  ['Product feed / CSV', 'Normalised product and offer import', 'Awaiting provider approval', 'Validate before publish'],
-  ['Affiliate API', 'Scheduled offer and merchant sync', 'Awaiting provider approval', 'Server-only credentials'],
-  ['Deep-link API', 'Generate approved merchant URLs', 'Awaiting provider approval', 'Event logging required'],
-];
-
-export default function IntegrationsPage() {
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><header className="admin-top"><Link2 size={21} /><b>API Integrations</b><span className="dashboard-date">Connection methods · preview mode</span><Bell size={19} /><span className="avatar">SR</span></header><main className="admin-content"><div className="admin-title"><div><p>INTEGRATION WORKBENCH</p><h1>API Integrations</h1><span>Choose an approved method per provider without changing the customer shopping experience.</span></div><button className="add-store" disabled>Configure integration</button></div><p className="preview-note">No endpoint, token, CSV or provider data is connected. Live secrets will be server-side only and never placed in customer-facing environment variables.</p><section className="admin-stats"><article><Link2 /><div><small>Available methods</small><b>4</b><em>Provider-dependent</em></div></article><article><FileSpreadsheet /><div><small>Pending imports</small><b>0</b><em>No feed uploaded</em></div></article><article><CheckSquare /><div><small>Validation rules</small><b>6</b><em>Before catalogue publish</em></div></article><article><ShieldCheck /><div><small>Secret status</small><b>Clean</b><em>Nothing stored</em></div></article><article><UploadCloud /><div><small>Sync jobs</small><b>0</b><em>Not scheduled</em></div></article></section><section className="admin-grid"><article className="store-table"><div className="table-head"><div><a className="current">Integration methods</a><a>Imports</a><a>Validation</a></div></div><div className="table-scroll"><table><thead><tr><th>METHOD</th><th>USE CASE</th><th>READINESS</th><th>SAFETY RULE</th><th>ACTIVATION</th></tr></thead><tbody>{methods.map((method) => <tr key={method[0]}><td><span><strong>{method[0]}</strong><small>Provider adapter option</small></span></td><td>{method[1]}</td><td>{method[2]}</td><td>{method[3]}</td><td><em className="status-paused">Locked</em></td></tr>)}</tbody></table></div><footer>Every import maps into Product → Offer → Merchant → Provider. Invalid, duplicate or incomplete data must enter a review queue.</footer></article><aside className="admin-right"><article><h2>Import safeguards</h2><p>Schema validation <span>Required</span></p><p>Price freshness <span>Required</span></p><p>Merchant mapping <span>Required</span></p><p>Reward terms <span>Required</span></p></article><article><h2>Secure launch order</h2><p className="activity">Approve provider<small>Commercial and technical access</small></p><p className="activity">Add server secret<small>Never browser-visible</small></p><p className="activity">Run a test import<small>Review before publishing</small></p></article></aside></section></main></section></main>;
+export const dynamic = 'force-dynamic';
+export default async function IntegrationsPage() {
+  const supabase = await createClient();
+  const [ai, providers, feeds, payments, { data: { user } }, { data: assurance }] = await Promise.all([
+    supabase.from('ai_provider_connections').select('provider_key,display_name,connection_status').order('display_name'),
+    supabase.from('affiliate_providers').select('id,name,adapter_key,is_active').order('name'),
+    supabase.from('product_feeds').select('id,name,status,next_run_at').order('name'),
+    supabase.from('payment_provider_configs').select('id,name,enabled,adapter_status,credential_status,last_health_check_status,last_health_check_at').order('name'),
+    supabase.auth.getUser(), supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+  ]);
+  const [{ data: profile }, { data: employee }] = user ? await Promise.all([
+    supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    supabase.from('employees').select('status').eq('profile_id', user.id).maybeSingle(),
+  ]) : [{ data: null }, { data: null }];
+  const canTest = Boolean(profile && ['owner', 'admin'].includes(profile.role) && employee?.status === 'active' && assurance?.currentLevel === 'aal2');
+  const rows = [
+    ...(ai.data ?? []).map(row => ({ id: 'ai:' + row.provider_key, name: row.display_name, type: 'AI', status: row.connection_status.replaceAll('_', ' '), detail: 'Stored connection state; not a live test', href: '/admin/ai-providers' })),
+    ...(providers.data ?? []).map(row => ({ id: row.id, name: row.name, type: 'Affiliate network', status: row.is_active ? 'Active registry record' : 'Inactive', detail: row.adapter_key || 'Adapter not selected', href: '/admin/providers' })),
+    ...(feeds.data ?? []).map(row => ({ id: row.id, name: row.name, type: 'Product feed', status: row.status.replaceAll('_', ' '), detail: row.next_run_at ? 'Next run: ' + new Date(row.next_run_at).toLocaleString('en-IN') : 'No next run scheduled', href: '/admin/products?view=feeds' })),
+    ...(payments.data ?? []).map(row => ({ id: row.id, name: row.name, type: 'Payment provider', status: row.enabled ? 'Enabled configuration' : 'Disabled', detail: 'Adapter: ' + row.adapter_status + ' · Credentials: ' + row.credential_status + ' · Last check: ' + (row.last_health_check_status || 'Not tested'), href: '/admin/payment-providers' })),
+  ];
+  const stats = [
+    { title: 'AI connections', value: ai.error ? '—' : (ai.data ?? []).filter(row => row.connection_status === 'connected').length, note: 'Recorded connected status', icon: Bot },
+    { title: 'Affiliate providers', value: providers.error ? '—' : (providers.data ?? []).length, note: 'Configured registry records', icon: Cable },
+    { title: 'Scheduled feeds', value: feeds.error ? '—' : (feeds.data ?? []).filter(row => row.status === 'active' && row.next_run_at).length, note: 'Active with a next-run date', icon: Clock3 },
+    { title: 'Payment configurations', value: payments.error ? '—' : (payments.data ?? []).length, note: 'Not proof of live payment access', icon: CreditCard },
+  ];
+  const failed = ai.error || providers.error || feeds.error || payments.error;
+  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content">
+    <div className="admin-title"><div><p>INTEGRATION WORKBENCH</p><h1>API Integrations</h1><span>Saved configurations and explicit connection checks. Nothing is automatically imported or published.</span></div></div>
+    {failed && <p className="preview-note" role="alert">Some connection records could not be loaded. Unavailable counts are shown as a dash; refresh to retry.</p>}
+    <section className="admin-stats">{stats.map(({ title, value, note, icon: Icon }) => <article key={title}><Icon/><div><small>{title}</small><b>{value}</b><em>{note}</em></div></article>)}</section>
+    <CuelinksConnection canTest={canTest}/>
+    <article className="store-table"><div className="table-head"><h2>Saved service configurations</h2></div><div className="table-scroll"><table><thead><tr><th>SERVICE</th><th>TYPE</th><th>RECORDED STATUS</th><th>DETAIL</th><th>SETTINGS</th></tr></thead><tbody>{rows.map(row => <tr key={row.id}><td><strong>{row.name}</strong></td><td>{row.type}</td><td>{row.status}</td><td>{row.detail}</td><td><Link href={row.href}>Manage</Link></td></tr>)}{!rows.length && <tr><td colSpan={5}>{failed ? 'Configurations unavailable.' : 'No service configurations have been saved yet.'}</td></tr>}</tbody></table></div><footer>Provider secrets stay in server-side secret storage. A saved status is not a successful test, and a successful read is not a catalogue import.</footer></article>
+    <article className="integration-connector"><h2>Other launch connections</h2><p>Mobile OTP and email delivery are configured separately from affiliate feeds.</p><div className="integration-buttons"><Link href="https://supabase.com/dashboard/project/abtljhbmdgzvyqbuyefq/auth/providers" target="_blank" rel="noreferrer">Supabase login settings ↗</Link><Link href="/admin/notifications">Notification templates</Link><Link href="/admin/support">Support Centre</Link></div></article>
+  </main></section></main>;
 }

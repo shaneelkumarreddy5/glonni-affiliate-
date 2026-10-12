@@ -22,9 +22,11 @@ export async function signIn(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
   const password = String(formData.get('password') ?? '');
   const next = safeNext(formData.get('next'));
+  const captchaToken = String(formData.get('supabaseCaptchaToken') ?? '').trim();
   if (!verifySimpleCaptcha(String(formData.get('captchaToken') ?? ''), String(formData.get('captchaAnswer') ?? ''))) redirect(`/login?mode=signin&next=${encodeURIComponent(next)}&error=${message('Please complete the quick security check and try again.')}`);
+  if (process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && !captchaToken) redirect(`/login?mode=signin&next=${encodeURIComponent(next)}&error=${message('Please complete the security verification and try again.')}`);
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({ email, password, options: captchaToken ? { captchaToken } : undefined });
   if (error) redirect(`/login?mode=signin&next=${encodeURIComponent(next)}&error=${message('Email or password is incorrect, or the email has not been verified.')}`);
   redirect(next);
 }
@@ -35,14 +37,16 @@ export async function signUp(formData: FormData) {
   const password = String(formData.get('password') ?? '');
   const referralCode = String(formData.get('referralCode') ?? '').trim().toUpperCase();
   const next = safeNext(formData.get('next'));
+  const captchaToken = String(formData.get('supabaseCaptchaToken') ?? '').trim();
   if (!verifySimpleCaptcha(String(formData.get('captchaToken') ?? ''), String(formData.get('captchaAnswer') ?? ''))) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message('Please complete the quick security check and try again.')}`);
+  if (process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && !captchaToken) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message('Please complete the security verification and try again.')}`);
   if (displayName.length < 2 || password.length < 8) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message('Enter your name and use a password with at least 8 characters.')}`);
   if (referralCode && !/^GLONNI-[A-Z0-9]{8}$/.test(referralCode)) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message('That referral link is invalid. Please use the full Glonni referral link.')}`);
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { display_name: displayName, ...(referralCode ? { referral_code: referralCode } : {}) }, emailRedirectTo: `${await origin()}/auth/callback?next=${encodeURIComponent(next)}` },
+    options: { data: { display_name: displayName, ...(referralCode ? { referral_code: referralCode } : {}) }, emailRedirectTo: `${await origin()}/auth/callback?next=${encodeURIComponent(next)}`, ...(captchaToken ? { captchaToken } : {}) },
   });
   if (error) redirect(`/login?mode=signup&next=${encodeURIComponent(next)}&error=${message(error.message)}`);
   if (data.session) redirect(next);
@@ -52,9 +56,11 @@ export async function signUp(formData: FormData) {
 export async function requestPasswordReset(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
   const next = safeNext(formData.get('next'));
+  const captchaToken = String(formData.get('supabaseCaptchaToken') ?? '').trim();
   if (!verifySimpleCaptcha(String(formData.get('captchaToken') ?? ''), String(formData.get('captchaAnswer') ?? ''))) redirect(`/forgot-password?next=${encodeURIComponent(next)}&error=${message('Please complete the quick security check and try again.')}`);
+  if (process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && !captchaToken) redirect(`/forgot-password?next=${encodeURIComponent(next)}&error=${message('Please complete the security verification and try again.')}`);
   const supabase = createRecoveryRequestClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await origin()}/auth/recovery?audience=customer&next=${encodeURIComponent(next)}` });
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${await origin()}/auth/recovery?audience=customer&next=${encodeURIComponent(next)}`, ...(captchaToken ? { captchaToken } : {}) });
   if (error?.status === 429) redirect(`/forgot-password?next=${encodeURIComponent(next)}&error=${message('Too many recovery emails were requested. Please wait before trying again.')}`);
   if (error) redirect(`/forgot-password?next=${encodeURIComponent(next)}&error=${message('We could not send a recovery email. Please try again later.')}`);
   redirect(`/forgot-password?next=${encodeURIComponent(next)}&success=${message('If an account exists, a five-minute recovery link has been sent. Open only the newest email.')}`);

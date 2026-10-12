@@ -1,12 +1,45 @@
-import { AdminSidebar } from "@/components/admin-sidebar";
-import { Bell, CheckCircle2, CircleHelp, Clock3, FileWarning, SearchCheck, Store, XCircle } from 'lucide-react';
+import Link from 'next/link';
+import { CheckCircle2, Clock3, FileWarning, XCircle } from 'lucide-react';
+import { AdminSidebar } from '@/components/admin-sidebar';
+import { createClient } from '@/lib/supabase/server';
+import { readOperationalRows } from '@/lib/admin-operational-data';
+import { reviewCashbackClaim } from '../wallet-actions';
 
-const claims = [
-  ['MO-1048', 'Aarav Sharma', 'Flipkart', 'Luma X5 5G Smartphone', '28 Aug 2026', '₹350 expected cashback', 'Evidence required', 'Open'],
-  ['MO-1047', 'Nisha Patel', 'Myntra', 'Stride Runner 2', '27 Aug 2026', 'Up to 8% cashback', 'Merchant reference supplied', 'In review'],
-  ['MO-1046', 'Meera Iyer', 'Nykaa', 'Silk Glow Vitamin C Serum', '25 Aug 2026', '₹50 expected cashback', 'Cancellation found', 'Resolved'],
-];
+export const dynamic = 'force-dynamic';
+type Claim = {
+  id: string; profile_id: string; order_reference: string; claimed_amount: number | string | null;
+  status: string; evidence_url: string | null; note: string | null; reviewer_note: string | null;
+  conversion_id: string | null; risk_score: number | null; created_at: string; reviewed_at: string | null;
+  profiles: { display_name: string | null } | null;
+  offers: { products: { title: string } | null; merchants: { name: string } | null } | null;
+};
+const tabs = [['all', 'All claims'], ['submitted', 'Submitted'], ['needs_info', 'Needs information'], ['confirmed', 'Confirmed'], ['rejected', 'Rejected'], ['cancelled', 'Cancelled']];
+const label = (value: string) => value.replaceAll('_', ' ');
 
-export default function ReportedOrdersPage() {
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><header className="admin-top"><FileWarning size={21} /><b>Reported Orders</b><span className="dashboard-date">Missing-order claims · preview mode</span><Bell size={19} /><span className="avatar">SR</span></header><main className="admin-content"><div className="admin-title"><div><p>EXCEPTION MANAGEMENT</p><h1>Reported Orders</h1><span>Review customer claims when an eligible merchant conversion does not appear automatically.</span></div><button className="add-store" disabled>Review next claim</button></div><p className="preview-note">These are mock cases. A real claim requires an authenticated customer, click reference, merchant order reference and secure review permissions.</p><section className="admin-stats"><article><FileWarning /><div><small>Open claims</small><b>1</b><em>Needs evidence</em></div></article><article><Clock3 /><div><small>In review</small><b>1</b><em>Provider / merchant lookup</em></div></article><article><CheckCircle2 /><div><small>Resolved</small><b>1</b><em>Decision recorded</em></div></article><article><CircleHelp /><div><small>Average review</small><b>4 days</b><em>Future service target</em></div></article><article><XCircle /><div><small>Rejected</small><b>0</b><em>Mock queue</em></div></article></section><section className="admin-grid"><article className="store-table"><div className="table-head"><div><a className="current">All claims</a><a>Open</a><a>In review</a><a>Resolved</a></div></div><div className="table-scroll"><table><thead><tr><th>CLAIM</th><th>SHOPPER</th><th>MERCHANT / PRODUCT</th><th>PURCHASE DATE</th><th>EXPECTED BENEFIT</th><th>EVIDENCE</th><th>STATUS</th></tr></thead><tbody>{claims.map((claim) => <tr key={claim[0]}><td><strong>{claim[0]}</strong></td><td>{claim[1]}</td><td><span><strong>{claim[2]}</strong><small>{claim[3]}</small></span></td><td>{claim[4]}</td><td>{claim[5]}</td><td>{claim[6]}</td><td><em className={claim[7] === 'Resolved' ? 'status-active' : 'status-paused'}>{claim[7]}</em></td></tr>)}</tbody></table></div><footer>Claim decisions must be auditable. A confirmation can credit only the cashback amount defined by the original eligible offer.</footer></article><aside className="admin-right"><article><h2>Claim workflow</h2><p>1. Match redirect <span>Required</span></p><p>2. Verify merchant order <span>Required</span></p><p>3. Confirm eligibility <span>Required</span></p><p>4. Credit cashback <span>Locked</span></p></article><article><h2>Evidence policy</h2><p className="activity">Order reference or invoice<small>Customer submission requirement</small></p><p className="activity">Provider response / report<small>Required for final decision</small></p></article></aside></section></main></section></main>;
+export default async function ReportedOrdersPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string }> }) {
+  const query = await searchParams;
+  const status = tabs.some(([key]) => key === query.status) ? query.status! : 'all';
+  const supabase = await createClient();
+  const [{ rows: claims, failed }, { data: { user } }, { data: assurance }] = await Promise.all([
+    readOperationalRows<Claim>(supabase, 'cashback_claims', 'id,profile_id,order_reference,claimed_amount,status,evidence_url,note,reviewer_note,conversion_id,risk_score,created_at,reviewed_at,profiles!profile_id(display_name),offers(products(title),merchants(name))'),
+    supabase.auth.getUser(), supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+  ]);
+  const [{ data: profile }, { data: employee }] = user ? await Promise.all([
+    supabase.from('profiles').select('role').eq('id', user.id).maybeSingle(),
+    supabase.from('employees').select('status').eq('profile_id', user.id).maybeSingle(),
+  ]) : [{ data: null }, { data: null }];
+  const canReview = Boolean(profile && ['owner', 'admin'].includes(profile.role) && employee?.status === 'active' && assurance?.currentLevel === 'aal2');
+  const rows = claims.filter(claim => (status === 'all' || claim.status === status) && (!query.q || `${claim.order_reference} ${claim.profiles?.display_name ?? ''} ${claim.offers?.products?.title ?? ''} ${claim.offers?.merchants?.name ?? ''}`.toLowerCase().includes(query.q.toLowerCase()))).sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const stats = [{ icon: FileWarning, title: 'Submitted', key: 'submitted' }, { icon: Clock3, title: 'Needs information', key: 'needs_info' }, { icon: CheckCircle2, title: 'Confirmed', key: 'confirmed' }, { icon: XCircle, title: 'Rejected', key: 'rejected' }];
+  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content">
+    <div className="admin-title"><div><p>EXCEPTION MANAGEMENT</p><h1>Reported Orders</h1><span>Customer-submitted missing-order claims and recorded review decisions.</span></div><Link className="add-store" href="/admin/orders">View provider conversions</Link></div>
+    {failed && <p className="preview-note" role="alert">Claims could not be loaded. Refresh to retry; the counts below are unavailable.</p>}
+    <section className="admin-stats">{stats.map(({ icon: Icon, title, key }) => <article key={key}><Icon/><div><small>{title}</small><b>{failed ? '—' : claims.filter(claim => claim.status === key).length}</b><em>Customer claims</em></div></article>)}</section>
+    <article className="store-table"><div className="table-head"><div>{tabs.map(([key, title]) => <Link key={key} className={status === key ? 'current' : ''} href={`/admin/reported-orders?status=${key}`}>{title}</Link>)}</div><form action="/admin/reported-orders"><input type="hidden" name="status" value={status}/><input name="q" defaultValue={query.q} aria-label="Search claims" placeholder="Search order or customer"/><button>Search</button></form></div>
+      <div className="table-scroll"><table><thead><tr><th>ORDER REFERENCE</th><th>CUSTOMER</th><th>STORE / PRODUCT</th><th>SUBMITTED</th><th>CLAIMED AMOUNT</th><th>EVIDENCE</th><th>STATUS</th><th>REVIEW</th></tr></thead><tbody>{rows.map(claim => <tr key={claim.id}>
+        <td><strong>{claim.order_reference}</strong><small>{claim.id.slice(0, 8)}</small></td><td>{claim.profiles?.display_name || 'Customer'}</td><td><strong>{claim.offers?.merchants?.name || 'Store not linked'}</strong><small>{claim.offers?.products?.title || 'Offer not linked'}</small></td><td>{new Date(claim.created_at).toLocaleDateString('en-IN')}</td><td>{claim.claimed_amount === null ? '—' : `₹${Number(claim.claimed_amount).toLocaleString('en-IN')}`}</td><td>{claim.evidence_url ? 'Evidence submitted' : 'No attachment'}{claim.note && <small>{claim.note}</small>}</td><td><em className={claim.status === 'confirmed' ? 'status-active' : 'status-paused'}>{label(claim.status)}</em>{claim.reviewer_note && <small>{claim.reviewer_note}</small>}</td>
+        <td>{canReview && ['submitted', 'needs_info'].includes(claim.status) ? <form action={reviewCashbackClaim}><input type="hidden" name="id" value={claim.id}/><button name="decision" value="hold">Needs information</button><button name="decision" value="reject">Reject</button>{claim.conversion_id && Number(claim.risk_score ?? 100) < 60 && <button name="decision" value="confirm">Confirm linked claim</button>}</form> : claim.reviewed_at ? new Date(claim.reviewed_at).toLocaleDateString('en-IN') : 'Owner/Admin review required'}</td>
+      </tr>)}{!rows.length && <tr><td colSpan={8}>{failed ? 'Unable to load claims.' : 'No customer claims match this view.'}</td></tr>}</tbody></table></div><footer>Claimed amounts are requests, not wallet credits. Provider confirmation and cashback eligibility remain required.</footer>
+    </article>
+  </main></section></main>;
 }

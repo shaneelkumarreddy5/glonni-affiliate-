@@ -14,9 +14,11 @@ export async function adminSignIn(formData: FormData) {
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
   const password = String(formData.get('password') ?? '');
   const next = safeNext(formData.get('next'));
+  const captchaToken = String(formData.get('supabaseCaptchaToken') ?? '').trim();
   if (!verifySimpleCaptcha(String(formData.get('captchaToken') ?? ''), String(formData.get('captchaAnswer') ?? ''))) redirect(`/admin/login?error=${msg('Please complete the quick security check and try again.')}&next=${encodeURIComponent(next)}`);
+  if (process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && !captchaToken) redirect(`/admin/login?error=${msg('Please complete the security verification and try again.')}&next=${encodeURIComponent(next)}`);
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabase.auth.signInWithPassword({ email, password, options: captchaToken ? { captchaToken } : undefined });
   if (error) redirect(`/admin/login?error=${msg('Email or password is incorrect.')}&next=${encodeURIComponent(next)}`);
   const { data: { user } } = await supabase.auth.getUser();
   const [{ data: profile }, { data: employee }] = await Promise.all([

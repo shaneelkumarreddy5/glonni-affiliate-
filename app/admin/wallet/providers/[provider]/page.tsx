@@ -1,14 +1,23 @@
 import Link from 'next/link';
-import { ArrowLeft, BadgeCheck, Clock3, FileText, Landmark, ShieldAlert } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { AdminSidebar } from '@/components/admin-sidebar';
+import { customerAdminClient } from '@/lib/admin-customers';
+import { getProviderCommissionReport } from '@/lib/provider-commission-report';
 
-const statements:Record<string,{name:string;network:string;expected:string;approved:string;pending:string;disputed:string;due:string;status:string}>={
-  amazon:{name:'Amazon Associates',network:'Amazon',expected:'₹4,20,000',approved:'₹2,80,000',pending:'₹1,10,000',disputed:'₹30,000',due:'15 Oct 2026',status:'Pending confirmation'},
-  flipkart:{name:'Flipkart Affiliate',network:'Flipkart',expected:'₹2,80,000',approved:'₹1,90,000',pending:'₹70,000',disputed:'₹20,000',due:'10 Oct 2026',status:'Approved by provider'},
-  myntra:{name:'Myntra Affiliate',network:'Myntra',expected:'₹1,75,000',approved:'₹1,20,000',pending:'₹40,000',disputed:'₹15,000',due:'12 Oct 2026',status:'Payment due'},
-  nykaa:{name:'Nykaa Affiliate',network:'Nykaa',expected:'₹1,20,000',approved:'₹80,000',pending:'₹30,000',disputed:'₹10,000',due:'08 Oct 2026',status:'Partially paid'},
-  ajio:{name:'AJIO Affiliate',network:'AJIO',expected:'₹95,000',approved:'₹70,000',pending:'₹20,000',disputed:'₹5,000',due:'20 Oct 2026',status:'Paid'},
-  'tata-cliq':{name:'Tata CLiQ Affiliate',network:'Tata CLiQ',expected:'₹58,000',approved:'₹40,000',pending:'₹15,000',disputed:'₹3,000',due:'18 Oct 2026',status:'Disputed'},
-};
-export default async function ProviderStatement({params}:{params:Promise<{provider:string}>}){const {provider}=await params;const s=statements[provider];if(!s)notFound();return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content wallet-admin-page"><Link className="profile-back" href="/admin/wallet#provider-payments"><ArrowLeft/>Back to provider payments</Link><header className="wallet-page-heading"><div><p>PROVIDER STATEMENT</p><h1>{s.name}</h1><span>{s.network} · September 2026 settlement and reconciliation detail.</span></div><span className={/Paid|Approved/.test(s.status)?'wallet-badge good':/Disputed/.test(s.status)?'wallet-badge bad':'wallet-badge pending'}>{s.status}</span></header><section className="profile-summary-grid"><article><FileText/><span><small>Expected cashback</small><b>{s.expected}</b><em>Provider report total</em></span></article><article><BadgeCheck/><span><small>Approved</small><b>{s.approved}</b><em>Provider validated</em></span></article><article><Clock3/><span><small>Pending</small><b>{s.pending}</b><em>Awaiting validation</em></span></article><article><ShieldAlert/><span><small>Disputed</small><b>{s.disputed}</b><em>Requires reconciliation</em></span></article></section><article className="wallet-table-card"><header><div><h3>Statement summary</h3><p>Provider receivable amounts and settlement readiness.</p></div></header><div className="profile-money-grid"><p><small>Commission period</small><b>Sep 2026</b></p><p><small>Payment due</small><b>{s.due}</b></p><p><small>Source</small><b>Provider statement</b></p><p><small>Reconciliation</small><b>Open</b></p></div><footer><span>No payout action is available here; provider receipts must be reconciled first.</span><Link href="/admin/wallet#reconciliation">Open reconciliation <ArrowLeft/></Link></footer></article><section className="wallet-review-grid"><article><header><h3>Settlement checks</h3></header><p><BadgeCheck/><span><b>Provider statement received</b><small>Source file registered</small></span><strong>Complete</strong></p><p><Clock3/><span><b>Order matching</b><small>Compare reported conversions</small></span><strong>In progress</strong></p></article><article><header><h3>Payment destination</h3></header><p><Landmark/><span><b>Glonni settlement account</b><small>Bank details are masked and access controlled</small></span><strong>Verified</strong></p></article></section></main></section></main>}
+export default async function ProviderStatement({ params }: { params: Promise<{ provider: string }> }) {
+  const { provider } = await params;
+  const supabase = await customerAdminClient();
+  const key = /^[0-9a-f-]{36}$/i.test(provider) ? 'id' : 'adapter_key';
+  const { data: record, error } = await supabase.from('affiliate_providers').select('id,name,adapter_key').eq(key, provider).maybeSingle();
+  if (error) throw new Error('Provider could not be loaded. Please retry.');
+  if (!record) notFound();
+  const report = await getProviderCommissionReport();
+  const rows = report.summaries.filter(row => row.providerId === record.id);
+  const money = (value: number, currency: string) => new Intl.NumberFormat('en-IN', { style: 'currency', currency }).format(value);
+  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content wallet-admin-page">
+    <Link className="profile-back" href="/admin/wallet#provider-payments">← Back to provider reports</Link>
+    <header className="wallet-page-heading"><div><p>PROVIDER COMMISSION REPORT</p><h1>{record.name}</h1><span>Recorded conversion commissions; no payment receipt is inferred.</span></div></header>
+    <article className="wallet-table-card"><header><h3>Commission validation by currency</h3></header><div className="wallet-table-scroll"><table><thead><tr><th>CURRENCY</th><th>ORDERS</th><th>REPORTED</th><th>VALIDATED</th><th>AWAITING VALIDATION</th><th>HELD</th><th>REJECTED / CANCELLED</th></tr></thead><tbody>{rows.map(row => <tr key={row.currency}><td>{row.currency}</td><td>{row.orders}{row.unpricedOrders > 0 && <small>{row.unpricedOrders} missing commission amount</small>}</td><td>{row.unpricedOrders ? '—' : money(row.reported, row.currency)}</td><td>{row.unpricedOrders ? '—' : money(row.approved, row.currency)}</td><td>{row.unpricedOrders ? '—' : money(row.pending, row.currency)}</td><td>{row.unpricedOrders ? '—' : money(row.held, row.currency)}</td><td>{row.unpricedOrders ? '—' : money(row.rejected, row.currency)}</td></tr>)}{!rows.length && <tr><td colSpan={7}>{report.failed ? 'Commission records could not be loaded. Refresh to retry.' : 'No conversions have been reported for this provider.'}</td></tr>}</tbody></table></div><footer>Dashes indicate incomplete commission amounts. Bank receipts, settlement periods and due dates require a real statement source.</footer></article>
+    <Link href="/admin/reconciliation">Open financial validation →</Link>
+  </main></section></main>;
+}
