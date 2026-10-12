@@ -14,9 +14,9 @@ Phase 2 backup work remains paused by the owner. Do not make it a prerequisite f
 
 ## Not yet complete
 
-- Native Supabase Auth CAPTCHA support is implemented using hCaptcha across the website's customer and admin auth forms, but the CAPTCHA provider keys are not configured and protection remains disabled. Supabase's OTP/magic-link verification rate is now 10 per 5 minutes per IP. The production project SMS sending cap remains 30/hour and is non-editable in the current Free plan; phone sign-in and the Send SMS hook remain disabled. No real SMS has been sent.
-- These website changes are awaiting the owner-provided hCaptcha site/secret setup before CAPTCHA can be enabled safely. No database records were deleted.
-- Before activating phone OTP: add the hCaptcha site key to Vercel Production and secret key in Supabase Auth > Attack Protection, deploy, enable and verify CAPTCHA; confirm APITxT default vs approved template; then complete an owner-approved one-phone test before enabling the SMS hook and `PHONE_OTP_ENABLED`.
+- Customer email sign-in/sign-up/password reset, admin sign-in, and the gated India-phone OTP request use Glonni's signed arithmetic challenge. Native Supabase CAPTCHA is intentionally deferred; the math check is a lightweight early-stage speed bump, not protection against direct Auth API calls. Supabase's OTP/magic-link verification rate is set to 10 per 5 minutes per IP. The project SMS sending cap is 30/hour and is currently non-editable on this Free plan. Phone sign-in and the Send SMS hook remain disabled; no real SMS has been sent.
+- The math challenge requires the server-only `GLONNI_CAPTCHA_SECRET` in the production environment. No provider CAPTCHA keys or Supabase CAPTCHA toggle are needed for this decision. No database records were deleted.
+- Phone OTP stays off until the owner approves a paid one-phone test; no further CAPTCHA setup is needed for the current build. When approved, confirm APITxT default vs approved template, then enable the SMS hook and `PHONE_OTP_ENABLED` only for the controlled test.
 - Affiliate live tests/import mapping, other providers, transactional email, payments/payout sandbox and remaining launch integrations still need their own credentials and verification. Stored AI connection status is not evidence of live API health.
 - Public seed catalogue remains inactive; do not republish it as real inventory. Any physical seed cleanup requires exact-target review before deletion.
 - Dependency audit reported existing warnings in Next.js 15.5.24, PostCSS, sharp and source-map-js. A separate verified dependency update is required before public launch; no forced updates were performed here.
@@ -25,4 +25,4 @@ Phase 2 backup work remains paused by the owner. Do not make it a prerequisite f
 
 Website production build and all automated tests pass. New tests cover complete pagination, partial-query failures, commission currency/approval/missing values, safe CSV export, provider response sanitization, OTP signature forgery/tampering/expiry and provider failures. All provider calls in tests are stubs; they do not send SMS or use credits.
 
-Next owner action: create an hCaptcha site for the production domain, save its site key in Vercel and its secret in Supabase (never paste credentials into the conversation or commit them to Git). Then I can verify the CAPTCHA setup and finish deployment safely; an owner-approved SMS test is still required before activating paid sends.
+Next owner action: none for CAPTCHA or the current 30/hour SMS cap. To activate phone login later, approve one paid test SMS and confirm the APITxT template choice first; until then, leave the phone feature and Send SMS hook disabled.

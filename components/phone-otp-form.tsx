@@ -4,7 +4,6 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { normalizeIndiaPhone } from '@/lib/phone-auth';
-import { SupabaseAuthCaptcha } from '@/components/supabase-auth-captcha';
 
 type Props = { enabled: boolean; mode: 'signin' | 'signup'; next: string; referralCode: string };
 type Challenge = { question: string; token: string };
@@ -20,9 +19,6 @@ export function PhoneOtpForm({ enabled, mode, next, referralCode }: Props) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
-  const [supabaseCaptchaToken, setSupabaseCaptchaToken] = useState('');
-  const [captchaAttempt, setCaptchaAttempt] = useState(0);
-  const nativeCaptchaRequired = Boolean(process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY);
 
   async function refreshChallenge() {
     setChallenge(null);
@@ -56,7 +52,6 @@ export function PhoneOtpForm({ enabled, mode, next, referralCode }: Props) {
           referralCode,
           captchaToken: challenge?.token,
           captchaAnswer: answer,
-          supabaseCaptchaToken,
         }),
       });
       const result = await response.json() as { error?: string };
@@ -68,8 +63,6 @@ export function PhoneOtpForm({ enabled, mode, next, referralCode }: Props) {
         : 'If the number can be registered, a verification code has been sent.');
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'We could not request a code. Please try again later.');
-      setSupabaseCaptchaToken('');
-      setCaptchaAttempt(value => value + 1);
       await refreshChallenge();
     } finally {
       setBusy(false);
@@ -113,8 +106,7 @@ export function PhoneOtpForm({ enabled, mode, next, referralCode }: Props) {
       <small id="phone-otp-help" className="phone-otp-help">Enter a 10-digit Indian mobile number; +91 is optional.</small>
       <label>Quick security check: {challenge?.question ?? 'Loading…'}<input inputMode="numeric" pattern="[0-9]*" autoComplete="off" required value={answer} onChange={event => setAnswer(event.target.value.replace(/\D/g, '').slice(0, 3))} placeholder="Answer" disabled={!challenge}/></label>
       <button type="button" className="phone-captcha-refresh" onClick={() => void refreshChallenge()} disabled={!challenge || busy}>New question</button>
-      <SupabaseAuthCaptcha key={captchaAttempt} onTokenChange={setSupabaseCaptchaToken}/>
-      <button type="submit" disabled={busy || !challenge || !normalized || answer.length === 0 || (nativeCaptchaRequired && !supabaseCaptchaToken) || (mode === 'signup' && displayName.trim().length < 2)}>{busy ? 'Requesting…' : 'Send verification code'}</button>
+      <button type="submit" disabled={busy || !challenge || !normalized || answer.length === 0 || (mode === 'signup' && displayName.trim().length < 2)}>{busy ? 'Requesting…' : 'Send verification code'}</button>
     </form> : <form className="auth-form" onSubmit={verifyCode}>
       <p className="phone-otp-target">Code sent to {normalized}</p>
       <label>Six-digit verification code<input autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} required placeholder="123456"/></label>

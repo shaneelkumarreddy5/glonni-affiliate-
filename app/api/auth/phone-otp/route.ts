@@ -29,12 +29,10 @@ export async function POST(request: NextRequest) {
   const mode = body.mode === 'signup' ? 'signup' : body.mode === 'signin' ? 'signin' : null;
   const displayName = typeof body.displayName === 'string' ? body.displayName.trim() : '';
   const referralCode = typeof body.referralCode === 'string' ? body.referralCode.trim().toUpperCase() : '';
-  const supabaseCaptchaToken = typeof body.supabaseCaptchaToken === 'string' ? body.supabaseCaptchaToken.trim() : '';
   if (!phone || !mode) return json({ error: 'Enter a valid Indian mobile number.' }, 400);
   if (mode === 'signup' && (displayName.length < 2 || displayName.length > 100)) return json({ error: 'Enter your name to create an account.' }, 400);
   if (referralCode && !/^GLONNI-[A-Z0-9]{8}$/.test(referralCode)) return json({ error: 'This referral link is invalid.' }, 400);
   if (!verifySimpleCaptcha(String(body.captchaToken ?? ''), String(body.captchaAnswer ?? ''))) return json({ error: 'Complete the security check and try again.' }, 400);
-  if (process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY && !supabaseCaptchaToken) return json({ error: 'Complete the security verification and try again.' }, 400);
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
@@ -42,7 +40,6 @@ export async function POST(request: NextRequest) {
     options: {
       shouldCreateUser: mode === 'signup',
       ...(mode === 'signup' ? { data: { display_name: displayName, ...(referralCode ? { referral_code: referralCode } : {}) } } : {}),
-      ...(supabaseCaptchaToken ? { captchaToken: supabaseCaptchaToken } : {}),
     },
   });
   if (error?.status === 429) return json({ error: 'Too many code requests. Please wait before trying again.' }, 429);
