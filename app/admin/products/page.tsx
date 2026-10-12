@@ -1025,7 +1025,7 @@ export default async function ProductsPage({
     approvalProducts = products.filter((product) => !product.is_active && product.manual_metadata?.review_status !== "rejected"),
     badge = approvalProducts.length;
   return (
-    <main className="admin-v2">
+    <div className="admin-v2">
       <AdminSidebar />
       <section className="admin-main">
         <main className="admin-content products-admin-page">
@@ -1098,6 +1098,6 @@ export default async function ProductsPage({
           )}
         </main>
       </section>
-    </main>
+    </div>
   );
 }

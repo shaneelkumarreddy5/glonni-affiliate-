@@ -10,7 +10,7 @@ const platformName: Record<string, string> = { google_ads: 'Google Ads', meta_ad
 export default async function AdsPage() {
   const { queue, error } = await loadApprovedContentQueue('paid_ads');
   return (
-    <main className="admin-v2">
+    <div className="admin-v2">
       <AdminSidebar />
       <section className="admin-main">
         <main className="admin-content">
@@ -44,6 +44,6 @@ export default async function AdsPage() {
           </section>
         </main>
       </section>
-    </main>
+    </div>
   );
 }

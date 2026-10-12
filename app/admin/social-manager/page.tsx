@@ -10,7 +10,7 @@ const platformName: Record<string, string> = { instagram: 'Instagram', facebook:
 export default async function SocialMediaManagerPage() {
   const { queue, error } = await loadApprovedContentQueue('social');
   return (
-    <main className="admin-v2">
+    <div className="admin-v2">
       <AdminSidebar />
       <section className="admin-main">
         <main className="admin-content">
@@ -44,6 +44,6 @@ export default async function SocialMediaManagerPage() {
           </section>
         </main>
       </section>
-    </main>
+    </div>
   );
 }

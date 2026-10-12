@@ -69,7 +69,7 @@ export default async function BusinessExpensesPage({searchParams}:{searchParams:
   const inputStyle={width:'100%',boxSizing:'border-box' as const,padding:'9px 10px',border:'1px solid #d7deea',borderRadius:7,marginTop:5,fontSize:12};
   const labelStyle={display:'block',fontSize:11,fontWeight:600,color:'#46546a'};
 
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main">
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main">
     <header className="admin-top"><ReceiptText size={21}/><b>Finance &amp; Tax · Expenses</b><span className="dashboard-date">Purchase invoices &amp; costs</span><span className="avatar">SR</span></header>
     <main className="admin-content">
       <div className="admin-title"><div><p>FINANCE · SOURCE DOCUMENTS</p><h1>Business expenses</h1><span>Enter supplier costs, invoice GST by line, and adviser-reviewed input tax status.</span></div><Link href="/admin/finance-tax" className="add-store"><ArrowLeft size={15} style={{verticalAlign:'middle',marginRight:6}}/>Finance &amp; Tax setup</Link></div>
@@ -150,5 +150,5 @@ export default async function BusinessExpensesPage({searchParams}:{searchParams:
       </section>
       <p style={{display:'flex',gap:7,alignItems:'center',fontSize:11,color:'#68758b',marginTop:14}}><ShieldCheck size={15}/>Only active Owner/Admin accounts with MFA can access expense values and private invoice files.</p>
     </main>
-  </section></main>;
+  </section></div>;
 }

@@ -4,7 +4,7 @@ import { BarChart3 } from 'lucide-react';
 
 export default function SocialAnalyticsPage() {
   return (
-    <main className="admin-v2">
+    <div className="admin-v2">
       <AdminSidebar />
       <section className="admin-main">
         <main className="admin-content">
@@ -17,6 +17,6 @@ export default function SocialAnalyticsPage() {
           </section>
         </main>
       </section>
-    </main>
+    </div>
   );
 }

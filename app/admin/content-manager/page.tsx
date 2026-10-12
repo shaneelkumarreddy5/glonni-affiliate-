@@ -92,7 +92,7 @@ export default async function ContentManagerPage({ searchParams }: { searchParam
   const eventRows = await supabase.from('content_campaign_events').select('*').order('created_at', { ascending: false }).limit(80);
   const campaignNames = new Map(campaignsList.map((campaign) => [campaign.id, campaign.title]));
 
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><header className="admin-top"><PenLine size={21}/><b>Content Manager</b><span className="dashboard-date">Campaign content workspace · approval protected</span><Bell size={19}/><span className="avatar">SR</span></header>
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main"><header className="admin-top"><PenLine size={21}/><b>Content Manager</b><span className="dashboard-date">Campaign content workspace · approval protected</span><Bell size={19}/><span className="avatar">SR</span></header>
     <main className="admin-content content-manager">
       <header className="cm-head"><div><p>WORKSPACE / CAMPAIGN CONTENT</p><h1>Content Manager</h1><span>Prepare channel-specific creative from approved deal recommendations. Final approval happens in the CEO workspace.</span></div></header>
       <div className="cm-flow"><span><BarChart3/>Marketing recommendation</span><b>→</b><span><PenLine/>Creative draft</span><b>→</b><span><ShieldCheck/>CEO review</span><b>→</b><span><CheckCircle2/>Admin approval</span><b>→</b><span><ArrowRight/>Channel manager queue</span></div>
@@ -136,5 +136,5 @@ export default async function ContentManagerPage({ searchParams }: { searchParam
       {tab === 'history' && <section className="cm-panel cm-history"><header><div><p>AUDIT TRAIL</p><h2>Content activity history</h2><span>Draft creation, CEO routing and final admin decisions are recorded here.</span></div></header>{(eventRows.data ?? []).length ? <div className="cm-history-list">{(eventRows.data ?? []).map((event: any) => <article key={event.id}><span className="cm-history-icon"><Clock3/></span><div><b>{statusLabel(event.event_type)}</b><p>{campaignNames.get(event.campaign_id) ?? 'Campaign draft'}{event.detail?.platform_key ? ` · ${PLATFORM_NAMES[event.detail.platform_key] ?? event.detail.platform_key}` : ''}</p><small>{new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.created_at))}</small></div><span className="cm-audit-id">Recorded</span></article>)}</div> : <div className="cm-empty"><Clock3/><b>No content activity yet</b><span>Actions will appear here once the first draft is saved.</span></div>}</section>}
 
       <footer className="cm-footer-note"><ShieldCheck/><span>Provider commission is admin-only. Draft copy uses customer-facing offer facts; external posting, ad launch, and spend remain disabled until approved connections and delivery APIs exist.</span></footer>
-    </main></section></main>;
+    </main></section></div>;
 }

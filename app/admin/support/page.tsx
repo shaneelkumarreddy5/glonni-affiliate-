@@ -36,7 +36,7 @@ export default async function SupportPage() {
   const resolvedToday = tickets.filter((ticket) => ticket.supportState === 'resolved' && new Date(ticket.updatedAt) >= today).length;
   const faqScopes = new Set((faqs ?? []).map((faq) => faq.scope));
 
-  return <main className="admin-v2 support-admin-page"><AdminSidebar /><section className="admin-main"><main className="admin-content support-admin-content">
+  return <div className="admin-v2 support-admin-page"><AdminSidebar /><section className="admin-main"><main className="admin-content support-admin-content">
     <header className="support-admin-hero"><div><p>SUPPORT &amp; TRUST</p><h1>Support Centre</h1><span>One verified queue for chatbot, email and voice conversations. AI may explain approved knowledge; people control financial, security and account decisions.</span></div><a href="/admin/support" className="support-new-ticket"><TicketCheck />Live support queue</a></header>
     <section className="support-overview-cards" aria-label="Support summary">
       <article><span className="support-card-icon blue"><Headphones /></span><div><small>Open conversations</small><b>{open}</b><em>Needs an answer or next step</em></div></article>
@@ -51,5 +51,5 @@ export default async function SupportPage() {
       <article><div><Bot /><span><b>Knowledge base connected</b><small>{(faqs ?? []).length} active approved answer{(faqs ?? []).length === 1 ? '' : 's'} are available to AI support.</small></span></div><p>Sources: general guidance, cashback, wallet, account, merchant and exact-offer rules.</p><em>{faqScopes.size} source areas active</em></article>
       <article><div><ShieldCheck /><span><b>Human safeguards active</b><small>Cashback adjustments, wallet movement and security actions cannot be decided by the chatbot.</small></span></div><p>Every human action, assignment, resolution and override is written to the support audit history.</p><em>Admin review required</em></article>
     </section>
-  </main></section></main>;
+  </main></section></div>;
 }

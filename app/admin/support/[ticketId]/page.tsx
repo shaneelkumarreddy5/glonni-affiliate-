@@ -56,7 +56,7 @@ export default async function SupportTicketPage({ params, searchParams }: { para
   const canOverride = ['owner', 'admin'].includes(currentProfile?.role ?? '');
   const isOwner = currentProfile?.role === 'owner';
 
-  return <main className="admin-v2 support-admin-page"><AdminSidebar /><section className="admin-main"><main className="admin-content support-ticket-content">
+  return <div className="admin-v2 support-admin-page"><AdminSidebar /><section className="admin-main"><main className="admin-content support-ticket-content">
     <Link href="/admin/support" className="support-back"><ArrowLeft />All support conversations</Link>
     {query.success && <p className="support-notice success" role="status"><CheckCircle2 />{query.success}</p>}{query.error && <p className="support-notice error" role="alert"><CircleAlert />{query.error}</p>}
     <header className="support-ticket-head"><div><p>SUP-{ticket.ticket_number} · {display(ticket.category)}</p><h1>{ticket.subject}</h1><span className={`support-detail-state state-${ticket.support_state}`}>{channelIcon(ticket.source_channel)}{channelName(ticket.source_channel)}<i />{display(ticket.support_state)}</span><small><CircleAlert />Opening this page only views the case. It does not assign it to a human.</small></div><em className={`support-priority priority-${ticket.priority}`}>{ticket.priority} priority</em></header>
@@ -73,5 +73,5 @@ export default async function SupportTicketPage({ params, searchParams }: { para
         <section className="support-activity-card"><header><TicketCheck />Activity</header>{events.length ? <ol>{events.map((event) => <li key={event.id}><i /><div><b>{display(event.event_type)}</b><small>{stamp(event.created_at)}{event.actor_id ? ` · ${peopleById.get(event.actor_id) || 'Team member'}` : ''}</small></div></li>)}</ol> : <p>No recorded support actions yet.</p>}</section>
       </aside>
     </section>
-  </main></section></main>;
+  </main></section></div>;
 }

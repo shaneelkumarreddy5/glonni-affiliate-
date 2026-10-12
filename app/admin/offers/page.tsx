@@ -28,7 +28,7 @@ export default async function OffersPage({searchParams}:{searchParams:Promise<{t
   const cashback=offers.filter(o=>['fixed_cashback','percentage_cashback'].includes(o.reward_type??'')).length,expiring=offers.filter(o=>o.ends_at&&new Date(o.ends_at).getTime()<Date.now()+7*86400000).length;
   const selected=offers.find(o=>o.id===query.review);
   const displayRows=filtered;
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content offers-admin-page">
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content offers-admin-page">
     <header className="offers-page-heading"><div><p>OFFER OPERATIONS</p><h1>Offers &amp; Rewards</h1><span>Review affiliate offers, verify customer value and control where approved deals appear.</span></div><div><Link className="offers-secondary" href="/admin/campaigns">Import offers</Link><Link className="offers-primary" href="#create-offer">Create offer</Link></div></header>
     {query.success&&<p className="offer-success"><CheckCircle2/>{query.success}</p>}
     <section className="offer-kpi-grid"><Kpi href="?tab=all#offers-table" icon={Tag} label="Total offers" value={offers.length} note="Real catalogue records"/><Kpi href="?tab=all&status=active#offers-table" icon={FileCheck2} label="Active offers" value={offers.filter(o=>o.status==='active').length} note="Customer discoverable" tone="green"/><Kpi href="?tab=recommendations#offers-table" icon={Bot} label="Ready to promote" value={offers.filter(o=>o.review_status==='approved'&&o.quality_score>=70).length} note="Approved quality records" tone="amber"/><Kpi href="?tab=approval#offers-table" icon={Clock3} label="Awaiting approval" value={offers.filter(o=>o.review_status==='in_review').length} note="Owner action required" tone="amber"/><Kpi href="?tab=rules#offer-health" icon={CircleDollarSign} label="Cashback configured" value={cashback} note="Offer-level rules" tone="green"/><Kpi href="?tab=expired#offers-table" icon={CalendarClock} label="Expiring soon" value={expiring} note="Within seven days" tone="red"/></section>
@@ -47,7 +47,7 @@ export default async function OffersPage({searchParams}:{searchParams:Promise<{t
 
     <section id="create-offer" className="offers-create offer-create-complete"><div><p>OFFER SETUP</p><h2>Create a draft offer</h2><span>The offer stays hidden from customers until an owner reviews and approves it.</span></div><OfferForm products={products??[]} merchants={merchants??[]} providers={providers??[]}/></section>
     <section className="offers-create"><div><p>OFFER FAQ</p><h2>Add an exact cashback rule</h2><span>This answer appears only on the selected offer and becomes available to Support.</span></div><form action={addSupportFaq}><input type="hidden" name="scope" value="offer"/><select name="offerId" required><option value="">Select offer</option>{offers.map(o=><option key={o.id} value={o.id}>{o.products?.title||'Product'} · {o.merchants?.name||'Store'}</option>)}</select><input name="question" required minLength={5} placeholder="Customer question"/><input name="keywords" placeholder="cashback, return, coupon"/><textarea name="answer" required minLength={10} placeholder="Approved eligibility, exclusions and confirmation details"/><button>Add offer FAQ</button></form></section>
-  </main></section></main>;
+  </main></section></div>;
 }
 type SelectRow={id:string;name?:string;title?:string};
 const localDate=(value:string|null|undefined)=>value?new Date(value).toISOString().slice(0,16):'';

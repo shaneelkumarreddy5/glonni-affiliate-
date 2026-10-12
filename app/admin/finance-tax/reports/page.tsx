@@ -71,7 +71,7 @@ export default async function FinanceTaxReportsPage({searchParams}:{searchParams
   const metricStyle={display:'grid',gap:4,background:'#fff',border:'1px solid #e5e9f0',borderRadius:10,padding:15,minWidth:0};
   const labelStyle={fontSize:11,fontWeight:700,color:'#536078'};
 
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main">
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main">
     <header className="admin-top"><ReceiptText size={21}/><b>Finance &amp; Tax · Reports</b><span className="dashboard-date">Auditor source pack</span><span className="avatar">SR</span></header>
     <main className="admin-content">
       <div className="admin-title"><div><p>FINANCE · REPORTING</p><h1>Finance &amp; tax reports</h1><span>Review source records and download selected-period registers for your auditor.</span></div><div style={{display:'flex',gap:8}}><ReportPrintButton/><Link href="/admin/finance-tax" className="add-store"><ArrowLeft size={14} style={{verticalAlign:'middle',marginRight:5}}/>Finance &amp; Tax</Link></div></div>
@@ -160,5 +160,5 @@ export default async function FinanceTaxReportsPage({searchParams}:{searchParams
       </section>
       <p style={{display:'flex',gap:7,alignItems:'center',fontSize:11,color:'#68758b',marginTop:14}}><ShieldCheck size={15}/>The affiliate acceptance simulator is stored separately from live finance source tables and is not included in this report.</p>
     </main>
-  </section></main>;
+  </section></div>;
 }

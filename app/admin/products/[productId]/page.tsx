@@ -144,7 +144,7 @@ export default async function AdminProductDetail({
   ];
   const readyToShop = publishSteps.every((step) => step.ready);
   return (
-    <main className="admin-v2">
+    <div className="admin-v2">
       <AdminSidebar />
       <section className="admin-main">
         <main className="admin-content admin-product-detail">
@@ -754,6 +754,6 @@ export default async function AdminProductDetail({
           )}
         </main>
       </section>
-    </main>
+    </div>
   );
 }

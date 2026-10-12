@@ -4,7 +4,7 @@ import { PlugZap } from 'lucide-react';
 
 export default function AdPlatformsPage() {
   return (
-    <main className="admin-v2">
+    <div className="admin-v2">
       <AdminSidebar />
       <section className="admin-main">
         <main className="admin-content">
@@ -17,6 +17,6 @@ export default function AdPlatformsPage() {
           </section>
         </main>
       </section>
-    </main>
+    </div>
   );
 }

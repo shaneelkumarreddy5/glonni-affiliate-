@@ -110,7 +110,7 @@ export default async function Dashboard() {
     { label: 'Cashback paid this month', value: payouts ? money(paidTotal) : '—', note: payouts ? 'Completed withdrawals' : 'Payout data unavailable', href: '/admin/wallet' },
   ];
 
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content dashboard-overview">
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content dashboard-overview">
     <section className="dashboard-kpis" aria-label="Business overview">
       {metrics.map((metric) => <Link href={metric.href} className="dashboard-kpi" key={metric.label}>
         <span className="dashboard-kpi-label">{metric.label}</span>
@@ -146,5 +146,5 @@ export default async function Dashboard() {
         </div> : <div className="dashboard-empty">{eventError ? 'Activity data is temporarily unavailable.' : 'No recent activity.'}</div>}
       </article>
     </section>
-  </main></section></main>;
+  </main></section></div>;
 }

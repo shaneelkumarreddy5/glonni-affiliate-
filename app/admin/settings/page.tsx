@@ -47,5 +47,5 @@ export default async function SettingsPage() {
   };
   const connected = Boolean(settingsResult.data && identityResult.data) && !settingsResult.error && !identityResult.error;
 
-  return <main className="admin-v2 settings-admin"><AdminSidebar/><section className="admin-main"><header className="admin-top"><b>Global Settings</b><span className="dashboard-date">Website-wide controls</span></header><main className="admin-content settings-content"><SettingsWorkspace initial={settings} health={health} connected={connected}/></main></section></main>;
+  return <div className="admin-v2 settings-admin"><AdminSidebar/><section className="admin-main"><header className="admin-top"><b>Global Settings</b><span className="dashboard-date">Website-wide controls</span></header><main className="admin-content settings-content"><SettingsWorkspace initial={settings} health={health} connected={connected}/></main></section></div>;
 }

@@ -31,7 +31,7 @@ export default async function IntegrationsPage() {
     { title: 'Payment configurations', value: payments.error ? '—' : (payments.data ?? []).length, note: 'Not proof of live payment access', icon: CreditCard },
   ];
   const failed = ai.error || providers.error || payments.error;
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content">
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content">
     <div className="admin-title"><div><p>INTEGRATION WORKBENCH</p><h1>API Integrations</h1><span>Saved configurations and explicit connection checks. Nothing is automatically imported or published.</span></div></div>
     {failed && <p className="preview-note" role="alert">Some connection records could not be loaded. Unavailable counts are shown as a dash; refresh to retry.</p>}
     <section className="admin-stats">{stats.map(({ title, value, note, icon: Icon }) => <article key={title}><Icon/><div><small>{title}</small><b>{value}</b><em>{note}</em></div></article>)}</section>
@@ -39,5 +39,5 @@ export default async function IntegrationsPage() {
     {!providers.error && !(providers.data ?? []).some(row => row.adapter_key === 'cuelinks') && <article className="integration-connector"><h2>Add Cuelinks to the provider registry</h2><p>The stored key already passed live campaign and offer reads. Register Cuelinks once so offer records can use it; this does not import or publish any campaign or product.</p>{canTest ? <form action={registerCuelinksProvider}><button className="integration-primary">Add Cuelinks provider</button></form> : <p>Sign in as an active Owner/Admin and complete two-step verification to register this provider.</p>}</article>}
     <article className="store-table"><div className="table-head"><h2>Saved service configurations</h2></div><div className="table-scroll"><table><thead><tr><th>SERVICE</th><th>TYPE</th><th>RECORDED STATUS</th><th>DETAIL</th><th>SETTINGS</th></tr></thead><tbody>{rows.map(row => <tr key={row.id}><td><strong>{row.name}</strong></td><td>{row.type}</td><td>{row.status}</td><td>{row.detail}</td><td><Link href={row.href}>Manage</Link></td></tr>)}{!rows.length && <tr><td colSpan={5}>{failed ? 'Configurations unavailable.' : 'No service configurations have been saved yet.'}</td></tr>}</tbody></table></div><footer>Provider secrets stay in server-side secret storage. A saved status is not a successful test, and a successful read is not a catalogue import.</footer></article>
     <article className="integration-connector"><h2>Other launch connections</h2><p>Mobile OTP and email delivery are configured separately from affiliate feeds.</p><div className="integration-buttons"><Link href="https://supabase.com/dashboard/project/abtljhbmdgzvyqbuyefq/auth/providers" target="_blank" rel="noreferrer">Supabase login settings ↗</Link><Link href="/admin/notifications">Notification templates</Link><Link href="/admin/support">Support Centre</Link></div></article>
-  </main></section></main>;
+  </main></section></div>;
 }

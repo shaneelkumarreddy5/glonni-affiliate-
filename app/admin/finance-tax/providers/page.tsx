@@ -91,7 +91,7 @@ export default async function ProviderDocumentsPage({searchParams}:{searchParams
     label:`${p.provider_payout_reference||p.id.slice(0,8)} · ${money(p.amount)} · ${p.status}`,
   }));
 
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main">
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main">
     <header className="admin-top"><ReceiptText size={21}/><b>Finance &amp; Tax · Provider documents</b><span className="dashboard-date">Statements · invoices · reconciliation</span><span className="avatar">SR</span></header>
     <main className="admin-content">
       <div className="admin-title"><div><p>FINANCE · PROVIDER EVIDENCE</p><h1>Provider documents &amp; reconciliation</h1><span>Register provider statements and tax invoices, then match reported amounts to Glonni source records.</span></div><Link href="/admin/finance-tax" className="add-store"><ArrowLeft size={15} style={{verticalAlign:'middle',marginRight:6}}/>Finance &amp; Tax</Link></div>
@@ -181,5 +181,5 @@ export default async function ProviderDocumentsPage({searchParams}:{searchParams
       </section>
       <p style={{display:'flex',gap:7,alignItems:'center',fontSize:11,color:'#68758b',marginTop:14}}><Unlink2 size={15}/>Source lists show latest 200 records; each link snapshots the current system amount for later variance review.</p>
     </main>
-  </section></main>;
+  </section></div>;
 }

@@ -55,7 +55,7 @@ export default async function FinanceTaxTransactionsPage() {
   const typeCounts=new Map<string,number>();
   for(const row of rows) typeCounts.set(row.source_type,(typeCounts.get(row.source_type)??0)+1);
 
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main">
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main">
     <header className="admin-top"><ReceiptText size={21}/><b>Finance &amp; Tax · Transactions</b><span className="dashboard-date">Live source records</span><span className="avatar">SR</span></header>
     <main className="admin-content">
       <div className="admin-title"><div><p>FINANCE · SOURCE LINKS</p><h1>Transaction ledger</h1><span>Read-only records linked directly to Glonni’s operational tables.</span></div><Link href="/admin/finance-tax" className="add-store"><ArrowLeft size={15} style={{verticalAlign:'middle',marginRight:6}}/>Back to setup</Link></div>
@@ -89,5 +89,5 @@ export default async function FinanceTaxTransactionsPage() {
         <p style={{fontSize:12,color:'#68758b',lineHeight:1.6,marginBottom:0}}>Order-level records now have a secure schema and audit trail. Glonni’s current voucher page is a catalogue, and no checkout/provider callback currently populates orders automatically. The order rows will appear here after the payment integration is connected.</p>
       </section>
     </main>
-  </section></main>;
+  </section></div>;
 }

@@ -69,7 +69,7 @@ export async function CeoOperationsPage({ searchParams }: { searchParams: Promis
   const connected = agentCards.filter(item => ['operational', 'partial'].includes(byKey.get(item.key)?.capability_status)).length;
   const activeInstructions = instructions?.length ?? 0;
   const panelHref = (agent: string, nextTab: string) => `/admin/ai-agents/ceo-operations?agent=${agent}&tab=${nextTab}`;
-  return <main className="admin-v2 ai-admin"><AdminSidebar/><section className="admin-main ceo-shell"><main className="ceo-page">
+  return <div className="admin-v2 ai-admin"><AdminSidebar/><section className="admin-main ceo-shell"><main className="ceo-page">
     <div className="ceo-head"><div><p>AI COMPANY / CEO CONTROL</p><h1><Bot/> CEO &amp; Operations Manager</h1><span>Review and direct work from every AI agent.</span></div><div className="ceo-head-actions"><span className={`ceo-runtime ${working ? 'working' : 'stopped'}`}><i/>{working ? 'Working' : 'Stopped'}</span><form action={toggleAiAgent}><input type="hidden" name="agentKey" value="ceo_operations"/><input type="hidden" name="enabled" value={String(!working)}/><button className="ceo-toggle" aria-label={working ? 'Stop CEO agent' : 'Start CEO agent'}>{working ? 'Stop agent' : 'Run agent'}</button></form><a className="ceo-primary" href={panelHref(selected.key, 'instructions')}>+ New instruction</a></div></div>
     {query.success && <div className="ceo-message success"><CheckCircle2/>{query.success}</div>}{query.error && <div className="ceo-message error"><AlertTriangle/>{query.error}</div>}
     <section className="ceo-summary">{[
@@ -83,5 +83,5 @@ export async function CeoOperationsPage({ searchParams }: { searchParams: Promis
       </> : <div className="ceo-instruction-layout"><div className="ceo-instruction-list"><div className="ceo-panel-title"><h3>{selected.name} instructions</h3><span>Active rules used by this agent.</span></div>{instructionText.map((text, index) => <article key={`${text}-${index}`}><span>{index + 1}</span><p>{text}</p><small>{allInstructionText.includes(text) ? 'Saved instruction' : 'Default instruction'}</small></article>)}<form className="ceo-add-instruction" action={addOwnerInstruction}><input type="hidden" name="scope" value={selected.scope}/><input type="hidden" name="redirectTo" value={panelHref(selected.key, 'instructions')}/><textarea name="instruction" required minLength={3} placeholder="Add an instruction for this agent…"/><div><select name="schedule"><option value="active">Active now</option><option value="scheduled">Schedule later</option></select><button>Save instruction</button></div></form></div><aside className="ceo-review-card"><h3>How instructions work</h3><p>Only active instructions are sent to the selected agent. The CEO can add rules now and schedule date-based work later.</p><ul><li>Agent follows these rules</li><li>CEO reviews its result</li><li>Admin gives final approval</li></ul></aside></div>}
     </section>
     <div className="ceo-workflow"><span>Agent work</span><b>→</b><span>CEO scrutiny</span><b>→</b><span>Admin approval</span><b>→</b><span>Execution</span></div>
-  </main></section></main>;
+  </main></section></div>;
 }

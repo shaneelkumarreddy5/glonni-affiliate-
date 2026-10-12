@@ -31,7 +31,7 @@ export default async function ReportedOrdersPage({ searchParams }: { searchParam
   const canReview = Boolean(profile && ['owner', 'admin'].includes(profile.role) && employee?.status === 'active' && assurance?.currentLevel === 'aal2');
   const rows = claims.filter(claim => (status === 'all' || claim.status === status) && (!query.q || `${claim.order_reference} ${claim.profiles?.display_name ?? ''} ${claim.offers?.products?.title ?? ''} ${claim.offers?.merchants?.name ?? ''}`.toLowerCase().includes(query.q.toLowerCase()))).sort((a, b) => b.created_at.localeCompare(a.created_at));
   const stats = [{ icon: FileWarning, title: 'Submitted', key: 'submitted' }, { icon: Clock3, title: 'Needs information', key: 'needs_info' }, { icon: CheckCircle2, title: 'Confirmed', key: 'confirmed' }, { icon: XCircle, title: 'Rejected', key: 'rejected' }];
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content">
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content">
     <div className="admin-title"><div><p>EXCEPTION MANAGEMENT</p><h1>Reported Orders</h1><span>Customer-submitted missing-order claims and recorded review decisions.</span></div><Link className="add-store" href="/admin/orders">View provider conversions</Link></div>
     {failed && <p className="preview-note" role="alert">Claims could not be loaded. Refresh to retry; the counts below are unavailable.</p>}
     <section className="admin-stats">{stats.map(({ icon: Icon, title, key }) => <article key={key}><Icon/><div><small>{title}</small><b>{failed ? '—' : claims.filter(claim => claim.status === key).length}</b><em>Customer claims</em></div></article>)}</section>
@@ -41,5 +41,5 @@ export default async function ReportedOrdersPage({ searchParams }: { searchParam
         <td>{canReview && ['submitted', 'needs_info'].includes(claim.status) ? <form action={reviewCashbackClaim}><input type="hidden" name="id" value={claim.id}/><button name="decision" value="hold">Needs information</button><button name="decision" value="reject">Reject</button>{claim.conversion_id && Number(claim.risk_score ?? 100) < 60 && <button name="decision" value="confirm">Confirm linked claim</button>}</form> : claim.reviewed_at ? new Date(claim.reviewed_at).toLocaleDateString('en-IN') : 'Owner/Admin review required'}</td>
       </tr>)}{!rows.length && <tr><td colSpan={8}>{failed ? 'Unable to load claims.' : 'No customer claims match this view.'}</td></tr>}</tbody></table></div><footer>Claimed amounts are requests, not wallet credits. Provider confirmation and cashback eligibility remain required.</footer>
     </article>
-  </main></section></main>;
+  </main></section></div>;
 }

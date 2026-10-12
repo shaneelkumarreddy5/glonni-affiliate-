@@ -47,7 +47,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
   const unread = unreadResult.count ?? 0;
   const templateCountByCategory = Object.fromEntries(categories.map(([key]) => [key, templates.filter((item) => item.category === key).length]));
 
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><header className="admin-top"><Bell size={21}/><b>Notifications</b><span className="dashboard-date">Customer notification workspace</span><Bell size={19}/><span className="avatar">SR</span></header><main className="admin-content admin-notifications-page">
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main"><header className="admin-top"><Bell size={21}/><b>Notifications</b><span className="dashboard-date">Customer notification workspace</span><Bell size={19}/><span className="avatar">SR</span></header><main className="admin-content admin-notifications-page">
     <div className="admin-title"><div><p>NOTIFICATION MANAGEMENT</p><h1>Notifications</h1><span>Create and monitor customer updates. Automated events use the customer ID linked to their source record.</span></div></div>
     {params.success && <p className="notification-flash success"><CheckCircle2 size={17}/>{params.success}</p>}{params.error && <p className="notification-flash error"><CircleAlert size={17}/>{params.error}</p>}
     <p className="preview-note">In-app delivery is live. Cashback, purchases, support, referrals, store clicks and saved price alerts route through their verified customer profile ID. Email and push remain unavailable until delivery providers are connected.</p>
@@ -61,7 +61,7 @@ export default async function NotificationsPage({ searchParams }: Props) {
       </section>
       <section className="notification-delivery-panel"><div className="notification-panel-heading"><div><p>RECENT CUSTOMER DELIVERY</p><h2>Latest in-app notifications</h2><span>Recipient identity is taken from the linked customer account.</span></div><Link href="/admin/notifications?tab=delivery">View delivery log →</Link></div><DeliveryRows rows={allDeliveries.slice(0, 6)}/></section>
     </> : <section className="notification-delivery-panel full"><div className="notification-panel-heading"><div><p>DELIVERY HISTORY</p><h2>Customer notification log</h2><span>Showing the latest 120 records. Recipient details are minimized here; source links open the relevant page.</span></div></div><div className="delivery-filters"><Link href="/admin/notifications?tab=delivery">All ({total})</Link><Link href="/admin/notifications?tab=delivery&delivery=unread">Unread ({unread})</Link><Link href="/admin/notifications?tab=delivery&delivery=read">Read ({total - unread})</Link></div><DeliveryRows rows={deliveries}/></section>}
-  </main></section></main>;
+  </main></section></div>;
 }
 
 function DeliveryRows({ rows }: { rows: NotificationRow[] }) {

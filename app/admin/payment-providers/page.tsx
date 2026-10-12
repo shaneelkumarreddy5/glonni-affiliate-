@@ -60,7 +60,7 @@ export default async function PaymentProvidersPage({
   };
   const notice = query.notice ? messages[query.notice] ?? 'Provider could not be updated. Live-ready adapter, verified credentials, and a healthy check are required before activation.' : null;
 
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main">
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main">
     <header className="admin-top"><CreditCard size={21}/><b>Payment Providers</b><span className="dashboard-date">Customer checkout · vouchers and bill payments</span><Bell size={19}/><span className="avatar">SR</span></header>
     <main className={`admin-content ${styles.page}`}>
       <div className="admin-title"><div><p>OPERATIONS · PAYMENTS</p><h1>Payment Providers</h1><span>Manage payment gateways for customer voucher purchases and bill payments.</span></div></div>
@@ -117,5 +117,5 @@ export default async function PaymentProvidersPage({
         </aside>
       </section>
     </main>
-  </section></main>;
+  </section></div>;
 }

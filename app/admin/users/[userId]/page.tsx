@@ -9,7 +9,7 @@ export default async function AdminUserProfile({ params }: { params: Promise<{ u
   const { profile, wallet, activity, tickets } = customer;
   const name = profile.display_name?.trim() || 'Unnamed customer';
   const location = [profile.city, profile.state].filter(Boolean).join(', ') || 'Not provided';
-  return <main className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content admin-user-profile">
+  return <div className="admin-v2"><AdminSidebar/><section className="admin-main"><main className="admin-content admin-user-profile">
     <Link className="profile-back" href="/admin/users"><ArrowLeft/>Back to users</Link>
     <header className="profile-page-head"><span className="profile-page-avatar">{name[0].toUpperCase()}</span><div><p>CUSTOMER PROFILE</p><h1>{name}</h1><span>{profile.id} · Joined {when(profile.created_at)}</span></div></header>
     <section className="profile-summary-grid">
@@ -26,5 +26,5 @@ export default async function AdminUserProfile({ params }: { params: Promise<{ u
       <article className="profile-section-card"><header><div><CircleDollarSign/><span><h2>Shopping summary</h2><p>Customer-linked records</p></span></div></header><div className="profile-status-list"><p><span>Saved offers</span><strong>{customer.savedCount ?? 'Unavailable'}</strong></p><p><span>Active price alerts</span><strong>{customer.alertCount ?? 'Unavailable'}</strong></p><p><span>Tracked clicks</span><strong>{customer.clickCount ?? 'Unavailable'}</strong></p></div></article>
       <article className="profile-section-card"><header><div><Headphones/><span><h2>Support</h2><p>Cases and assistance for this customer</p></span></div></header><div className="profile-status-list"><p><span>Open cases</span><strong>{customer.supportUnavailable ? 'Unavailable' : customer.openTickets}</strong></p><p><span>Total cases</span><strong>{customer.supportUnavailable ? 'Unavailable' : tickets.length}</strong></p><p><span>Last update</span><strong>{customer.supportUnavailable ? 'Unavailable' : customer.lastTicket ? when(customer.lastTicket) : 'None'}</strong></p></div><Link className="profile-card-link" href={`/admin/users/${userId}/support`}>Open support history →</Link></article>
     </aside></section>
-  </main></section></main>;
+  </main></section></div>;
 }
