@@ -120,10 +120,12 @@ export default {
     } else if (action === "offers") {
       path = "/offers";
       params.set("valid_on", new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date()));
-      params.set("sort", "updated_at");
+      params.set("sort", "created_at");
       params.set("order", "desc");
       params.set("page", String(boundedInteger(input.page, 1, 1, 10000)));
       params.set("per_page", String(boundedInteger(input.per_page, 50, 1, 100)));
+      const query = safeText(input.q, 100);
+      if (query) params.set("q", query);
       const campaignId = safeText(input.campaign_id, 24);
       if (campaignId && /^\d+$/.test(campaignId)) params.set("campaign_id", campaignId);
       const offerType = safeText(input.offer_type, 16);
